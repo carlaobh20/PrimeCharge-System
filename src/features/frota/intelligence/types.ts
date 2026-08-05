@@ -17,6 +17,8 @@ export type {
   AlertaSeveridade,
   Alerta,
   NextAction,
+  Opportunity,
+  Risk,
   ComparativoItem,
   ComparativoResult,
 } from '@/shared/intelligence/types';

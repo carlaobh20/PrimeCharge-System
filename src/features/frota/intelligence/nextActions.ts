@@ -15,15 +15,30 @@ export function gerarProximasAcoes(input: NextActionsInput): NextAction[] {
   const acoes: NextAction[] = [];
 
   if (totalDocumentos === 0) {
-    acoes.push({ id: 'add-documento', texto: 'Cadastrar o primeiro documento (CRLV, seguro…).', actionKey: 'documento' });
+    acoes.push({
+      id: 'add-documento',
+      texto: 'Cadastrar o primeiro documento (CRLV, seguro…).',
+      actionKey: 'documento',
+      categoria: 'documental',
+    });
   }
 
   if (veiculo.valor_mercado === null && veiculo.valor_fipe === null) {
-    acoes.push({ id: 'add-valores', texto: 'Preencher valor de mercado ou FIPE.', actionKey: 'editar-valores' });
+    acoes.push({
+      id: 'add-valores',
+      texto: 'Preencher valor de mercado ou FIPE.',
+      actionKey: 'editar-valores',
+      categoria: 'patrimonial',
+    });
   }
 
   if (totalTags === 0) {
-    acoes.push({ id: 'add-tag', texto: 'Adicionar ao menos uma tag para facilitar filtros futuros.', actionKey: 'tag' });
+    acoes.push({
+      id: 'add-tag',
+      texto: 'Adicionar ao menos uma tag para facilitar filtros futuros.',
+      actionKey: 'tag',
+      categoria: 'operacional',
+    });
   }
 
   return acoes;

@@ -1,12 +1,16 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Car, LayoutGrid, LogOut } from 'lucide-react';
+import { BarChart3, Car, Radar, LogOut, Users } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 
+// Central de Comando é a Home desde a Sprint 5 (DEC-024) — Dashboard virou uma rota
+// analítica separada, não mais o índice.
 const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
+  { to: '/', label: 'Central de Comando', icon: Radar, end: true },
   { to: '/veiculos', label: 'Veículos', icon: Car, end: false },
+  { to: '/motoristas', label: 'Motoristas', icon: Users, end: false },
+  { to: '/dashboard', label: 'Dashboard', icon: BarChart3, end: true },
 ];
 
 // Layout base autenticado: sidebar simples com os módulos existentes.

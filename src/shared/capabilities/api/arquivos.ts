@@ -17,6 +17,21 @@ export async function listArquivos(entidadeTipo: string, entidadeId: string, cat
   return data as Arquivo[];
 }
 
+// Variante em lote — busca de N entidades do mesmo tipo numa única consulta, em vez de N
+// consultas (uma por entidade). Usada pelo Command Center (Sprint 5, ver DEC-024) pra
+// coletar a inteligência de toda a frota sem N+1; agrupamento por entidade_id é feito por
+// quem chama, não aqui.
+export async function listArquivosPorEntidades(entidadeTipo: string, entidadeIds: string[]) {
+  if (entidadeIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('arquivos')
+    .select('*')
+    .eq('entidade_tipo', entidadeTipo)
+    .in('entidade_id', entidadeIds);
+  if (error) throw error;
+  return data as Arquivo[];
+}
+
 export async function uploadArquivo(params: {
   bucket: string;
   empresaId: string;

@@ -1,8 +1,9 @@
 import type { ComponentType } from 'react';
 import { cn } from '@/shared/lib/utils';
 
-// Card de KPI do Cockpit do Ativo. Fica local a features/frota — CORE_CONCEPTS/DEC-008 pedem
-// não generalizar pra shared/ até um segundo módulo precisar do mesmo padrão (regra dos 3).
+// Card de KPI do Cockpit — morava em features/frota/ (regra dos 3, DEC-008): "não generalizar
+// pra shared/ até um segundo módulo precisar do mesmo padrão". Motoristas (Sprint 6) é esse
+// segundo módulo — hoisted aqui, mesmo padrão do resto da Sprint 4/5/6 (ver DEC-025).
 export function KpiCard({
   icon: Icon,
   label,

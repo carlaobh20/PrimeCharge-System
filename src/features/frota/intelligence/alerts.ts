@@ -13,11 +13,21 @@ export function gerarAlertas(input: AlertsInput): Alerta[] {
   const alertas: Alerta[] = [];
 
   if (totalDocumentos === 0) {
-    alertas.push({ id: 'sem-documento', texto: 'Nenhum documento cadastrado para este veículo.', severidade: 'atencao' });
+    alertas.push({
+      id: 'sem-documento',
+      texto: 'Nenhum documento cadastrado para este veículo.',
+      severidade: 'atencao',
+      categoria: 'documental',
+    });
   }
 
   if (veiculo.status === 'manutencao') {
-    alertas.push({ id: 'em-manutencao', texto: 'Veículo está em manutenção.', severidade: 'atencao' });
+    alertas.push({
+      id: 'em-manutencao',
+      texto: 'Veículo está em manutenção.',
+      severidade: 'atencao',
+      categoria: 'operacional',
+    });
   }
 
   if (
@@ -29,11 +39,17 @@ export function gerarAlertas(input: AlertsInput): Alerta[] {
       id: 'inatividade',
       texto: `Sem nenhuma atividade registrada há mais de ${diasDesdeUltimoEvento} dias.`,
       severidade: 'critico',
+      categoria: 'operacional',
     });
   }
 
   if (veiculo.valor_mercado === null && veiculo.valor_fipe === null) {
-    alertas.push({ id: 'sem-valores', texto: 'Nenhum valor de mercado ou FIPE cadastrado.', severidade: 'atencao' });
+    alertas.push({
+      id: 'sem-valores',
+      texto: 'Nenhum valor de mercado ou FIPE cadastrado.',
+      severidade: 'atencao',
+      categoria: 'patrimonial',
+    });
   }
 
   return alertas;

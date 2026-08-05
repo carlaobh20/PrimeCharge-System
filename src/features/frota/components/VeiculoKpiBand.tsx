@@ -1,5 +1,5 @@
 import { BatteryCharging, CalendarClock, Gauge, HeartPulse, FileCheck2, TrendingUp, Wallet, Percent } from 'lucide-react';
-import { KpiCard } from './KpiCard';
+import { KpiCard } from '@/shared/components/ui/kpi-card';
 import { formatKm, diasDesde } from '../lib/format';
 import type { VeiculoComRelacoes } from '../types';
 import type { HealthScoreResult } from '../intelligence/types';

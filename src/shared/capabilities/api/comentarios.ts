@@ -12,6 +12,18 @@ export async function listComentarios(entidadeTipo: string, entidadeId: string) 
   return data as Comentario[];
 }
 
+// Variante em lote — ver nota em capabilities/api/arquivos.ts (listArquivosPorEntidades).
+export async function listComentariosPorEntidades(entidadeTipo: string, entidadeIds: string[]) {
+  if (entidadeIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('comentarios')
+    .select('*')
+    .eq('entidade_tipo', entidadeTipo)
+    .in('entidade_id', entidadeIds);
+  if (error) throw error;
+  return data as Comentario[];
+}
+
 export async function createComentario(params: {
   empresaId: string;
   entidadeTipo: string;

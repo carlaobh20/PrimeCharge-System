@@ -12,6 +12,18 @@ export async function listTags(entidadeTipo: string, entidadeId: string) {
   return data as Tag[];
 }
 
+// Variante em lote — ver nota em capabilities/api/arquivos.ts (listArquivosPorEntidades).
+export async function listTagsPorEntidades(entidadeTipo: string, entidadeIds: string[]) {
+  if (entidadeIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('tags')
+    .select('*')
+    .eq('entidade_tipo', entidadeTipo)
+    .in('entidade_id', entidadeIds);
+  if (error) throw error;
+  return data as Tag[];
+}
+
 export async function addTag(params: {
   empresaId: string;
   entidadeTipo: string;
