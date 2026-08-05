@@ -2,16 +2,24 @@
 
 Sistema de gestão (ERP) para empresas de locação de veículos elétricos.
 
-## Status atual: Fase 0 — Planejamento
+## Status atual: Fase 0 — Fundação
 
-Nenhum código de aplicação foi escrito ainda. O que existe hoje é o documento de arquitetura completo, aguardando aprovação final antes do início do desenvolvimento.
+Scaffold inicial do app criado. Ainda não há telas reais de negócio — isso começa na Fase 1 (Frota).
 
-- [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) — arquitetura, modelagem de domínio, mapa de telas e roadmap (Etapas 1 a 4).
+- [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) — arquitetura, modelagem de domínio, mapa de telas e roadmap completo.
 
-## Stack planejada
+## Stack
 
 React + TypeScript + Vite (SPA) · Supabase (Postgres, Auth, Storage, Edge Functions) · TailwindCSS + shadcn/ui · React Router · TanStack Query · React Hook Form + Zod · Deploy via Vercel.
 
-## Como este repositório está organizado (a partir da Fase 1)
+## Rodando localmente
 
-Estrutura feature-based — ver detalhes completos em `docs/ARQUITETURA.md`, seção 1.2.
+```
+npm install
+cp .env.example .env.local   # preencha com a URL e a publishable key do Supabase
+npm run dev
+```
+
+## Estrutura de pastas
+
+Modelo feature-based — detalhes completos em `docs/ARQUITETURA.md`, seção 1.2.
