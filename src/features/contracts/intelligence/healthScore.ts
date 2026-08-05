@@ -5,12 +5,14 @@ import { calcularSaudePatrimonial } from './categories/patrimonial';
 import { calcularSaudeFinanceira } from './categories/financeira';
 import { calcularSaudeComercial } from './categories/comercial';
 import type { HealthScoreResult } from './types';
+import type { SaudeFinanceiraInput } from '@/shared/intelligence/saudeFinanceira';
 
 export type HealthScoreInput = {
   contrato: Pick<Contrato, 'status'>;
   totalDocumentos: number;
   diasAteVencimento: number | null;
   diasDesdeUltimoEvento: number | null;
+  saudeFinanceira: SaudeFinanceiraInput;
 };
 
 // Agregador do Health Score do Contrato — mesmo padrão de calcularHealthScore (Veículo/
@@ -26,7 +28,7 @@ export function calcularHealthScore(input: HealthScoreInput): HealthScoreResult 
     }),
     calcularSaudeDocumental({ totalDocumentos: input.totalDocumentos }),
     calcularSaudePatrimonial(),
-    calcularSaudeFinanceira(),
+    calcularSaudeFinanceira(input.saudeFinanceira),
     calcularSaudeComercial({ contrato: input.contrato, diasAteVencimento: input.diasAteVencimento }),
   ];
 

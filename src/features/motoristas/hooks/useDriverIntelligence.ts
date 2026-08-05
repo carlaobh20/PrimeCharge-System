@@ -4,6 +4,12 @@ import { useComentarios } from '@/shared/capabilities/hooks/useComentarios';
 import { useTags } from '@/shared/capabilities/hooks/useTags';
 import { useTimeline } from '@/shared/capabilities/hooks/useTimeline';
 import { diasDesde, diasAte } from '@/shared/lib/format';
+// Leitura cross-feature (DEC-039/DEC-048): Contratos alimenta a categoria comercial (dado já
+// existia desde a Sprint 7, só não estava conectado ao Health Score do Motorista — DEC-047);
+// Financeiro alimenta a categoria financeira.
+import { useContratos } from '@/features/contracts/hooks/useContratos';
+import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
+import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { calcularHealthScore } from '../intelligence/healthScore';
 import { gerarInsights } from '../intelligence/insights';
 import { gerarAlertas } from '../intelligence/alerts';
@@ -35,8 +41,19 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
   const { data: tags, isLoading: loadingTags } = useTags('motorista', motoristaId);
   const { data: eventos, isLoading: loadingEventos } = useTimeline('motorista', motoristaId);
   const { data: grupo, isLoading: loadingGrupo } = useMotoristas();
+  const { data: contratos, isLoading: loadingContratos } = useContratos();
+  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
+  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
 
-  const isLoading = loadingDocumentos || loadingComentarios || loadingTags || loadingEventos || loadingGrupo;
+  const isLoading =
+    loadingDocumentos ||
+    loadingComentarios ||
+    loadingTags ||
+    loadingEventos ||
+    loadingGrupo ||
+    loadingContratos ||
+    loadingLancamentos ||
+    loadingPagamentos;
 
   return useMemo(() => {
     if (!motorista || isLoading) return { isLoading: true as const };
@@ -48,11 +65,27 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
     const diasComoCliente = diasDesde(motorista.criado_em);
     const diasAteVencimentoCnh = diasAte(motorista.cnh_validade);
 
+    const contratosDoMotorista = (contratos ?? []).filter((c) => c.motorista_id === motorista.id);
+    const saudeComercial = {
+      totalContratos: contratosDoMotorista.length,
+      contratosAtivos: contratosDoMotorista.filter((c) => c.status === 'ativo').length,
+      contratosCancelados: contratosDoMotorista.filter((c) => c.status === 'cancelado').length,
+    };
+
+    const saudeFinanceira = {
+      temAlgumLancamentoVinculado: (lancamentos ?? []).some((l) => l.motorista_id === motorista.id),
+      pagamentosPendentes: (pagamentosPendentes ?? [])
+        .filter((p) => p.lancamento?.motorista_id === motorista.id)
+        .map((p) => ({ data_prevista: p.data_prevista })),
+    };
+
     const healthScore = calcularHealthScore({
       motorista,
       totalDocumentos,
       diasAteVencimentoCnh,
       diasDesdeUltimoEvento,
+      saudeFinanceira,
+      saudeComercial,
     });
 
     const insights = gerarInsights({ diasComoCliente, diasAteVencimentoCnh, totalComentarios, totalTags });
@@ -80,5 +113,5 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
       proximasAcoes,
       comparativos,
     };
-  }, [motorista, isLoading, documentos, comentarios, tags, eventos, grupo]);
+  }, [motorista, isLoading, documentos, comentarios, tags, eventos, grupo, contratos, lancamentos, pagamentosPendentes]);
 }

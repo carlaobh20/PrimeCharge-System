@@ -11,9 +11,26 @@ import {
   gerarProximasAcoes,
   gerarRiscos,
 } from '@/features/frota/intelligence';
+// Leitura cross-feature em lote do Financeiro — mesmo motivo de useVehicleIntelligence
+// (DEC-048), só que aqui pra frota inteira de uma vez (padrão de coleta em lote deste
+// arquivo), não uma consulta por veículo.
+import { listLancamentosPorEmpresa } from '@/features/financeiro/api/lancamentos';
+import { listPagamentosPendentesPorEmpresa } from '@/features/financeiro/api/pagamentos';
 import type { VeiculoComRelacoes } from '@/features/frota/types';
 import type { Alerta, HealthScoreResult, Insight, NextAction, Opportunity, Risk } from '@/shared/intelligence/types';
 import type { EntityIntelligenceSnapshot } from '../types';
+
+function agruparPorId<T>(itens: T[], getId: (item: T) => string | null | undefined): Map<string, T[]> {
+  const mapa = new Map<string, T[]>();
+  for (const item of itens) {
+    const id = getId(item);
+    if (!id) continue;
+    const lista = mapa.get(id);
+    if (lista) lista.push(item);
+    else mapa.set(id, [item]);
+  }
+  return mapa;
+}
 
 export type VeiculoIntelligenceSnapshot = {
   veiculo: VeiculoComRelacoes;
@@ -35,31 +52,36 @@ function agruparPorEntidade<T extends { entidade_id: string }>(itens: T[]): Map<
   return mapa;
 }
 
-// Busca, em uma única rodada de 4 consultas (não uma rodada por veículo), tudo que as
+// Busca, em uma única rodada de consultas (não uma rodada por veículo), tudo que as
 // regras de Vehicle Intelligence precisam para a frota inteira — e calcula a inteligência
 // de cada veículo reaproveitando exatamente as mesmas funções puras da ficha do veículo
 // (features/frota/intelligence, via o barril público index.ts — ver DEC-024).
 //
 // Risco aceito e registrado em DEC-024: o volume de dado por consulta cresce com o
-// tamanho da frota (ainda que o número de consultas continue fixo em 4). Para o tamanho de
+// tamanho da frota (ainda que o número de consultas continue fixo). Para o tamanho de
 // frota esperado nesta fase do produto isso é aceitável; se a Home ficar lenta com frotas
 // grandes, o próximo passo é paginar ou pré-calcular/cachear, não voltar a 1 consulta por
-// veículo.
+// veículo. Sprint 8 (DEC-047/DEC-048) soma 2 consultas em lote do Financeiro às 4 já
+// existentes — mesmo raciocínio, não uma consulta por veículo.
 export async function coletarInteligenciaDaFrota(frota: VeiculoComRelacoes[]): Promise<VeiculoIntelligenceSnapshot[]> {
   if (frota.length === 0) return [];
   const ids = frota.map((v) => v.id);
 
-  const [documentos, eventos, comentarios, tags] = await Promise.all([
+  const [documentos, eventos, comentarios, tags, lancamentos, pagamentosPendentes] = await Promise.all([
     listArquivosPorEntidades('veiculo', ids),
     listTimelinePorEntidades('veiculo', ids),
     listComentariosPorEntidades('veiculo', ids),
     listTagsPorEntidades('veiculo', ids),
+    listLancamentosPorEmpresa(),
+    listPagamentosPendentesPorEmpresa(),
   ]);
 
   const documentosPorVeiculo = agruparPorEntidade(documentos);
   const eventosPorVeiculo = agruparPorEntidade(eventos);
   const comentariosPorVeiculo = agruparPorEntidade(comentarios);
   const tagsPorVeiculo = agruparPorEntidade(tags);
+  const lancamentosPorVeiculo = agruparPorId(lancamentos, (l) => l.veiculo_id);
+  const pagamentosPorVeiculo = agruparPorId(pagamentosPendentes, (p) => p.lancamento?.veiculo_id);
 
   return frota.map((veiculo) => {
     const totalDocumentos = documentosPorVeiculo.get(veiculo.id)?.length ?? 0;
@@ -71,7 +93,12 @@ export async function coletarInteligenciaDaFrota(frota: VeiculoComRelacoes[]): P
     const totalTags = tagsPorVeiculo.get(veiculo.id)?.length ?? 0;
     const diasNaFrota = diasDesde(veiculo.data_compra ?? veiculo.criado_em);
 
-    const healthScore = calcularHealthScore({ veiculo, totalDocumentos, diasDesdeUltimoEvento });
+    const saudeFinanceira = {
+      temAlgumLancamentoVinculado: (lancamentosPorVeiculo.get(veiculo.id)?.length ?? 0) > 0,
+      pagamentosPendentes: (pagamentosPorVeiculo.get(veiculo.id) ?? []).map((p) => ({ data_prevista: p.data_prevista })),
+    };
+
+    const healthScore = calcularHealthScore({ veiculo, totalDocumentos, diasDesdeUltimoEvento, saudeFinanceira });
     const alertas = gerarAlertas({ veiculo, totalDocumentos, diasDesdeUltimoEvento });
 
     return {

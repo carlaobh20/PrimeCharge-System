@@ -3,6 +3,9 @@ import { useArquivos } from '@/shared/capabilities/hooks/useArquivos';
 import { useComentarios } from '@/shared/capabilities/hooks/useComentarios';
 import { useTimeline } from '@/shared/capabilities/hooks/useTimeline';
 import { diasDesde, diasAte } from '@/shared/lib/format';
+// Leitura cross-feature de hooks de listagem do Financeiro — DEC-048 (extensão de DEC-039).
+import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
+import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { calcularHealthScore } from '../intelligence/healthScore';
 import { gerarInsights } from '../intelligence/insights';
 import { gerarAlertas } from '../intelligence/alerts';
@@ -35,8 +38,11 @@ export function useContractIntelligence(contrato: ContratoComRelacoes | undefine
   const { data: comentarios, isLoading: loadingComentarios } = useComentarios('contrato', contratoId);
   const { data: eventos, isLoading: loadingEventos } = useTimeline('contrato', contratoId);
   const { data: grupo, isLoading: loadingGrupo } = useContratos();
+  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
+  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
 
-  const isLoading = loadingDocumentos || loadingComentarios || loadingEventos || loadingGrupo;
+  const isLoading =
+    loadingDocumentos || loadingComentarios || loadingEventos || loadingGrupo || loadingLancamentos || loadingPagamentos;
 
   return useMemo(() => {
     if (!contrato || isLoading) return { isLoading: true as const };
@@ -47,11 +53,19 @@ export function useContractIntelligence(contrato: ContratoComRelacoes | undefine
     const diasAteVencimento = diasAte(contrato.data_fim_prevista);
     const diasDeContratoAtivo = contrato.status === 'ativo' ? diasDesde(contrato.data_inicio) : null;
 
+    const saudeFinanceira = {
+      temAlgumLancamentoVinculado: (lancamentos ?? []).some((l) => l.contrato_id === contrato.id),
+      pagamentosPendentes: (pagamentosPendentes ?? [])
+        .filter((p) => p.lancamento?.contrato_id === contrato.id)
+        .map((p) => ({ data_prevista: p.data_prevista })),
+    };
+
     const healthScore = calcularHealthScore({
       contrato,
       totalDocumentos,
       diasAteVencimento,
       diasDesdeUltimoEvento,
+      saudeFinanceira,
     });
 
     const alertas = gerarAlertas({ contrato, totalDocumentos, diasAteVencimento, diasDesdeUltimoEvento });
@@ -90,5 +104,5 @@ export function useContractIntelligence(contrato: ContratoComRelacoes | undefine
       oportunidades,
       comparativos,
     };
-  }, [contrato, isLoading, documentos, comentarios, eventos, grupo]);
+  }, [contrato, isLoading, documentos, comentarios, eventos, grupo, lancamentos, pagamentosPendentes]);
 }

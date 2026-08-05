@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { BarChart3, Car, FileSignature, Radar, LogOut, Users } from 'lucide-react';
+import { BarChart3, Car, FileSignature, Landmark, PieChart, Radar, LogOut, Users, Wallet } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
@@ -7,12 +7,17 @@ import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 // Central de Comando é a Home desde a Sprint 5 (DEC-024) — Dashboard virou uma rota
 // analítica separada, não mais o índice. "Contratos" entra na Sprint 7, entre Motoristas e
 // Dashboard — segue a ordem do funil (Veículo → Motorista → Contrato) em vez de ordem
-// alfabética.
+// alfabética. Financeiro (Sprint 8) entra em 3 itens planos, não 1 só — não existe um
+// "Cockpit Financeiro" único a linkar (DEC-052), então a navegação reflete isso com
+// honestidade em vez de forçar uma rota-índice artificial.
 const NAV_ITEMS = [
   { to: '/', label: 'Central de Comando', icon: Radar, end: true },
   { to: '/veiculos', label: 'Veículos', icon: Car, end: false },
   { to: '/motoristas', label: 'Motoristas', icon: Users, end: false },
   { to: '/contratos', label: 'Contratos', icon: FileSignature, end: false },
+  { to: '/financeiro/lancamentos', label: 'Lançamentos', icon: Wallet, end: false },
+  { to: '/financeiro/contas-bancarias', label: 'Contas Bancárias', icon: Landmark, end: false },
+  { to: '/financeiro/centros-custo', label: 'Centros de Custo', icon: PieChart, end: false },
   { to: '/dashboard', label: 'Dashboard', icon: BarChart3, end: true },
 ];
 

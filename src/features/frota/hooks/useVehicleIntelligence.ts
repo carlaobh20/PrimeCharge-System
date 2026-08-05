@@ -3,6 +3,10 @@ import { useArquivos } from '@/shared/capabilities/hooks/useArquivos';
 import { useComentarios } from '@/shared/capabilities/hooks/useComentarios';
 import { useTags } from '@/shared/capabilities/hooks/useTags';
 import { useTimeline } from '@/shared/capabilities/hooks/useTimeline';
+// Leitura cross-feature de hooks de listagem do Financeiro — DEC-048 (extensão de DEC-039)
+// para alimentar a categoria financeira do Health Score com dado real.
+import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
+import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { calcularHealthScore } from '../intelligence/healthScore';
 import { gerarInsights } from '../intelligence/insights';
 import { gerarAlertas } from '../intelligence/alerts';
@@ -35,8 +39,11 @@ export function useVehicleIntelligence(veiculo: VeiculoComRelacoes | undefined):
   const { data: tags, isLoading: loadingTags } = useTags('veiculo', veiculoId);
   const { data: eventos, isLoading: loadingEventos } = useTimeline('veiculo', veiculoId);
   const { data: frota, isLoading: loadingFrota } = useVeiculos();
+  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
+  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
 
-  const isLoading = loadingDocumentos || loadingComentarios || loadingTags || loadingEventos || loadingFrota;
+  const isLoading =
+    loadingDocumentos || loadingComentarios || loadingTags || loadingEventos || loadingFrota || loadingLancamentos || loadingPagamentos;
 
   return useMemo(() => {
     if (!veiculo || isLoading) return { isLoading: true as const };
@@ -47,10 +54,18 @@ export function useVehicleIntelligence(veiculo: VeiculoComRelacoes | undefined):
     const diasDesdeUltimoEvento = eventos && eventos.length > 0 ? diasDesde(eventos[0].criado_em) : null;
     const diasNaFrota = diasDesde(veiculo.data_compra ?? veiculo.criado_em);
 
+    const saudeFinanceira = {
+      temAlgumLancamentoVinculado: (lancamentos ?? []).some((l) => l.veiculo_id === veiculo.id),
+      pagamentosPendentes: (pagamentosPendentes ?? [])
+        .filter((p) => p.lancamento?.veiculo_id === veiculo.id)
+        .map((p) => ({ data_prevista: p.data_prevista })),
+    };
+
     const healthScore = calcularHealthScore({
       veiculo,
       totalDocumentos,
       diasDesdeUltimoEvento,
+      saudeFinanceira,
     });
 
     const insights = gerarInsights({ veiculo, diasNaFrota, totalComentarios, totalTags });
@@ -75,5 +90,5 @@ export function useVehicleIntelligence(veiculo: VeiculoComRelacoes | undefined):
       proximasAcoes,
       comparativos,
     };
-  }, [veiculo, isLoading, documentos, comentarios, tags, eventos, frota]);
+  }, [veiculo, isLoading, documentos, comentarios, tags, eventos, frota, lancamentos, pagamentosPendentes]);
 }

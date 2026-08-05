@@ -549,3 +549,83 @@ Como parte desta decisão, os 6 tipos de Card pedidos foram avaliados um a um:
 **Alternativas consideradas:** Renomear um dos dois conceitos no código — avaliada e rejeitada por ora: nenhuma confusão real já causou bug ou decisão errada; renomear um enum já em produção (`ContratoStatus`) por um risco ainda hipotético seria descartado pelo mesmo critério que rejeita abstração antecipada (`FOUNDATION_PRINCIPLES.md`, Princípio 8).
 **Riscos aceitos:** Colisão de nome permanece — mitigada só por convenção de escrita (sempre por extenso), não por garantia técnica.
 **Revisitar quando:** A colisão causar um erro real de interpretação (por pessoa ou por IA) — nesse momento, reconsiderar renomear.
+
+## DEC-046 — Módulo Financeiro: `lancamentos` unifica Receita e Despesa numa única entidade (tipo), em vez de duas tabelas separadas
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** A Sprint 8 implementa `lancamentos` como entidade única (`tipo: 'receita' | 'despesa'`, `valor` sempre positivo, sinal implícito pelo tipo), em vez de duas tabelas `receitas`/`despesas` como o esboço original de `ARQUITETURA.md`, seção 2.2, sugeria. `Pagamento` continua como entidade separada (representa o evento real de movimentação bancária, não o lançamento contábil em si). `Provisão` **não vira tabela nova**: é o mesmo `lancamento` com `status: 'prevista'`, ainda sem `Pagamento` vinculado — resolvido como estado, não como entidade.
+**Contexto:** Revisão crítica obrigatória desta sprint ("procure oportunidades de simplificação") antes de escrever a migration.
+**Motivo:** Receita e Despesa têm exatamente a mesma forma (valor, data, categoria/centro de custo, vínculo opcional com Contrato/Veículo/Motorista, ciclo de vida prevista→confirmada→cancelada) — diferem só na direção do valor. Duas tabelas idênticas exceto pelo nome duplicariam toda query de relatório (soma, filtro por período, filtro por dimensão) em vez de um `where tipo = 'receita'`/`'despesa'`. `CORE_CONCEPTS.md`, seção 4, já dá o critério: "reutiliza-se comportamento existente quando o conceito é só uma variação de algo que já existe" — Despesa é uma variação de Lançamento, não uma entidade com identidade própria distinta de Receita. Provisão pelo mesmo critério: uma provisão é, por definição, "um lançamento que ainda não aconteceu" — dado, não entidade nova.
+**Alternativas consideradas:** Duas tabelas `receitas`/`despesas` (o esboço original) — rejeitada, duplicação sem ganho real. Tabela polimórfica "Lançamento" cobrindo também Pagamento — rejeitada, Pagamento tem ciclo de vida e origem (evento bancário) genuinamente distintos, mistura seria o mesmo erro que `FOUNDATION_PRINCIPLES.md` Princípio 1 já rejeitou (entidades diferentes numa tabela só).
+**Riscos aceitos:** Qualquer relatório que precise tratar Receita e Despesa de forma assimétrica (regra de negócio realmente diferente entre as duas, não só o sinal) precisa filtrar por `tipo` explicitamente — aceito, é o caso comum, não a exceção.
+**Revisitar quando:** Uma regra de negócio real precisar de um campo que só faz sentido para um dos dois tipos e não para o outro, a ponto de a tabela ficar cheia de colunas nulas por metade das linhas — nesse momento, reconsiderar separar.
+
+## DEC-047 — Financial Intelligence ativa as categorias `financeira` (Veículo/Motorista/Contrato) e `comercial` (Motorista) com regra real, fechando o `revisitar quando` já registrado em DEC-022/DEC-025
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** `features/financeiro/intelligence/` calcula saúde financeira a partir de `lancamentos`/`pagamentos` reais (inadimplência, atraso, saldo por dimensão) e as categorias `financeira` de Veículo, Motorista e Contrato passam a consumir essa regra em vez de retornar `score: null` fixo. A categoria `comercial` do Motorista (ainda `null`) passa a ter regra real baseada em histórico de Contrato (já possível desde a Sprint 7, mas só ativada agora porque é o mesmo lançamento de trabalho).
+**Contexto:** DEC-022 e DEC-025 já previam explicitamente esse gatilho ("Revisitar quando: Financeiro/Contratos existirem").
+**Motivo:** Honrar o próprio `revisitar quando` registrado — deixar a categoria `null` depois que o dado passa a existir violaria a regra de honestidade na direção oposta (dado disponível escondido, não inventado).
+**Alternativas consideradas:** Nenhuma — esta é a implementação de um gatilho já decidido, não uma decisão nova de mérito.
+**Riscos aceitos:** Nenhum novo.
+**Revisitar quando:** Não se aplica — decisão já é a revisita.
+
+## DEC-048 — Exceção de leitura cross-feature (DEC-039) estendida para os hooks de listagem do Financeiro
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** A exceção pontual já registrada em DEC-039 (hooks de leitura de listagem entre features de negócio, nunca mutação/UI/regra) passa a cobrir também `useLancamentos`/`usePagamentos` (`features/financeiro/`), consumidos por Vehicle/Driver/Contract Intelligence para calcular a categoria `financeira` real (DEC-047).
+**Contexto:** Mesma necessidade estrutural de DEC-039 — Intelligence de Veículo/Motorista/Contrato precisa ler dado real de outra feature para calcular uma categoria de Health Score que já é dela por definição.
+**Motivo:** Registrar a extensão explicitamente em vez de deixar um quarto caso real de leitura cross-feature acontecer silenciosamente — exatamente o comportamento que DEC-039 corrigiu (encontrar um uso não registrado depois do fato).
+**Alternativas consideradas:** Calcular a categoria financeira dentro de `features/financeiro/` e expor só o resultado pronto — rejeitada, quebraria DEC-022 (a regra de negócio de uma entidade mora só na feature dela; Health Score do Veículo é regra do Veículo, mesmo que o dado de entrada venha de outro lugar).
+**Riscos aceitos:** Mesmos já aceitos em DEC-039 — acoplamento estreito e explícito a uma assinatura de hook de leitura.
+**Revisitar quando:** Mesmo critério de DEC-039 (terceiro consumidor real além dos já cobertos justifica reavaliar `shared/api/referencias.ts`) — Financeiro conta como o caso que agora atinge esse número, revisitar extração na próxima vez que isso for tocado.
+
+## DEC-049 — Campo `criado_via` em `lancamentos`, preparando (sem implementar) a medição de valor gerado por automação/Agente/IA
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** `lancamentos.criado_via` (`manual | automacao | agente | ia`, default `manual`) — campo barato para adicionar agora, caro para retrofit depois. Nenhum cálculo de "quanto a IA/Agente economizou" é implementado nesta sprint — hoje toda automação e Agente real não existe, então o campo sempre será `manual`. A pergunta do briefing ("quanto foi economizado graças às automações/Agentes", "quanto a IA gerou de valor") só é respondível quando esse dado começar a existir de verdade.
+**Contexto:** Pedido explícito do briefing da Sprint 8 pedia essas perguntas como parte do que o Financeiro "deve nascer preparado para responder".
+**Motivo:** Adicionar uma coluna agora custa uma linha de migration; adicionar depois de meses de lançamentos sem essa informação exigiria inferir a origem retroativamente (impossível com precisão) ou aceitar um histórico incompleto para sempre.
+**Alternativas consideradas:** Não adicionar o campo agora, só quando o primeiro Agente/automação real existir — rejeitada porque, diferente de uma tabela ou motor genérico (regra dos 3), uma coluna default barata numa tabela que já está sendo criada não é abstração prematura, é o mesmo raciocínio já usado para `Versão`/`Responsável humano` em `AGENT_PLATFORM.md` seção 4 (campo barato de exigir agora, caro de reconstruir depois).
+**Riscos aceitos:** Nenhum — campo default `manual`, sem nenhum consumidor obrigatório ainda.
+**Revisitar quando:** O primeiro Agente ou automação real gerar um lançamento — nesse momento, o cálculo de valor gerado (comparação contra baseline manual) é desenhado com dado real disponível, não antes.
+
+## DEC-050 — Fecha DEC-040 e DEC-041: motorista sai de `ativo` ao fim do contrato; `motivo_encerramento` implementado
+
+**Data:** 2026-08-05 · **Status:** ativa (substitui a parte "implementação pendente" de DEC-040 e DEC-041)
+**Decisão:** `fn_propagar_status_contrato` passa a checar, ao receber `contrato → encerrado/cancelado`, se o motorista tem outro contrato `ativo`/`renovacao` — se não tiver, move para `inativo`. `motoristas.motivo_encerramento` (enum, nullable) implementado, preenchido quando `status` vira `encerrado`. Mesmo tratamento aplicado ao Veículo: `veiculos.motivo_baixa` (DEC-044) implementado junto, mesmo raciocínio.
+**Contexto:** O próprio briefing desta sprint pediu explicitamente para corrigir os dois gaps "se fizer sentido arquiteturalmente" — faz: esta sprint já mexe em `fn_propagar_status_contrato` (o Pagamento em atraso pode levar a cancelamento de contrato, tocando o mesmo trigger) e em ambas as tabelas (Financeiro referencia Motorista/Veículo/Contrato diretamente).
+**Motivo:** Adiar essa correção para uma sprint futura que "só" mexesse em Motorista/Veículo teria custo maior do que implementá-la agora que o trigger já está sendo tocado por outro motivo.
+**Alternativas consideradas:** Manter DEC-040/DEC-041 como "implementação pendente" e não tocar nesta sprint — rejeitada pelo motivo acima, e porque o próprio briefing autorizou explicitamente.
+**Riscos aceitos:** Nenhum novo — a mudança é estritamente a correção já desenhada em DEC-040/DEC-041, sem escopo adicional.
+**Revisitar quando:** Não se aplica — decisão de implementação, não de desenho.
+
+## DEC-051 — Command Center não ganha uma quarta origem "Financeiro"; alertas financeiros entram pela categoria `financeira` já existente de Veículo/Motorista/Contrato
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** Pagamento em atraso, inadimplência e saldo negativo por dimensão viram Alertas/Insights **dentro** da categoria `financeira` de Veículo/Motorista/Contrato (DEC-047), consumidos pelo pipeline já existente do Command Center (DEC-038) — não uma quarta origem própria de "lançamento financeiro" a ser priorizada separadamente.
+**Contexto:** Avaliado ao desenhar a Financial Intelligence desta sprint — Financeiro não tem uma "entidade principal com ficha própria" do jeito que Veículo/Motorista/Contrato têm (ver DEC-052); um lançamento isolado não é, por si, algo que o usuário abre e prioriza no Command Center — o contrato/veículo/motorista que ele afeta é.
+**Motivo:** Adicionar uma quarta origem exigiria um novo Engine de agregação e um novo tipo de card só para lançamentos — sem necessidade real, já que o mesmo alerta ("Contrato X está com pagamento atrasado") já é perfeitamente representável como Alerta financeiro do Contrato, reaproveitando 100% do pipeline de DEC-038.
+**Alternativas consideradas:** Origem própria "Financeiro" no Command Center — rejeitada pelo motivo acima; reavaliar só se um alerta financeiro genuinamente não tiver Veículo/Motorista/Contrato de origem (ex.: alerta de saldo bancário baixo, que não pertence a nenhuma entidade de negócio) — esse caso específico pode justificar uma origem própria no futuro, não hoje.
+**Riscos aceitos:** Alertas financeiros sem entidade de origem clara (ex.: conta bancária no vermelho) não aparecem no Command Center nesta sprint — aceito, é um caso real mas hoje sem volume (uma empresa/uma conta).
+**Revisitar quando:** Um alerta financeiro sem Veículo/Motorista/Contrato de origem se tornar uma necessidade real recorrente.
+
+## DEC-052 — Financeiro não segue o padrão "Cockpit" (Header/8 abas/Sidebar) — é um módulo de lançamentos, não uma entidade com ficha própria
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** As telas desta sprint são: Lançamentos (lista unificada Receita/Despesa, filtro por tipo/período/dimensão, criação/edição via formulário — sem página de detalhe própria), Contas Bancárias (lista + formulário simples) e Centros de Custo (lista + formulário simples). Nenhuma delas segue o padrão de Cockpit (Header Premium/KPI Band/8 abas/Sidebar/Command Actions) já estabelecido para Veículo, Motorista e Contrato.
+**Contexto:** Avaliado ao planejar a Sprint 8 — o pedido original não menciona "Cockpit Financeiro" explicitamente, e a revisão crítica obrigatória desta sprint ("procure oportunidades de simplificação") apontou que forçar o padrão aqui seria maquiagem, não necessidade.
+**Motivo:** O padrão Cockpit existe para uma entidade com identidade própria, ciclo de vida e Health Score (Veículo, Motorista, Contrato — `CORE_CONCEPTS.md`, seção 4: "precisa aparecer sozinho numa lista, ter dono e ter status?"). Um Lançamento individual não atende esse critério da mesma forma — é um registro de ledger, consultado em lista/filtro, não uma "ficha" que alguém abre para acompanhar ao longo do tempo. ROI/fluxo de caixa/indicadores (pedidos como estrutura, não implementação completa) são melhor servidos por uma futura tela de Visão Geral/Dashboard do que por uma aba dentro de um Cockpit de Lançamento que não existe.
+**Alternativas consideradas:** Construir Cockpit completo de Lançamento, espelhando Veículo/Motorista/Contrato — rejeitada, seria abstração de UI sem necessidade real, o mesmo erro que `FOUNDATION_PRINCIPLES.md` Princípio 8 já rejeita para código.
+**Riscos aceitos:** Nenhum indicador consolidado (ROI, fluxo de caixa) tem tela própria ainda — aceito, é exatamente o "estruturar sem implementar tudo" pedido pelo briefing; a estrutura de dado (dimensões em `lancamentos`) já está pronta para uma Visão Geral futura sem redesenho de schema.
+**Revisitar quando:** Volume real de lançamentos existir e a necessidade de uma Visão Geral/Dashboard financeiro consolidado (KPIs de caixa, ROI por dimensão) se tornar concreta — não antes.
+
+## DEC-053 — `useContratos` atinge o terceiro consumidor real (DEC-039); extração para `shared/api/referencias.ts` avaliada e adiada mais uma vez
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** `useDriverIntelligence` (`features/motoristas/`) passa a importar `useContratos` (`features/contracts/hooks/useContratos.ts`) diretamente, para calcular a categoria comercial real do Health Score do Motorista (DEC-047). Este é o terceiro consumidor real de "listar entidade de outra feature" — DEC-039 já previa que o terceiro caso deveria disparar uma reavaliação da extração para `shared/api/referencias.ts`. Avaliado agora: extração **adiada de novo**, não descartada.
+**Contexto:** `DEC-039` (Sprint 7) registrou dois consumidores (`ContratoForm`, `useCommandCenter`) e marcou explicitamente "terceiro consumidor real → reavaliar extração" como gatilho de revisita. Este é esse terceiro caso.
+**Motivo:** Os três consumidores (`ContratoForm`, `useCommandCenter`, `useDriverIntelligence`) usam o hook de formas genuinamente diferentes — popular select, agregar para priorização, e alimentar Health Score — o que uma API genérica `{id, label}` de referência não serviria a nenhum dos três sem perder informação (`useCommandCenter` precisa de `status`; `useDriverIntelligence` precisa de `motorista_id`/`status` para filtrar). Extrair agora produziria uma abstração que nenhum dos três consumidores usaria de fato — o mesmo erro que DEC-010 já rejeita, só que a régua de "três casos" desta vez aponta para uma forma que não existe ainda com clareza, não para uma forma óbvia.
+**Alternativas consideradas:** Extrair `shared/api/referencias.ts` agora, mesmo sem uma forma óbvia — rejeitada pelo motivo acima. Duplicar a leitura de contratos dentro de `features/motoristas/` — rejeitada, viola DEC-023 mais diretamente do que reusar o hook já existente.
+**Riscos aceitos:** Mesmo risco já aceito em DEC-039, agora com um terceiro ponto de acoplamento — mudança de assinatura em `useContratos` passa a poder quebrar três features, não duas. Aceito porque continua estreito (leitura, tipos estáveis) e agora explicitamente registrado, incluindo a decisão consciente de não extrair ainda.
+**Revisitar quando:** Um quarto consumidor real aparecer, ou um dos três atuais precisar de uma forma de dado genuinamente compatível com os outros — nesse ponto, a extração deixa de ser adivinhação e vira generalização de padrão real observado.

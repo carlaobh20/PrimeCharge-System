@@ -10,6 +10,10 @@ import {
   gerarProximasAcoes,
   gerarRiscos,
 } from '@/features/contracts/intelligence';
+// Leitura cross-feature em lote do Financeiro — mesmo motivo de useContractIntelligence
+// (DEC-048), aqui em lote pra todos os contratos, não uma consulta por contrato.
+import { listLancamentosPorEmpresa } from '@/features/financeiro/api/lancamentos';
+import { listPagamentosPendentesPorEmpresa } from '@/features/financeiro/api/pagamentos';
 import type { ContratoComRelacoes } from '@/features/contracts/types';
 import type { EntityIntelligenceSnapshot } from '../types';
 
@@ -23,24 +27,40 @@ function agruparPorEntidade<T extends { entidade_id: string }>(itens: T[]): Map<
   return mapa;
 }
 
+function agruparPorId<T>(itens: T[], getId: (item: T) => string | null | undefined): Map<string, T[]> {
+  const mapa = new Map<string, T[]>();
+  for (const item of itens) {
+    const id = getId(item);
+    if (!id) continue;
+    const lista = mapa.get(id);
+    if (lista) lista.push(item);
+    else mapa.set(id, [item]);
+  }
+  return mapa;
+}
+
 // Mesmo padrão de coletarInteligenciaDaFrota/coletarInteligenciaDosMotoristas: uma rodada de
 // consultas em lote pra todos os contratos (não uma por contrato), reaproveitando as mesmas
-// funções puras da ficha do contrato (via features/contracts/intelligence/index.ts). Só 3
-// consultas em lote aqui (sem tags — Contract Intelligence não usa totalTags em nenhuma
-// regra hoje, ver useContractIntelligence.ts), não 4 como Veículo/Motorista.
+// funções puras da ficha do contrato (via features/contracts/intelligence/index.ts). Sem tags
+// (Contract Intelligence não usa totalTags em nenhuma regra hoje, ver
+// useContractIntelligence.ts). Sprint 8 (DEC-047/DEC-048) soma Financeiro em lote.
 export async function coletarInteligenciaDosContratos(contratos: ContratoComRelacoes[]): Promise<EntityIntelligenceSnapshot[]> {
   if (contratos.length === 0) return [];
   const ids = contratos.map((c) => c.id);
 
-  const [documentos, eventos, comentarios] = await Promise.all([
+  const [documentos, eventos, comentarios, lancamentos, pagamentosPendentes] = await Promise.all([
     listArquivosPorEntidades('contrato', ids),
     listTimelinePorEntidades('contrato', ids),
     listComentariosPorEntidades('contrato', ids),
+    listLancamentosPorEmpresa(),
+    listPagamentosPendentesPorEmpresa(),
   ]);
 
   const documentosPorContrato = agruparPorEntidade(documentos);
   const eventosPorContrato = agruparPorEntidade(eventos);
   const comentariosPorContrato = agruparPorEntidade(comentarios);
+  const lancamentosPorContrato = agruparPorId(lancamentos, (l) => l.contrato_id);
+  const pagamentosPorContrato = agruparPorId(pagamentosPendentes, (p) => p.lancamento?.contrato_id);
 
   return contratos.map((contrato) => {
     const totalDocumentos = documentosPorContrato.get(contrato.id)?.length ?? 0;
@@ -50,7 +70,12 @@ export async function coletarInteligenciaDosContratos(contratos: ContratoComRela
     const diasAteVencimento = diasAte(contrato.data_fim_prevista);
     const diasDeContratoAtivo = contrato.status === 'ativo' ? diasDesde(contrato.data_inicio) : null;
 
-    const healthScore = calcularHealthScore({ contrato, totalDocumentos, diasAteVencimento, diasDesdeUltimoEvento });
+    const saudeFinanceira = {
+      temAlgumLancamentoVinculado: (lancamentosPorContrato.get(contrato.id)?.length ?? 0) > 0,
+      pagamentosPendentes: (pagamentosPorContrato.get(contrato.id) ?? []).map((p) => ({ data_prevista: p.data_prevista })),
+    };
+
+    const healthScore = calcularHealthScore({ contrato, totalDocumentos, diasAteVencimento, diasDesdeUltimoEvento, saudeFinanceira });
     const alertas = gerarAlertas({ contrato, totalDocumentos, diasAteVencimento, diasDesdeUltimoEvento });
 
     return {
