@@ -26,6 +26,7 @@ import { ConfirmDialog } from '../components/dialogs/ConfirmDialog';
 import { PlaceholderActionDialog } from '../components/dialogs/PlaceholderActionDialog';
 
 import { useDeleteVeiculo, useUpdateVeiculoStatus, useVeiculo } from '../hooks/useVeiculos';
+import { useVehicleIntelligence } from '../hooks/useVehicleIntelligence';
 import { PLACEHOLDER_DESCRIPTIONS, type ActionKey } from '../lib/actions';
 import { VEICULO_STATUS_TRANSITIONS, type VeiculoStatus } from '../types';
 
@@ -69,6 +70,7 @@ export function VeiculoDetailPage() {
   const { data: usuario } = useCurrentUsuario();
   const updateStatus = useUpdateVeiculoStatus();
   const deleteVeiculo = useDeleteVeiculo();
+  const intelligence = useVehicleIntelligence(veiculo);
   const commandActionsRef = useRef<HTMLDivElement>(null);
 
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null);
@@ -144,7 +146,7 @@ export function VeiculoDetailPage() {
         onExcluir={() => setConfirmExcluir(true)}
       />
 
-      <VeiculoKpiBand veiculo={veiculo} />
+      <VeiculoKpiBand veiculo={veiculo} healthScore={intelligence.isLoading ? null : intelligence.healthScore} />
 
       <div className="flex flex-col gap-6 lg:flex-row">
         <div className="min-w-0 flex-1 space-y-6">
@@ -185,7 +187,7 @@ export function VeiculoDetailPage() {
               {
                 value: 'indicadores',
                 label: 'Indicadores',
-                content: <IndicadoresTab onVerKpis={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />,
+                content: <IndicadoresTab resultado={intelligence} veiculoId={veiculo.id} onAction={handleAction} />,
               },
               { value: 'eventos', label: 'Eventos', content: <EventosTab onAction={handleAction} /> },
               {

@@ -2,9 +2,9 @@
 
 Sistema de gestão (ERP) para empresas de locação de veículos elétricos.
 
-## Status atual: Fase 1 — Sprint 2 (Cockpit do Ativo)
+## Status atual: Fase 1 — Sprint 4 (Intelligence First — componentização)
 
-Fundação (auth/tenancy/auditoria) e módulo Veículos completo (Sprint 1: cadastro, listagem, detalhe, edição). Sprint 2 transformou a ficha do veículo em "Cockpit do Ativo": header premium, faixa de KPIs, 9 abas (Dados Gerais, Timeline, Arquivos, Comentários, Financeiro, Indicadores, Eventos, Histórico, Configurações), sidebar direita e Command Actions — ver DEC-021 em `DECISION_LOG.md`.
+Fundação (auth/tenancy/auditoria) e módulo Veículos completo (Sprint 1: cadastro, listagem, detalhe, edição). Sprint 2 transformou a ficha do veículo em "Cockpit do Ativo" (DEC-021). Sprint 3 deu ao veículo uma camada de inteligência operacional própria — `src/features/frota/intelligence/`: Health Score (5 categorias), Insights, Alertas, Próximas Ações e Comparativo com a frota, tudo desacoplado da UI (DEC-022). Sprint 4 formalizou "Intelligence First" como princípio de plataforma e componentizou os Cards de exibição (`HealthScoreCard`, `InsightCard`, `AlertCard`, `NextActionCard`, `MetricComparisonCard`) em `src/shared/components/intelligence/`, prontos para reuso por futuras features (Motoristas, Contratos, Compras, Financeiro, Empresas) — ver DEC-023.
 
 - [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) — arquitetura, modelagem de domínio, mapa de telas e roadmap completo.
 - [`FOUNDATION_PRINCIPLES.md`](FOUNDATION_PRINCIPLES.md), [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md), [`DECISION_LOG.md`](DECISION_LOG.md), [`PRODUCT_VISION.md`](PRODUCT_VISION.md), [`NORTH_STAR.md`](NORTH_STAR.md), [`VALUE_ENGINE.md`](VALUE_ENGINE.md) — documentos de fundação da plataforma.

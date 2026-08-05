@@ -1,18 +1,44 @@
-import { BarChart3 } from 'lucide-react';
-import { EmptyState } from '@/shared/components/ui/empty-state';
-import { Button } from '@/shared/components/ui/button';
+import { HealthScoreCard } from '@/shared/components/intelligence/HealthScoreCard';
+import { InsightsPanel } from '../intelligence/InsightsPanel';
+import { AlertasPanel } from '../intelligence/AlertasPanel';
+import { ProximasAcoesPanel } from '../intelligence/ProximasAcoesPanel';
+import { ComparativosPanel } from '../intelligence/ComparativosPanel';
+import type { UseVehicleIntelligenceResult } from '../../hooks/useVehicleIntelligence';
+import type { ActionKey } from '../../lib/actions';
 
-export function IndicadoresTab({ onVerKpis }: { onVerKpis: () => void }) {
+function IndicadoresSkeleton() {
   return (
-    <EmptyState
-      icon={BarChart3}
-      title="Indicadores detalhados ainda não existem"
-      description="Esta aba vai trazer gráficos de evolução (km ao longo do tempo, custo por período, disponibilidade) quando houver dado histórico suficiente. Os indicadores atuais já estão na faixa de KPIs, no topo da página."
-      action={
-        <Button type="button" variant="outline" size="sm" onClick={onVerKpis}>
-          Ver KPIs atuais
-        </Button>
-      }
-    />
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="h-48 cockpit-shimmer rounded-2xl" />
+      ))}
+    </div>
+  );
+}
+
+// Componente burro de propósito: só compõe os painéis com o resultado já calculado por
+// useVehicleIntelligence (chamado uma vez em VeiculoDetailPage e repassado por prop) —
+// nenhum cálculo de score/insight/alerta acontece aqui nem em nenhuma outra página.
+export function IndicadoresTab({
+  resultado,
+  veiculoId,
+  onAction,
+}: {
+  resultado: UseVehicleIntelligenceResult;
+  veiculoId: string;
+  onAction: (key: ActionKey) => void;
+}) {
+  if (resultado.isLoading) return <IndicadoresSkeleton />;
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <HealthScoreCard resultado={resultado.healthScore} />
+      <ComparativosPanel resultado={resultado.comparativos} />
+      <InsightsPanel insights={resultado.insights} />
+      <AlertasPanel alertas={resultado.alertas} />
+      <div className="lg:col-span-2">
+        <ProximasAcoesPanel acoes={resultado.proximasAcoes} veiculoId={veiculoId} onAction={onAction} />
+      </div>
+    </div>
   );
 }
