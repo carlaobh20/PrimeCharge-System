@@ -2,6 +2,8 @@
 
 Como uma empresa de locação transforma dinheiro em patrimônio. Não fala de tela nem de tecnologia — mapeia o ciclo econômico real que o software existe para servir.
 
+As hipóteses de "IA (futuro)" de cada estágio abaixo ganham arquitetura completa (fontes de dado, camadas, perguntas de negócio) em `SMART_FLEET_PLATFORM.md`.
+
 ```
 Capital → Compra de ativos → Preparação → Disponibilidade → Locação → Receita → Custos → Lucro → Venda do ativo → Reinvestimento → Crescimento patrimonial
 ```
@@ -76,7 +78,7 @@ Capital → Compra de ativos → Preparação → Disponibilidade → Locação 
 
 ## Árvore: North Star → Resultado Financeiro
 
-🟡 Ancorada na proposta condicional de `NORTH_STAR.md` (Taxa de utilização da frota). Se a Proposta de Valor pendente apontar outra prioridade, a camada de **Drivers** é a que muda — o resto da árvore se mantém.
+Ancorada na North Star confirmada em `NORTH_STAR.md` (Taxa de utilização da frota, Fase 1–6; promovida a Receita perdida evitada a partir da Fase 7 — mesmo documento). A árvore abaixo descreve a fase atual; quando a promoção de Fase 7 acontecer, a camada de **North Star** no topo muda, o resto da árvore se mantém.
 
 ```
 North Star: Taxa de utilização da frota

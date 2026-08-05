@@ -1,6 +1,6 @@
 # PrimeCharge Platform — North Star Metric
 
-**Depende de**: a Proposta de Valor ainda em aberto em `PRODUCT_VISION.md` (o que diferencia a PrimeCharge de qualquer concorrente). A recomendação final abaixo é condicional a essa resposta — sem ela, é a melhor escolha *default* para o modelo de negócio de locação de frota, não a escolha definitiva da PrimeCharge especificamente.
+**Confirmada em 2026-08-05**, a partir da Proposta de Valor definitiva registrada em `PRODUCT_VISION.md` ("antecipar o risco financeiro do ativo elétrico antes que ele vire prejuízo" — validada por pesquisa de mercado real, `DECISION_LOG.md` DEC-033). A recomendação abaixo corresponde exatamente ao cenário 3 já antecipado nesta mesma seção — deixa de ser condicional.
 
 ---
 
@@ -33,19 +33,17 @@ Vaga como proposta — na prática se decompõe em variações do item 4 (tempo 
 
 ## Recomendação
 
-🟡 **Condicional à Proposta de Valor pendente.**
+**Confirmada.** A Proposta de Valor definitiva é "antecipamos o risco financeiro do ativo elétrico antes que ele vire prejuízo" — o cenário 3 abaixo, que já estava previsto nesta seção antes de existir resposta oficial.
 
-**North Star principal — proposta**: **Taxa de utilização da frota** (item 4). Motivo: é a única candidata mensurável desde a Fase 1, diretamente acionável pelo Command Center desde o primeiro módulo, e é o padrão comprovado da indústria de locação de ativo físico — cada dia de veículo parado é receita que nunca mais volta, independente de qualquer outra otimização.
+**North Star principal — Fase 1 a Fase 6**: **Taxa de utilização da frota** (item 4). Motivo: é a única candidata mensurável desde a Fase 1, diretamente acionável pelo Command Center desde o primeiro módulo, e é o padrão comprovado da indústria de locação de ativo físico — cada dia de veículo parado é receita que nunca mais volta, independente de qualquer outra otimização. Continua sendo o North Star correto enquanto não existir instrumentação suficiente para medir a métrica de longo prazo abaixo com confiança.
 
 **Métrica secundária — validação financeira**: **Lucro operacional por veículo** (item 1), ativada quando o módulo Financeiro existir (Fase 3). Garante que alta utilização não está sendo alcançada às custas de rentabilidade ruim (contrato barato demais só para não deixar o veículo parado).
 
-**Métrica de longo prazo — prova de filosofia**: **Receita perdida evitada** (item 5), ativada quando o BI existir (Fase 7). É a métrica que valida se o Command Center está de fato cumprindo a promessa de antecipar problema, não só listar dado.
+**North Star principal — a partir da Fase 7**: **Receita perdida evitada** (item 5) é promovida de "prova de filosofia" a North Star principal assim que o BI (Fase 7) existir e a métrica puder ser calculada com confiança — é a métrica que mais diretamente prova, em número, que a proposta de valor confirmada ("antecipamos antes de qualquer outro sistema") está sendo cumprida de fato. Taxa de utilização e Lucro operacional por veículo passam a indicadores operacionais de suporte, não mais a North Star.
 
-### Por que a resposta pendente muda isso
+### Por que este é o cenário certo
 
-- Se a Proposta de Valor for "somos melhores porque maximizamos uso da frota" → a recomendação acima já está certa.
-- Se for "somos melhores porque protegemos margem/rentabilidade melhor que qualquer concorrente" → o North Star principal deveria ser **Lucro operacional por veículo** desde o início, mesmo sendo mais lento de instrumentar, e a utilização vira métrica secundária.
-- Se for "somos melhores porque antecipamos risco/problema antes de qualquer outro sistema" → **Receita perdida evitada** deveria ser promovida a principal assim que houver instrumentação mínima, mesmo sendo a mais difícil de medir cedo.
+A Proposta de Valor confirmada em `PRODUCT_VISION.md` é "somos melhores porque antecipamos risco/problema antes de qualquer outro sistema" — o cenário que esta seção já havia identificado como o que exigiria promover Receita perdida evitada a principal assim que houvesse instrumentação mínima. É exatamente o que a recomendação acima faz, com o gatilho de fase explícito (Fase 7, quando BI existir) em vez de uma data arbitrária.
 
 ## Como orienta o resto da plataforma
 

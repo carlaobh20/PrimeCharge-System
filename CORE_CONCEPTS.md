@@ -24,12 +24,12 @@ Capacidades transversais, reutilizáveis por qualquer entidade. Cada uma com res
 | Comentários | Anotação humana livre sobre a entidade | Adotada — Fase 1 |
 | Tags | Classificação livre, não estruturada | Adotada — Fase 1 |
 | Favoritos | Atalho pessoal do usuário para a entidade | Adotada — Fase 1 |
-| Checklist | Lista de verificação estruturada (template + itens + respostas) | Adotada — Fase 1/2 (vistoria de veículo já é necessidade real) |
+| Checklist | Lista de verificação estruturada (template + itens + respostas) | Adotada — Fase 1/2 (vistoria de veículo já é necessidade real). Evolução para Inspeção Inteligente (IA sobre vistoria, comparação histórica) em `SMART_FLEET_PLATFORM.md`, seção 5 |
 | Eventos | Registro padronizado de toda ação relevante (ver seção 5) | Padrão definido agora, mecanismo implementado na Fase 3 |
 | Workflow | Processo com múltiplas etapas automatizadas | Extraído pela regra dos 3 (ver `FOUNDATION_PRINCIPLES.md`, Princípio 6) — não construído agora |
 | Automações | Ação disparada por evento/tempo | Mapeada para `pg_cron` + Edge Functions + Database Webhooks do próprio Supabase — Fase 8 |
 | Indicadores | Métrica calculada sobre a entidade | Adiada até existir o primeiro caso de uso de BI real |
-| IA | Análise/previsão/recomendação (nunca execução) | Adiada até existir o primeiro caso de uso de IA real |
+| IA | Análise/previsão/recomendação (nunca execução) | Adiada até existir o primeiro caso de uso de IA real — constituição completa em `AI_PLATFORM.md` |
 | Relacionamentos | Vínculo entre entidades além de FK simples | Adiada — FKs já cobrem os relacionamentos documentados na Etapa 2.3 de `ARQUITETURA.md`; revisitar só se surgir um caso que FK não resolve |
 | Compartilhamento | Compartilhar entidade com terceiro externo | Adiada — nenhuma fase do roadmap tem essa necessidade hoje |
 

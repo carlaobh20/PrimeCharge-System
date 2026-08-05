@@ -170,7 +170,7 @@ Testei a proposta ponto a ponto. Separei o que é barato e correto adotar hoje d
 **Adotado agora (sem custo, sem esperar Fase 1):**
 - *Business layer*: já existe como regra — "feature nunca importa de outra feature direto, só via `shared/`" (seção 1.2). Não vira pasta nova, continua sendo essa regra reforçada.
 - *Command Center* substitui o Dashboard como primeira tela pós-login (ver Etapa 3 atualizada). É decisão de produto/UX, custo zero de arquitetura.
-- *Princípio de IA*: quando módulos de IA existirem, eles analisam, preveem, recomendam e detectam risco — nunca escrevem dado diretamente. Execução continua sendo do usuário ou das automações. Regra de fronteira registrada agora, implementação fica para quando houver o primeiro caso de uso de IA real.
+- *Princípio de IA*: quando módulos de IA existirem, eles analisam, preveem, recomendam e detectam risco — nunca escrevem dado diretamente. Execução continua sendo do usuário ou das automações. Regra de fronteira registrada agora, implementação fica para quando houver o primeiro caso de uso de IA real. Constituição completa desta camada em `AI_PLATFORM.md`.
 - *Visão de plataforma* (Prime OS, Prime Invest, Prime Fleet, Prime BI, Prime CRM, Prime AI, Prime Portal, Prime Drive): registrada como ambição de negócio. A base técnica que já temos — multi-tenant via `empresa_id` + RLS — é o nível certo de "platform-ready" para hoje. Não desenhamos fronteiras técnicas para produtos que ainda não existem.
 
 **Adiado, com gatilho explícito de quando revisitar:**

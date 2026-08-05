@@ -47,6 +47,8 @@ O usuário não procura problema — o sistema mostra prioridade, risco, tarefa,
 
 IA analisa, prevê, recomenda, explica. Nunca altera dado diretamente. Execução é sempre da automação ou do usuário. Regra de fronteira válida desde já, implementação quando existir o primeiro caso de uso de IA.
 
+Constituição completa desta camada — filosofia, níveis de maturidade, taxonomia, critério de quando usar, princípios obrigatórios — em `AI_PLATFORM.md`. Constituição completa de quem executa por autorização (o Agente) em `AGENT_PLATFORM.md`.
+
 ## Princípio 6 — Operações importantes são processos, não apenas formulários
 
 Compra de veículo, criação de contrato e outras operações centrais devem, com o tempo, virar processos modelados (tarefas geradas, documentos exigidos, indicadores atualizados) — não só um formulário isolado.
