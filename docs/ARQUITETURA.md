@@ -160,6 +160,25 @@ Fora de escopo agora, mas desenhado para caber depois sem retrabalho: WhatsApp/S
 - Code-splitting por rota (Vite faz isso nativamente com `React.lazy` + rotas) — o bundle inicial não cresce conforme o ERP cresce em módulos.
 - Edge Functions do Supabase para qualquer processamento pesado (geração de relatório, cálculo em lote) — nunca bloquear a UI esperando um cálculo pesado no client.
 
+## 1.13 Visão de plataforma e princípios de evolução (revisão pós-Fase 0, pré-Fase 1)
+
+Carlos propôs evoluir o PrimeCharge OS de ERP para um Business Operating System (BOS): camada Business/DDD completa, Event Bus, motor de Workflows, camada de Automation, arquitetura reservada pra IA, e uma base compartilhada por futuros produtos (Prime Invest, Prime Fleet, Prime BI, Prime CRM, Prime AI, Prime Portal, Prime Drive).
+
+🔶 **[Decisão de CTO — adotar princípios agora, adiar mecanismos até terem o que orquestrar]**
+Testei a proposta ponto a ponto. Separei o que é barato e correto adotar hoje do que custaria caro construir antes da Fase 1 ter uma única tela funcional — construir os seis mecanismos pedidos (Business layer, DDD completo, Event Bus, Workflow engine, Automation layer, arquitetura de IA) para zero funcionalidades reais é o cenário onde progresso técnico e progresso de negócio mais se confundem. [Certo — abstração sem casos de uso reais para validar a forma é o antipadrão mais comum em reescritas]
+
+**Adotado agora (sem custo, sem esperar Fase 1):**
+- *Business layer*: já existe como regra — "feature nunca importa de outra feature direto, só via `shared/`" (seção 1.2). Não vira pasta nova, continua sendo essa regra reforçada.
+- *Command Center* substitui o Dashboard como primeira tela pós-login (ver Etapa 3 atualizada). É decisão de produto/UX, custo zero de arquitetura.
+- *Princípio de IA*: quando módulos de IA existirem, eles analisam, preveem, recomendam e detectam risco — nunca escrevem dado diretamente. Execução continua sendo do usuário ou das automações. Regra de fronteira registrada agora, implementação fica para quando houver o primeiro caso de uso de IA real.
+- *Visão de plataforma* (Prime OS, Prime Invest, Prime Fleet, Prime BI, Prime CRM, Prime AI, Prime Portal, Prime Drive): registrada como ambição de negócio. A base técnica que já temos — multi-tenant via `empresa_id` + RLS — é o nível certo de "platform-ready" para hoje. Não desenhamos fronteiras técnicas para produtos que ainda não existem.
+
+**Adiado, com gatilho explícito de quando revisitar:**
+- *Domain/Application/Infrastructure (DDD completo)*: gatilho = surgir uma regra de negócio genuinamente complexa que precise ser testada isolada do Supabase (ex.: cálculo de financiamento multivariável). Aí extrai-se uma pasta `domain/` só para essa regra — não uma reestruturação geral.
+- *Event Bus*: o problema de fundo é real (efeitos cross-domain quando "Contrato criado" deve notificar Financeiro/Agenda/Auditoria), mas um event bus em memória no navegador perde o evento se a aba fechar no meio do fluxo — inaceitável para dado financeiro/contratual. O lugar correto é o banco: trigger Postgres grava num outbox (a tabela `audit_log`, já existente, é o embrião disso) + Supabase Database Webhooks chamando Edge Functions. Desenho isso de verdade na Fase 3 (Financeiro), quando existir o primeiro efeito cross-domain real para cablear.
+- *Workflows*: motor genérico para zero fluxos concretos é adivinhar a forma errada. Regra dos 3 — construir Compra de veículo, criação de Contrato e um terceiro fluxo como código simples nas Fases 1–2; se os três repetirem a mesma forma, extrair o mecanismo de workflow então.
+- *Automation layer*: a maior parte já existe pronta no Supabase (`pg_cron` + Edge Functions + Database Webhooks) — não construímos uma camada própria, usamos a que já vem. Mantido na Fase 8, como já estava no roadmap original.
+
 ---
 
 # ETAPA 2 — MODELAGEM DE DOMÍNIO
@@ -214,8 +233,11 @@ Vou seguir com o **Modelo A** (Motorista = Cliente final) por enquanto, porque �
 
 ## 3.1 Navegação (sidebar por módulo)
 
+Primeira tela pós-login: **Command Center** (não o Dashboard — ver 1.13). Dashboard vira módulo analítico dentro da navegação.
+
 ```
-📊 Dashboard
+🎯 Command Center          (primeira tela pós-login)
+📊 Dashboard                (módulo analítico, não é mais a tela inicial)
 🚗 Frota
    ├─ Veículos (lista, ficha do veículo)
    ├─ Marcas e Modelos
@@ -249,7 +271,8 @@ Vou seguir com o **Modelo A** (Motorista = Cliente final) por enquanto, porque �
 
 ## 3.2 Telas por módulo (padrão repetido: Lista → Detalhe/Ficha → Formulário)
 
-- **Dashboard**: KPIs (veículos ativos/ociosos, contratos vencendo, inadimplência, receita x despesa do mês, alertas de documento vencendo).
+- **Command Center** (primeira tela pós-login): tarefas do dia, alertas, prioridades, documentos vencendo, contratos críticos, receita perdida, vacância, caixa, indicadores, ações recomendadas. É o centro operacional — o que a empresa precisa decidir/agir hoje, não um relatório histórico. Populado pelos módulos conforme cada um nasce (Fase 1 em diante); não há dado real para mostrar antes disso.
+- **Dashboard** (módulo analítico): KPIs (veículos ativos/ociosos, contratos vencendo, inadimplência, receita x despesa do mês, alertas de documento vencendo) — visão histórica/analítica, complementar ao Command Center.
 - **Veículos**: lista com filtro/busca, ficha do veículo (aba Dados, aba Documentos, aba Histórico de Manutenção, aba Contrato Atual, aba Financeiro do veículo), formulário de cadastro/edição.
 - **Contratos**: lista (com status: ativo, encerrado, inadimplente), ficha do contrato (dados, veículo vinculado, motorista vinculado, pagamentos, checklists), formulário de novo contrato (fluxo guiado: seleciona veículo disponível → seleciona/cadastra motorista → define condições → gera checklist de entrega).
 - **Motoristas/Clientes**: lista, ficha (documentos, histórico de contratos, pendências), formulário.
