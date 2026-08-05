@@ -212,3 +212,13 @@ Nova decisão estrutural → novo `DEC-0XX`, seguindo o template abaixo, no fina
 **Alternativas consideradas:** Deixar o sistema sem nenhum usuário até uma fase futura de Auth — rejeitado, teria entregado um build que compila mas não pode ser usado nem testado, o que não atende ao pedido.
 **Riscos aceitos:** Senha temporária foi gerada e comunicada fora deste log (ver mensagem de entrega) — Carlos deve trocá-la assim que possível. Nenhum fluxo de "esqueci minha senha" ou convite de novo usuário existe ainda.
 **Revisitar quando:** O módulo de Autenticação/Onboarding (convites, signup, troca de senha) entrar em escopo — provavelmente necessário antes de qualquer segunda pessoa usar o sistema.
+
+## DEC-020 — `vercel.json` com rewrite de SPA adicionado após 404 encontrado no teste end-to-end
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** Adicionado `vercel.json` na raiz do repo com rewrite `"/(.*)" → "/index.html"`.
+**Contexto:** Teste real no navegador (pós-deploy) mostrou 404 (`NOT_FOUND`) ao navegar direto ou dar refresh em qualquer rota que não seja `/` (ex.: `/veiculos/:id`). Causa: Vercel serve SPA estática por arquivo físico por padrão — sem rewrite, só `/index.html` existe fisicamente, e o React Router nunca chega a rodar para rotas que exigem carregamento direto do servidor.
+**Motivo:** É o fix padrão e único necessário para qualquer SPA com client-side routing hospedada na Vercel.
+**Alternativas consideradas:** Nenhuma — não é uma escolha de design, é a configuração obrigatória para este tipo de deploy.
+**Riscos aceitos:** Nenhum.
+**Revisitar quando:** N/A — configuração estável, esperada permanecer assim mesmo com novas rotas futuras.
