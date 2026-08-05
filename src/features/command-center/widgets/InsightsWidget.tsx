@@ -14,7 +14,7 @@ export function InsightsWidget({ insights }: { insights: PrioritizedInsight[] })
         <EmptyState
           icon={Lightbulb}
           title="Nenhum insight ainda"
-          description="Conforme a frota acumular dado, observações neutras sobre cada veículo aparecem aqui."
+          description="Conforme a operação acumular dado, observações neutras sobre cada veículo, motorista e contrato aparecem aqui."
           className="mt-3"
         />
       ) : (

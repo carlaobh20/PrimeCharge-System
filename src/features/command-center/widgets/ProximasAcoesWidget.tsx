@@ -12,7 +12,7 @@ export function ProximasAcoesWidget({ acoes }: { acoes: PrioritizedAction[] }) {
       {acoes.length === 0 ? (
         <div className="mt-3 flex items-center gap-2 text-sm text-neutral-500">
           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          Nenhuma lacuna identificada em toda a frota.
+          Nenhuma lacuna identificada em toda a operação.
         </div>
       ) : (
         <ul className="mt-3 space-y-1.5">

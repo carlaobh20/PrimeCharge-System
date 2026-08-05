@@ -10,6 +10,7 @@
 import type {
   Alerta,
   HealthCategoriaId,
+  HealthScoreResult,
   Insight,
   NextAction,
   Opportunity,
@@ -28,6 +29,33 @@ export type PrioritizedInsight = Insight & PriorityMeta;
 export type PrioritizedAction = NextAction & PriorityMeta & { href: string };
 export type PrioritizedOpportunity = Opportunity & PriorityMeta;
 export type PrioritizedRisk = Risk & PriorityMeta;
+
+// Sprint 7 (Contratos, ver DEC-038): os cinco engines de priorização deixam de conhecer
+// "Veículo" — passam a consumir este formato genérico. Cada feature que alimenta o Command
+// Center (Veículos desde a Sprint 5, Motoristas e Contratos desde a Sprint 7) já calcula sua
+// própria inteligência através de useXIntelligence/coletarInteligenciaDeX (nada muda ali);
+// só o "envelope" que chega nos engines passa a ser este, sem `veiculo`/`motorista`/
+// `contrato` embutido — origemTipo/origemId/origemLabel/hrefBase bastam pra qualquer engine
+// gerar id, PriorityMeta e link, sem precisar de um `if (origem === 'veiculo')` em lugar
+// nenhum. Veículos continua also produzindo o formato antigo (VeiculoIntelligenceSnapshot,
+// em services/fleetIntelligenceCollector.ts) porque o fleetHealthEngine ("resumo da frota",
+// fora do escopo desta sprint) ainda depende do objeto `veiculo` completo.
+export type OrigemTipo = 'veiculo' | 'motorista' | 'contrato';
+
+export type EntityIntelligenceSnapshot = {
+  origemTipo: OrigemTipo;
+  origemId: string;
+  /** Rótulo pronto pra exibição (placa do veículo, nome do motorista...). */
+  origemLabel: string;
+  /** Caminho do Cockpit desta entidade (ex.: '/veiculos/123') — engines derivam o href a partir daqui, nunca hardcoded por origem. */
+  hrefBase: string;
+  healthScore: HealthScoreResult;
+  insights: Insight[];
+  alertas: Alerta[];
+  proximasAcoes: NextAction[];
+  oportunidades: Opportunity[];
+  riscos: Risk[];
+};
 
 export type FeedItemTipo = 'alerta' | 'risco' | 'oportunidade' | 'acao';
 

@@ -102,6 +102,12 @@ export function MotoristaDetailPage() {
       }
       return;
     }
+    if (key === 'vincular-veiculo' || key === 'contrato') {
+      // Desde a Sprint 7, os dois rótulos levam ao mesmo destino (ver comentário em
+      // lib/actions.ts) — criar um contrato JÁ é a vinculação, não existe um passo à parte.
+      navigate(`/contratos/novo?motoristaId=${motorista.id}`);
+      return;
+    }
     setActiveAction(key);
   }
 
@@ -109,12 +115,10 @@ export function MotoristaDetailPage() {
     commandActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  const placeholderKeys: ActionKey[] = ['vincular-veiculo', 'contrato', 'cobranca', 'ocorrencia', 'relatorio'];
+  const placeholderKeys: ActionKey[] = ['cobranca', 'ocorrencia', 'relatorio'];
   const isPlaceholderOpen = placeholderKeys.includes(activeAction as ActionKey);
 
   const placeholderTitles: Partial<Record<ActionKey, string>> = {
-    'vincular-veiculo': 'Vincular veículo',
-    contrato: 'Novo contrato',
     cobranca: 'Registrar cobrança',
     ocorrencia: 'Registrar ocorrência',
     relatorio: 'Gerar relatório',

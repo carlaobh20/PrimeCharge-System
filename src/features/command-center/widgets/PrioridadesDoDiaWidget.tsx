@@ -14,7 +14,7 @@ export function PrioridadesDoDiaWidget({ itens }: { itens: CommandCenterFeedItem
         <EmptyState
           icon={Flame}
           title="Nada urgente agora"
-          description="Quando algo pedir atenção prioritária em qualquer veículo da frota, aparece aqui primeiro."
+          description="Quando algo pedir atenção prioritária em qualquer veículo, motorista ou contrato, aparece aqui primeiro."
           className="mt-3"
         />
       ) : (

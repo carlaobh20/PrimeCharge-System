@@ -34,7 +34,8 @@ export function CommandCenterPage() {
       <div>
         <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Central de Comando</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          O que aconteceu, o que é importante, e o que precisa ser feito agora — em toda a frota.
+          O que aconteceu, o que é importante, e o que precisa ser feito agora — em toda a operação (veículos,
+          motoristas e contratos).
         </p>
       </div>
 

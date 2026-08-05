@@ -1,0 +1,98 @@
+import { supabase } from '@/shared/lib/supabase';
+import type { Contrato, ContratoComRelacoes, ContratoStatus } from '../types';
+
+const SELECT_COM_RELACOES = '*, veiculo:veiculos(id, placa, status), motorista:motoristas(id, nome_completo, status)';
+
+export async function listContratos(filters?: { status?: ContratoStatus | 'todos'; busca?: string }) {
+  let query = supabase.from('contratos').select(SELECT_COM_RELACOES).order('criado_em', { ascending: false });
+
+  if (filters?.status && filters.status !== 'todos') {
+    query = query.eq('status', filters.status);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  let contratos = data as unknown as ContratoComRelacoes[];
+
+  // Busca por placa/motorista é feita client-side depois do join — supabase-js não permite
+  // `.or()` sobre colunas de tabela relacionada na mesma query sem uma view/rpc dedicada, e
+  // criar uma só para isso seria abstração cedo demais para o volume de contratos esperado
+  // nesta fase (mesmo racional de "regra dos 3" — DEC-010).
+  if (filters?.busca) {
+    const termo = filters.busca.trim().toLowerCase();
+    if (termo) {
+      contratos = contratos.filter(
+        (c) => c.veiculo?.placa?.toLowerCase().includes(termo) || c.motorista?.nome_completo?.toLowerCase().includes(termo)
+      );
+    }
+  }
+
+  return contratos;
+}
+
+export async function getContrato(id: string) {
+  const { data, error } = await supabase.from('contratos').select(SELECT_COM_RELACOES).eq('id', id).single();
+  if (error) throw error;
+  return data as unknown as ContratoComRelacoes;
+}
+
+export type ContratoInput = Omit<
+  Contrato,
+  'id' | 'empresa_id' | 'criado_em' | 'atualizado_em' | 'status' | 'data_fim_real' | 'km_final' | 'carga_final_pct'
+>;
+
+export async function createContrato(empresaId: string, payload: ContratoInput) {
+  const { data, error } = await supabase
+    .from('contratos')
+    .insert({ ...payload, empresa_id: empresaId, status: 'rascunho' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Contrato;
+}
+
+export async function updateContrato(id: string, payload: Partial<ContratoInput>) {
+  const { data, error } = await supabase.from('contratos').update(payload).eq('id', id).select().single();
+  if (error) throw error;
+  return data as Contrato;
+}
+
+// Validação da transição (state machine) e da permissão por ação acontecem no banco
+// (fn_validar_transicao_contrato, migration 0005) — esta função só dispara o UPDATE; se a
+// transição ou a permissão forem inválidas, o Postgres rejeita e o erro sobe pelo `error`
+// do supabase-js, tratado pela UI como qualquer outro erro de mutation.
+export async function updateContratoStatus(id: string, status: ContratoStatus) {
+  const { data, error } = await supabase.from('contratos').update({ status }).eq('id', id).select().single();
+  if (error) throw error;
+  return data as Contrato;
+}
+
+export async function renovarContrato(id: string, novaDataFimPrevista: string) {
+  // Renovação é duas transições em sequência (ativo → renovacao → ativo), cada uma validada
+  // pelo mesmo trigger de state machine — não um caminho especial que pula a validação.
+  const { error: errRenovacao } = await supabase.from('contratos').update({ status: 'renovacao' }).eq('id', id);
+  if (errRenovacao) throw errRenovacao;
+
+  const { data, error } = await supabase
+    .from('contratos')
+    .update({ status: 'ativo', data_fim_prevista: novaDataFimPrevista })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Contrato;
+}
+
+export async function deleteContrato(id: string) {
+  const { error } = await supabase.from('contratos').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// Variante em lote — mesmo padrão de listArquivosPorEntidades (shared/capabilities), usada
+// pelo Command Center para coletar a inteligência de todos os contratos sem N+1.
+export async function listContratosPorEmpresa() {
+  const { data, error } = await supabase.from('contratos').select(SELECT_COM_RELACOES);
+  if (error) throw error;
+  return data as unknown as ContratoComRelacoes[];
+}

@@ -13,6 +13,7 @@ import {
 } from '@/features/frota/intelligence';
 import type { VeiculoComRelacoes } from '@/features/frota/types';
 import type { Alerta, HealthScoreResult, Insight, NextAction, Opportunity, Risk } from '@/shared/intelligence/types';
+import type { EntityIntelligenceSnapshot } from '../types';
 
 export type VeiculoIntelligenceSnapshot = {
   veiculo: VeiculoComRelacoes;
@@ -83,4 +84,24 @@ export async function coletarInteligenciaDaFrota(frota: VeiculoComRelacoes[]): P
       riscos: gerarRiscos({ alertas, healthScore }),
     };
   });
+}
+
+// Adapta o snapshot completo (que o fleetHealthEngine — "resumo da frota", fora do escopo da
+// Sprint 7 — ainda consome com o objeto `veiculo` inteiro) para o formato genérico que os
+// cinco engines de priorização (Alert/Insight/Action/Opportunity/Risk) passam a consumir
+// desde a Sprint 7 (ver EntityIntelligenceSnapshot em ../types). Nenhum cálculo acontece
+// aqui — só reempacotamento.
+export function paraSnapshotGenerico(frota: VeiculoIntelligenceSnapshot[]): EntityIntelligenceSnapshot[] {
+  return frota.map((snapshot) => ({
+    origemTipo: 'veiculo' as const,
+    origemId: snapshot.veiculo.id,
+    origemLabel: snapshot.veiculo.placa,
+    hrefBase: `/veiculos/${snapshot.veiculo.id}`,
+    healthScore: snapshot.healthScore,
+    insights: snapshot.insights,
+    alertas: snapshot.alertas,
+    proximasAcoes: snapshot.proximasAcoes,
+    oportunidades: snapshot.oportunidades,
+    riscos: snapshot.riscos,
+  }));
 }

@@ -12,7 +12,7 @@ export function RiscosWidget({ riscos }: { riscos: PrioritizedRisk[] }) {
       {riscos.length === 0 ? (
         <div className="mt-3 flex items-center gap-2 text-sm text-neutral-500">
           <ShieldCheck className="h-4 w-4 text-emerald-500" />
-          Nenhum risco identificado na frota.
+          Nenhum risco identificado em toda a operação.
         </div>
       ) : (
         <ul className="mt-3 space-y-1.5">

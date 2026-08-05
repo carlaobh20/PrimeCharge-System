@@ -11,6 +11,10 @@ import { MotoristasListPage } from '@/features/motoristas/pages/MotoristasListPa
 import { MotoristaDetailPage } from '@/features/motoristas/pages/MotoristaDetailPage';
 import { MotoristaCreatePage } from '@/features/motoristas/pages/MotoristaCreatePage';
 import { MotoristaEditPage } from '@/features/motoristas/pages/MotoristaEditPage';
+import { ContratosListPage } from '@/features/contracts/pages/ContratosListPage';
+import { ContratoDetailPage } from '@/features/contracts/pages/ContratoDetailPage';
+import { ContratoCreatePage } from '@/features/contracts/pages/ContratoCreatePage';
+import { ContratoEditPage } from '@/features/contracts/pages/ContratoEditPage';
 import { ProtectedRoute } from './ProtectedRoute';
 
 // Command Center é a Home desde a Sprint 5 — Dashboard sai do índice e vira uma rota
@@ -37,6 +41,10 @@ export const router = createBrowserRouter([
           { path: 'motoristas/novo', element: <MotoristaCreatePage /> },
           { path: 'motoristas/:id', element: <MotoristaDetailPage /> },
           { path: 'motoristas/:id/editar', element: <MotoristaEditPage /> },
+          { path: 'contratos', element: <ContratosListPage /> },
+          { path: 'contratos/novo', element: <ContratoCreatePage /> },
+          { path: 'contratos/:id', element: <ContratoDetailPage /> },
+          { path: 'contratos/:id/editar', element: <ContratoEditPage /> },
         ],
       },
     ],

@@ -1,25 +1,24 @@
-import type { VeiculoIntelligenceSnapshot } from '../services/fleetIntelligenceCollector';
-import type { PrioritizedInsight } from '../types';
+import type { EntityIntelligenceSnapshot, PrioritizedInsight } from '../types';
 import { calcularPrioridade } from './priorityEngine';
 
-// InsightEngine — consolida os Insights que Vehicle Intelligence já calculou por veículo.
-// Insight é observação neutra (não pede ação nem indica problema), então fica sempre em
-// impacto/urgência baixos — exceto quando a própria severidade já é "atencao" (ex.:
-// desvalorização), que sobe um degrau.
-export function consolidarInsights(frota: VeiculoIntelligenceSnapshot[]): PrioritizedInsight[] {
-  return frota.flatMap(({ veiculo, insights }) =>
+// InsightEngine — consolida os Insights que cada feature já calculou por entidade. Insight é
+// observação neutra (não pede ação nem indica problema), então fica sempre em impacto/
+// urgência baixos — exceto quando a própria severidade já é "atencao" (ex.: desvalorização),
+// que sobe um degrau. Desde a Sprint 7 (DEC-038), formato genérico — ver alertEngine.ts.
+export function consolidarInsights(entidades: EntityIntelligenceSnapshot[]): PrioritizedInsight[] {
+  return entidades.flatMap(({ origemTipo, origemId, origemLabel, insights }) =>
     insights.map((insight) => {
       const impacto = insight.severidade === 'atencao' ? 'medio' : 'baixo';
       const urgencia = 'baixa';
       return {
         ...insight,
-        id: `${veiculo.id}-${insight.id}`,
+        id: `${origemId}-${insight.id}`,
         impacto,
         urgencia,
         prioridade: calcularPrioridade(impacto, urgencia),
-        origem: 'veiculo',
-        origemId: veiculo.id,
-        origemLabel: veiculo.placa,
+        origem: origemTipo,
+        origemId,
+        origemLabel,
       } satisfies PrioritizedInsight;
     })
   );
