@@ -7,6 +7,7 @@ import { ProximasAcoesWidget } from '../widgets/ProximasAcoesWidget';
 import { InsightsWidget } from '../widgets/InsightsWidget';
 import { ResumoFrotaWidget } from '../widgets/ResumoFrotaWidget';
 import { VeiculosListWidget } from '../widgets/VeiculosListWidget';
+import { AcoesOperacionaisWidget } from '../widgets/AcoesOperacionaisWidget';
 
 function CommandCenterSkeleton() {
   return (
@@ -42,6 +43,7 @@ export function CommandCenterPage() {
       <PrioridadesDoDiaWidget itens={prioridadesDoDia} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <AcoesOperacionaisWidget />
         <AlertasWidget alertas={alertas} />
         <OportunidadesWidget oportunidades={oportunidades} />
         <RiscosWidget riscos={riscos} />

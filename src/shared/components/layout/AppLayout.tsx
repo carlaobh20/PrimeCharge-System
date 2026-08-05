@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { BarChart3, Car, FileSignature, Landmark, PieChart, Radar, LogOut, Users, Wallet } from 'lucide-react';
+import { BarChart3, Car, ClipboardList, FileSignature, Landmark, PieChart, Radar, LogOut, Users, Wallet } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
@@ -9,12 +9,14 @@ import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 // Dashboard — segue a ordem do funil (Veículo → Motorista → Contrato) em vez de ordem
 // alfabética. Financeiro (Sprint 8) entra em 3 itens planos, não 1 só — não existe um
 // "Cockpit Financeiro" único a linkar (DEC-052), então a navegação reflete isso com
-// honestidade em vez de forçar uma rota-índice artificial.
+// honestidade em vez de forçar uma rota-índice artificial. Ações Operacionais (Sprint 9)
+// segue o mesmo raciocínio (DEC-054/055) — é fila de trabalho, não Cockpit.
 const NAV_ITEMS = [
   { to: '/', label: 'Central de Comando', icon: Radar, end: true },
   { to: '/veiculos', label: 'Veículos', icon: Car, end: false },
   { to: '/motoristas', label: 'Motoristas', icon: Users, end: false },
   { to: '/contratos', label: 'Contratos', icon: FileSignature, end: false },
+  { to: '/operacoes/acoes', label: 'Ações Operacionais', icon: ClipboardList, end: false },
   { to: '/financeiro/lancamentos', label: 'Lançamentos', icon: Wallet, end: false },
   { to: '/financeiro/contas-bancarias', label: 'Contas Bancárias', icon: Landmark, end: false },
   { to: '/financeiro/centros-custo', label: 'Centros de Custo', icon: PieChart, end: false },

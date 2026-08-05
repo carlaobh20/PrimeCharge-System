@@ -18,6 +18,7 @@ import { ContratoEditPage } from '@/features/contracts/pages/ContratoEditPage';
 import { LancamentosListPage } from '@/features/financeiro/pages/LancamentosListPage';
 import { ContasBancariasPage } from '@/features/financeiro/pages/ContasBancariasPage';
 import { CentrosCustoPage } from '@/features/financeiro/pages/CentrosCustoPage';
+import { AcoesListPage } from '@/features/operacoes/pages/AcoesListPage';
 import { ProtectedRoute } from './ProtectedRoute';
 
 // Command Center é a Home desde a Sprint 5 — Dashboard sai do índice e vira uma rota
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
           { path: 'financeiro/lancamentos', element: <LancamentosListPage /> },
           { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },
           { path: 'financeiro/centros-custo', element: <CentrosCustoPage /> },
+          { path: 'operacoes/acoes', element: <AcoesListPage /> },
         ],
       },
     ],
