@@ -1,3 +1,5 @@
+import { History } from 'lucide-react';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { useTimeline } from '../hooks/useTimeline';
 
 function formatData(iso: string) {
@@ -7,9 +9,23 @@ function formatData(iso: string) {
 export function TimelinePanel({ entidadeTipo, entidadeId }: { entidadeTipo: string; entidadeId: string }) {
   const { data: eventos, isLoading } = useTimeline(entidadeTipo, entidadeId);
 
-  if (isLoading) return <p className="text-sm text-neutral-500">Carregando timeline…</p>;
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="h-10 animate-pulse rounded-lg bg-neutral-100 dark:bg-white/5" />
+        ))}
+      </div>
+    );
+  }
   if (!eventos || eventos.length === 0) {
-    return <p className="text-sm text-neutral-500">Nenhum evento registrado ainda.</p>;
+    return (
+      <EmptyState
+        icon={History}
+        title="Nenhum evento registrado ainda"
+        description="Mudanças de status e outros marcos deste registro aparecem aqui automaticamente."
+      />
+    );
   }
 
   return (

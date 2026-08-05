@@ -222,3 +222,20 @@ Nova decisão estrutural → novo `DEC-0XX`, seguindo o template abaixo, no fina
 **Alternativas consideradas:** Nenhuma — não é uma escolha de design, é a configuração obrigatória para este tipo de deploy.
 **Riscos aceitos:** Nenhum.
 **Revisitar quando:** N/A — configuração estável, esperada permanecer assim mesmo com novas rotas futuras.
+
+## DEC-021 — Cockpit do Ativo: Command Actions concretas por ação, não um motor genérico
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** A Sprint 2 transformou a ficha do veículo em "Cockpit do Ativo" (header premium, faixa de KPIs, 9 abas, sidebar direita, Command Actions). Cada Command Action (Registrar km, Alterar status, Adicionar documento, Vender, Duplicar…) é um componente de Dialog concreto e específico — não existe um "Action Registry"/motor de ações genérico por trás.
+**Contexto:** O pedido da Sprint 2 lista 11 ações rápidas abrindo dialogs, o que pareceria pedir um sistema genérico de ações/comandos (padrão command palette).
+**Motivo:** DEC-010 (motor de workflow adiado, "regra dos 3") e DEC-008 (DDD/camadas adiadas) já estabeleceram que abstração genérica só se justifica com 3 casos reais repetidos — 11 ações com formas de dado completamente diferentes (uma atualiza `quilometragem`, outra abre upload de arquivo, outra nem tem backend ainda) não são "o mesmo padrão 3 vezes", são casos distintos. Um motor genérico aqui seria abstração prematura disfarçada de arquitetura.
+**Alternativas consideradas:** Sistema genérico de "ações registráveis" com metadata declarativa — rejeitado, mesma razão do DEC-010.
+**Riscos aceitos:** Alguma repetição de estrutura entre os componentes de Dialog (todos usam o mesmo `Dialog` primitivo, mas o conteúdo de cada um é escrito à mão) — aceitável, é o preço de não generalizar cedo.
+**Revisitar quando:** Um quarto ou quinto módulo (Motoristas, Contratos…) precisar do mesmo padrão de Command Actions — nesse ponto, extrair a estrutura comum já observada em 3+ casos reais, não antes.
+
+### Nota: dado real vs. placeholder nesta sprint
+
+Ações com backend real, sem gambiarra: Alterar status, Adicionar documento, Novo comentário, Nova tag, Registrar km, Duplicar veículo (pré-preenche o formulário de criação com os campos não-únicos), Vender veículo (reaproveita a state machine — só oferece a ação quando "venda" é uma transição válida a partir do status atual), Compartilhar (copia o link real da página), aba Histórico (lê `audit_log`, que já existia desde a Fase 0 e nunca tinha sido lida por nenhuma tela até agora).
+
+Ainda sem módulo de negócio por trás, mostrado com honestidade ("em breve", nunca dado fake): Registrar manutenção, Registrar abastecimento, Gerar relatório/Exportar PDF, Arquivar, e os KPIs de Receita/Custo/ROI/Saúde do ativo/Status documental (dependem de Financeiro, Manutenção e Contratos, nenhum construído ainda).
+**Risco registrado nesta sprint, não bloqueante:** essas abas/KPIs "em breve" vão ficar assim por um tempo indeterminado — se o Cockpit for mostrado a alguém de fora (cliente, investidor) antes desses módulos existirem, pode passar a impressão de mais completude do que existe de fato. Vale ter isso em mente antes de qualquer demo externa.

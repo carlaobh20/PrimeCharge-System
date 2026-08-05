@@ -56,3 +56,17 @@ export type Favorito = {
   usuario_id: string;
   criado_em: string;
 };
+
+// audit_log é da Fase 0 (não é uma capability genérica por entidade_tipo/entidade_id como
+// as acima — é chaveada por tabela/registro_id), mas é o dado real por trás da aba "Histórico".
+export type AuditLogEntry = {
+  id: string;
+  empresa_id: string | null;
+  tabela: string;
+  registro_id: string | null;
+  acao: 'INSERT' | 'UPDATE' | 'DELETE';
+  dados_antigos: Record<string, unknown> | null;
+  dados_novos: Record<string, unknown> | null;
+  usuario_id: string | null;
+  criado_em: string;
+};

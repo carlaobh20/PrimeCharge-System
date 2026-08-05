@@ -1,11 +1,18 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { VeiculoForm } from '../components/VeiculoForm';
 import { useCreateVeiculo } from '../hooks/useVeiculos';
-import type { VeiculoFormValues } from '../schemas/veiculo.schema';
+import type { VeiculoFormInput, VeiculoFormValues } from '../schemas/veiculo.schema';
+
+// "Duplicar veículo" (Command Action do Cockpit, Sprint 2) navega pra cá com os campos
+// não-únicos pré-preenchidos via router state — chassi/RENAVAM/placa/status ficam em branco
+// de propósito, são únicos por empresa e o usuário precisa informar os do veículo novo.
+type DuplicarState = { defaultValues?: Partial<VeiculoFormInput>; origemPlaca?: string };
 
 export function VeiculoCreatePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { defaultValues, origemPlaca } = (location.state as DuplicarState | null) ?? {};
   const { data: usuario } = useCurrentUsuario();
   const createVeiculo = useCreateVeiculo();
 
@@ -36,10 +43,17 @@ export function VeiculoCreatePage() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Novo veículo</h1>
-      <p className="mt-1 text-sm text-neutral-500">Cadastro completo do veículo na frota.</p>
+      <p className="mt-1 text-sm text-neutral-500">
+        {origemPlaca ? `Duplicando dados de ${origemPlaca} — confira e preencha chassi, RENAVAM e placa novos.` : 'Cadastro completo do veículo na frota.'}
+      </p>
 
       <div className="mt-6 max-w-3xl">
-        <VeiculoForm onSubmit={handleSubmit} isSubmitting={createVeiculo.isPending} submitLabel="Cadastrar veículo" />
+        <VeiculoForm
+          onSubmit={handleSubmit}
+          isSubmitting={createVeiculo.isPending}
+          submitLabel="Cadastrar veículo"
+          defaultValues={defaultValues}
+        />
         {createVeiculo.isError && (
           <p className="mt-3 text-sm text-red-600">
             Erro ao cadastrar veículo: {(createVeiculo.error as Error).message}

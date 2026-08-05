@@ -2,9 +2,9 @@
 
 Sistema de gestão (ERP) para empresas de locação de veículos elétricos.
 
-## Status atual: Fase 1 — Sprint 1 (módulo Veículos)
+## Status atual: Fase 1 — Sprint 2 (Cockpit do Ativo)
 
-Fundação (auth/tenancy/auditoria) e primeiro módulo de negócio completo: cadastro, listagem, detalhe e edição de veículos, com as capacidades genéricas (fotos, documentos, timeline, comentários, tags, favoritos) conectadas.
+Fundação (auth/tenancy/auditoria) e módulo Veículos completo (Sprint 1: cadastro, listagem, detalhe, edição). Sprint 2 transformou a ficha do veículo em "Cockpit do Ativo": header premium, faixa de KPIs, 9 abas (Dados Gerais, Timeline, Arquivos, Comentários, Financeiro, Indicadores, Eventos, Histórico, Configurações), sidebar direita e Command Actions — ver DEC-021 em `DECISION_LOG.md`.
 
 - [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) — arquitetura, modelagem de domínio, mapa de telas e roadmap completo.
 - [`FOUNDATION_PRINCIPLES.md`](FOUNDATION_PRINCIPLES.md), [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md), [`DECISION_LOG.md`](DECISION_LOG.md), [`PRODUCT_VISION.md`](PRODUCT_VISION.md), [`NORTH_STAR.md`](NORTH_STAR.md), [`VALUE_ENGINE.md`](VALUE_ENGINE.md) — documentos de fundação da plataforma.
