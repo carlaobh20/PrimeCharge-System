@@ -489,3 +489,63 @@ Como parte desta decisão, os 6 tipos de Card pedidos foram avaliados um a um:
 **Alternativas consideradas:** Duplicar `listVeiculos`/`listMotoristas` dentro de `features/contracts/api/` — rejeitada, viola DEC-023 de forma mais direta do que a exceção proposta. Criar uma API dedicada em `shared/` só para "listagem básica de referência" (`shared/api/referencias.ts`, retornando `{id, label}` genérico para qualquer entidade) — avaliada e adiada por ora: seria a abstração correta no longo prazo (um único ponto para popular qualquer select de referência cross-feature), mas hoje só há 2 consumidores reais (Veículo e Motorista, ambos só para o caso de Contrato) — não atinge a "regra dos 3" (DEC-010) para justificar a extração agora. Revogar a regra de ouro de DEC-008 de forma ampla — rejeitada, o valor de "feature não quebra outra feature ao mudar" continua real para o resto do vocabulário (componentes, `api/` de escrita, regra de negócio).
 **Riscos aceitos:** Uma mudança de assinatura em `useVeiculos`/`useMotoristas`/`useContratos` agora pode quebrar consumidores em `features/contracts/` e `features/command-center/`, não só na feature de origem — acoplamento real, aceito porque é estreito (só leitura de lista, tipos já estáveis desde Sprint 2/6) e explícito (registrado aqui, não descoberto por acidente num build quebrado). Se um quarto ou quinto caso real de "preciso listar entidade de outra feature" aparecer, a extração para `shared/api/referencias.ts` (rejeitada acima por não atingir a regra dos 3) deve ser reconsiderada — nesse ponto ela atinge o critério.
 **Revisitar quando:** Um terceiro consumidor real de "listar entidade de outra feature para popular relação/agregação" aparecer além de `ContratoForm`/`useCommandCenter` (ex.: Financeiro precisando listar Contratos) — nesse momento, reavaliar `shared/api/referencias.ts` como extração genérica, já com 3 casos reais para desenhar corretamente. Qualquer um dos hooks cobertos por esta exceção precisar de uma mutação (não só leitura) por outra feature — isso NÃO está coberto por esta decisão e exige uma exceção nova, mais estreita ainda, ou uma API dedicada.
+
+## DEC-040 — Motorista não sai automaticamente de `ativo` quando seu único contrato termina (gap encontrado, não corrigido em código)
+
+**Data:** 2026-08-05 · **Status:** ativa — implementação pendente
+**Decisão:** `DRIVER_LIFECYCLE.md` (seção 6.1) formaliza que `status: ativo` do Motorista deveria significar "tem contrato vigente" — mas `fn_propagar_status_contrato` (DEC-037) só cobre o sentido `contrato ativa → motorista ativo` (`em_analise → ativo`). Não existe hoje o caminho inverso: `contrato → encerrado`/`cancelado` não move o motorista para `inativo`. Um motorista cujo único contrato terminou permanece `ativo` indefinidamente, a menos que alguém corrija manualmente. Proposta registrada (não implementada nesta consolidação, por instrução explícita de não alterar código/migrations): `fn_propagar_status_contrato` deveria, ao receber `contrato → encerrado/cancelado`, checar se o motorista tem outro contrato `ativo`/`renovacao` — se não tiver, mover para `inativo` (nunca direto para `encerrado`; fim de contrato não é fim de relação).
+**Contexto:** Encontrado ao consolidar `DRIVER_LIFECYCLE.md`, comparando a jornada de negócio pedida pelo Carlos contra o trigger real da migration `0005_modulo_contratos.sql`.
+**Motivo:** Sem essa correção, qualquer métrica futura que use `status: ativo` como proxy de "motorista com contrato hoje" (elegibilidade de renovação/upgrade em `PRIME_DRIVER_PROGRAM.md`, Taxa de renovação em `VALUE_ENGINE.md`) fica distorcida por motoristas "ativos" sem contrato real.
+**Alternativas consideradas:** Mover direto para `encerrado` ao fim do contrato — rejeitada, um motorista sem contrato no momento pode perfeitamente alugar de novo depois; tratar como `encerrado` fecharia a relação sem necessidade.
+**Riscos aceitos:** Enquanto não implementado, qualquer leitura de `status: ativo` de Motorista precisa, na prática, ser cruzada com existência de contrato vigente por quem consome o dado — risco documentado, não silencioso.
+**Revisitar quando:** Sprint 8/9 tocar o módulo Motorista ou Contrato novamente — implementar junto com qualquer outra mudança em `fn_propagar_status_contrato`.
+
+## DEC-041 — `encerrado` do Motorista mistura motivos distintos; campo `motivo_encerramento` proposto, não implementado
+
+**Data:** 2026-08-05 · **Status:** ativa — implementação pendente
+**Decisão:** `DRIVER_LIFECYCLE.md` (seção 6.2) registra que o único estado terminal `encerrado` (alcançável de `lead`, `em_analise`, `ativo`, `inativo`, `bloqueado`) não distingue lead que nunca avançou, reprovação em análise, encerramento amigável após relação longa, ou bloqueio definitivo. Proposta registrada (não implementada): campo futuro `motivo_encerramento` (categórico), sem criar nenhum estado novo na State Machine.
+**Contexto:** Mesma revisão que encontrou DEC-040, ao desenhar a fase "Pós-venda" da jornada do motorista.
+**Motivo:** Sem essa distinção, elegibilidade de win-back, decisão de reativar como novo Lead vs. restaurar histórico, e a precisão de "Taxa de renovação de contrato" (`VALUE_ENGINE.md`) não são calculáveis.
+**Alternativas consideradas:** Criar estados terminais separados (`encerrado_lead`, `encerrado_ativo`, `bloqueio_definitivo`) — rejeitada, mesma lógica de `SMART_FLEET_PLATFORM.md` seção 6 (Health Score): resolver como dado é mais barato e não infla o enum sem necessidade real.
+**Riscos aceitos:** Nenhum novo — hoje simplesmente não existe a distinção; nenhuma funcionalidade real depende dela ainda.
+**Revisitar quando:** A fase Pós-venda (`DRIVER_LIFECYCLE.md`, seção 3) ou qualquer análise de churn/win-back for de fato construída.
+
+## DEC-042 — Driver Score definido como métrica distinta do Health Score do Motorista e do futuro score de risco preditivo
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** `PRIME_DRIVER_PROGRAM.md` (seção 2) define Driver Score como métrica de fidelidade — distinta do Health Score do Motorista (DEC-025, avaliação de risco/saúde da relação) e distinta do "score de risco do motorista" já citado em `AI_PLATFORM.md` como candidato de Nível 3 (preditivo, ligado a `VALUE_ENGINE.md` estágio 4). Driver Score não é uma sexta categoria de `HealthCategoriaId`, não duplica captura de dado — é calculado a partir de um subconjunto dos mesmos sinais que já alimentam Health Score (`operacional`, `documental`) mais sinais que Health Score não cobre (tempo de relacionamento, indicações).
+**Contexto:** O pedido original de "Driver Score" para o programa de fidelidade poderia ter sido implementado como sinônimo do Health Score já existente, ou como uma categoria nova de Health Score — ambos avaliados e rejeitados.
+**Motivo:** Health Score e Driver Score respondem perguntas diferentes (risco para a empresa vs. reconhecimento ao motorista) e precisam poder divergir (um documento vencido derruba Health Score instantaneamente; não deveria zerar fidelidade acumulada). Tratá-los como o mesmo número esconderia essa diferença de propósito; criar uma sexta categoria de Health Score repetiria o erro que `SMART_FLEET_PLATFORM.md` seção 6 (DEC-031) já corrigiu para telemetria.
+**Alternativas consideradas:** Reaproveitar Health Score diretamente como Driver Score — rejeitada, propósitos incompatíveis. Adicionar `fidelidade` como sexta categoria de `HealthCategoriaId` — rejeitada, mesma razão de DEC-031 (taxonomia de negócio fechada, fonte de dado nova não é categoria nova).
+**Riscos aceitos:** Nenhum novo — nenhum cálculo é implementado ainda; a decisão é só de modelagem conceitual, pronta para quando a implementação acontecer.
+**Revisitar quando:** A implementação real de Driver Score começar — nesse momento, confirmar que a fórmula lê os sinais de Health Score por referência (nunca copia), mesmo padrão de reuso já estabelecido na plataforma.
+
+## DEC-043 — Elegibilidade de renovação de contrato não é gated por nível do Prime Driver Program
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** `PRIME_DRIVER_PROGRAM.md` (seção 5) define que renovação de contrato é elegível para qualquer motorista `ativo`/`inativo` sem bloqueio, independente do nível do programa (Bronze/Prata/Ouro/Black) — o nível afeta o que a renovação oferece (condição, prioridade), nunca se ela é possível. Upgrade de categoria e compra do veículo continuam gated por nível (Ouro e Black, respectivamente).
+**Contexto:** O pedido original listava "elegibilidade para renovação" lado a lado com upgrade e compra, como se as três fossem igualmente gated por nível de fidelidade.
+**Motivo:** Renovação é continuidade de uma relação que já vai bem — negar renovação a um motorista Bronze em dia só por não ter acumulado tempo de Prata puniria um bom motorista pela falta de fidelidade acumulada, o oposto do objetivo de um programa de retenção.
+**Alternativas consideradas:** Gatear renovação por nível Prata+ (proposta implícita original) — rejeitada pelo motivo acima.
+**Riscos aceitos:** Nenhum novo — nenhuma regra de renovação é implementada ainda; é só a definição de negócio para quando Sprint 8/Financeiro tornar renovação de fato operável ponta a ponta.
+**Revisitar quando:** A implementação real da Sprint 8 tocar o fluxo de renovação de Contrato.
+
+## DEC-044 — Semântica de "venda" do Veículo ampliada para cobrir saída patrimonial definitiva (venda comercial ou perda total)
+
+**Data:** 2026-08-05 · **Status:** ativa — implementação pendente
+**Decisão:** `VEHICLE_LIFECYCLE.md` (seção 6.1) documenta que o estado `venda` (único caminho para `encerrado` na State Machine de Veículo) passa a cobrir, por definição de negócio, qualquer saída patrimonial definitiva da frota — venda comercial normal ou baixa por sinistro/roubo com indenização de seguro — sem criar nenhum estado novo. Proposta registrada, não implementada: campo futuro `motivo_baixa` para diferenciar os casos como dado, quando `Sinistro` existir como entidade (`ARQUITETURA.md`, Fase 4).
+**Contexto:** Encontrado ao consolidar `VEHICLE_LIFECYCLE.md` — a State Machine hoje só alcança `encerrado` via `venda`, mas um veículo com perda total não passa por uma venda comercial de fato.
+**Motivo:** Forçar perda total pelo caminho `disponivel → venda → encerrado` sem esclarecer a semântica seria impreciso; criar um estado novo só para esse caso repetiria a inflação de enum que `SMART_FLEET_PLATFORM.md` seção 6 (DEC-031) já rejeitou para Health Score — o problema se resolve como dado (`motivo_baixa`), não como estado novo.
+**Alternativas consideradas:** Novo estado `perda_total` — rejeitada, mesma razão de DEC-031/`FOUNDATION_PRINCIPLES.md` Princípio 8.
+**Riscos aceitos:** Até `motivo_baixa` existir, não há como diferenciar programaticamente venda comercial de baixa por sinistro nos dados já gravados — aceito porque `Sinistro` como entidade também não existe ainda (Fase 4).
+**Revisitar quando:** `Sinistro` entrar em escopo real (Fase 4, `ARQUITETURA.md`).
+
+## DEC-045 — "Renovação de Contrato" e "Renovação de Frota" são conceitos distintos que compartilham nome
+
+**Data:** 2026-08-05 · **Status:** ativa
+**Decisão:** `VEHICLE_LIFECYCLE.md` (seção 6.2) fixa por escrito que "Renovação de Contrato" (`ContratoStatus.renovacao`, DEC-034 — sobre a relação com um motorista específico) e "Renovação de Frota" (a decisão de tirar um veículo de operação por depreciação, que leva a `disponivel → venda`) nunca são a mesma coisa, apesar do nome comum, e devem sempre ser escritas por extenso quando o contexto não deixa óbvio qual das duas está em jogo.
+**Contexto:** Encontrado ao consolidar `VEHICLE_LIFECYCLE.md` — o pedido original usa "Renovação" para o ciclo do ativo, mas a plataforma já usa a mesma palavra como um `ContratoStatus` desde a Sprint 7.
+**Motivo:** Colisão de nome é um risco real de confusão em conversa e em qualquer IA futura que precise interpretar "renovação" sem contexto adicional (`AI_PLATFORM.md`, taxonomia de tipos de inteligência) — nenhum dos dois precisa mudar de nome no código, só precisa de desambiguação por escrito.
+**Alternativas consideradas:** Renomear um dos dois conceitos no código — avaliada e rejeitada por ora: nenhuma confusão real já causou bug ou decisão errada; renomear um enum já em produção (`ContratoStatus`) por um risco ainda hipotético seria descartado pelo mesmo critério que rejeita abstração antecipada (`FOUNDATION_PRINCIPLES.md`, Princípio 8).
+**Riscos aceitos:** Colisão de nome permanece — mitigada só por convenção de escrita (sempre por extenso), não por garantia técnica.
+**Revisitar quando:** A colisão causar um erro real de interpretação (por pessoa ou por IA) — nesse momento, reconsiderar renomear.
