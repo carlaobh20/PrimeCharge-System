@@ -26,6 +26,8 @@ Criado em 2026-08-06, a pedido do Carlos, como Parte 10 da Missão 3 (Driver Eco
 
 **O que essas quatro têm em comum, e por que isso importa para IA/Agente**: todas são *append-only* na prática (nada edita uma linha de `timeline_eventos`/`audit_log`/`telemetria_eventos` depois de criada — só insere), todas carregam `empresa_id` (isolamento multi-tenant já resolvido por RLS, `DECISION_LOG.md` DEC-064), e três das quatro (`timeline_eventos`, `arquivos`, `telemetria_eventos`) usam o mesmo par `entidade_tipo`/`entidade_id` — significa que um consumidor futuro (Agente, relatório, modelo de IA) que já sabe ler uma consegue ler as outras duas sem uma API nova.
 
+**Cobertura de `audit_log` (achado + correção da Fase 6, Missão 5):** `fn_audit_log()` só audita tabelas que ganharam o trigger explicitamente — não é automático por tabela nova. Auditoria completa desta fase encontrou 4 tabelas com dado real e `empresa_id` (logo, elegíveis) que nunca tinham recebido o trigger: `manutencoes`, `multas`, `telemetria_eventos` e `convites` — corrigido nesta migration (`0013`). Duas tabelas continuam **de propósito** fora do `audit_log`, não por lacuna: `empresas` e `permissoes` não têm coluna `empresa_id` (a primeira **é** a empresa; a segunda é uma matriz global de role→módulo→ação, não por tenant) — anexar o trigger genérico a elas quebraria em runtime (`fn_audit_log` referencia `new.empresa_id`, que não existe nessas duas). Se `empresas`/`permissoes` precisarem de auditoria própria no futuro, é uma função de trigger dedicada, não a genérica.
+
 ---
 
 ## 3. Dados estruturados vs. não-estruturados
@@ -35,11 +37,13 @@ Criado em 2026-08-06, a pedido do Carlos, como Parte 10 da Missão 3 (Driver Eco
 
 ---
 
-## 4. Lineage (de onde cada dado veio) — hoje implícito, não rastreado
+## 4. Lineage (de onde cada dado veio) — real em 3 tabelas, implícito no resto
 
-Hoje, "de onde veio este dado" se responde por convenção de código, não por um campo que se possa consultar: um `Lancamento` sabe se foi criado manualmente (não há hoje um campo `criado_via`/`origem` em `lancamentos`, diferente de `acoes_operacionais.origem`, que já distingue `manual`/`sistema`/`automacao`/`agente`/`ia` desde a Sprint 9). Isso é uma lacuna real: se um Agente futuro (`AGENT_PLATFORM.md`) começar a criar Lançamentos, Checklists ou Ações, não há hoje, em todo o schema, um jeito uniforme de perguntar "quais desses 10.000 registros foram criados por um humano e quais por um Agente?" fora de `acoes_operacionais`.
+**Correção (Missão 5, Fase 6):** esta seção afirmava, incorretamente, que `lancamentos` não tinha campo de lineage. Isso estava desatualizado desde a criação do próprio documento — `lancamentos.criado_via` (enum `lancamento_origem`: `manual`/`automacao`/`agente`/`ia`) existe desde a migration `0006` (Sprint 8), anterior a este documento (Missão 3). Auditoria completa desta fase (grep em todo o schema): de 27 tabelas, só **3 têm lineage estruturado** — `lancamentos.criado_via`, `acoes_operacionais.origem` (enum `acao_origem`, desde a Sprint 9) e `arquivos.criado_via` (enum `arquivo_origem`, adicionado nesta mesma missão, Fase 4, DEC-112). `telemetria_eventos.origem` existe mas como `text` livre, não enum (nenhum produtor real ainda). As outras 23 tabelas (`veiculos`, `motoristas`, `contratos`, `checklists`, `manutencoes`, `multas`, `metas` etc.) não distinguem humano de sistema/automação/agente/IA — têm `criado_por`/`usuario_id` (qual humano logado agiu), o que é uma informação diferente de lineage e não deve ser confundida com ela.
 
-**Decisão desta missão**: não adicionar `criado_via`/`origem` a todas as tabelas agora (seria a mesma abstração antecipada que `FOUNDATION_PRINCIPLES.md` Princípio 8 rejeita — nenhum Agente cria nada ainda). Registrado como pré-requisito explícito: **antes de qualquer Agente ganhar permissão de escrita** (`AGENT_PLATFORM.md`), a tabela que ele vai escrever precisa ganhar esse campo primeiro. Ver DEC desta missão.
+Isso é uma lacuna real: se um Agente futuro (`AGENT_PLATFORM.md`) começar a criar Checklists, Manutenções ou Multas, não há hoje, nessas tabelas, um jeito uniforme de perguntar "quais desses registros foram criados por um humano e quais por um Agente?".
+
+**Decisão desta missão (reafirmada)**: não adicionar `criado_via`/`origem` a todas as 23 tabelas restantes agora (seria a mesma abstração antecipada que `FOUNDATION_PRINCIPLES.md` Princípio 8 rejeita — nenhum Agente cria nada ainda em nenhuma delas). Continua registrado como pré-requisito explícito: **antes de qualquer Agente ganhar permissão de escrita** (`AGENT_PLATFORM.md`), a tabela que ele vai escrever precisa ganhar esse campo primeiro — cada uma na sua vez, não todas de uma vez.
 
 ---
 

@@ -1,4 +1,4 @@
-import { supabase } from '@/shared/lib/supabase';
+import { supabase, assertLinhaAfetada } from '@/shared/lib/supabase';
 import type { Multa, MultaComRelacoes, MultaStatus } from '../types';
 
 const SELECT_COM_RELACOES = '*, veiculo:veiculos(id, placa), motorista:motoristas(id, nome_completo)';
@@ -53,6 +53,7 @@ export async function updateMultaStatus(id: string, status: MultaStatus) {
 }
 
 export async function deleteMulta(id: string) {
-  const { error } = await supabase.from('multas').delete().eq('id', id);
+  const { data, error } = await supabase.from('multas').delete().eq('id', id).select('id');
   if (error) throw error;
+  assertLinhaAfetada(data);
 }

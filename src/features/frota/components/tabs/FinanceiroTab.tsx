@@ -28,14 +28,19 @@ const STATUS_BADGE: Record<LancamentoStatus, 'warning' | 'success' | 'secondary'
 export function FinanceiroTab({ veiculo }: { veiculo: Pick<Veiculo, 'id' | 'valor_compra' | 'data_compra'> }) {
   const veiculoId = veiculo.id;
   const { data: lancamentos, isLoading } = useLancamentos({ veiculoId });
-  const { data: contratos, isLoading: loadingContratos } = useContratos();
+  // Achado da Fase 9 (auditoria geral): buscava a empresa inteira de contratos só para
+  // filtrar por veiculo_id em memória logo abaixo — exatamente o anti-padrão que a Fase 1
+  // (DEC-108) corrigiu nos 3 hooks de Intelligence, mas este consumidor de UI (não um hook de
+  // intelligence) tinha ficado de fora daquela varredura. `useVehicleIntelligence` no mesmo
+  // Cockpit já usa `useContratos({ veiculoId })` — agora as duas consultas dedupe.
+  const { data: contratos, isLoading: loadingContratos } = useContratos({ veiculoId });
 
   const receitas = (lancamentos ?? []).filter((l) => l.tipo === 'receita' && l.status !== 'cancelada');
   const despesas = (lancamentos ?? []).filter((l) => l.tipo === 'despesa' && l.status !== 'cancelada');
   const totalReceita = receitas.reduce((soma, l) => soma + l.valor, 0);
   const totalDespesa = despesas.reduce((soma, l) => soma + l.valor, 0);
 
-  const contratosDoVeiculo = (contratos ?? []).filter((c) => c.veiculo_id === veiculoId);
+  const contratosDoVeiculo = contratos ?? [];
   const kmRodado = contratosDoVeiculo.reduce((soma, c) => {
     if (c.km_final !== null && c.km_inicial !== null && c.km_final >= c.km_inicial) return soma + (c.km_final - c.km_inicial);
     return soma;

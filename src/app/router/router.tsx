@@ -1,5 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom';
-import { AppLayout } from '@/shared/components/layout/AppLayout';
+import { AppLayout } from '@/app/layout/AppLayout';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { AceitarConvitePage } from '@/features/auth/pages/AceitarConvitePage';
 import { UsuariosPage } from '@/features/auth/pages/UsuariosPage';

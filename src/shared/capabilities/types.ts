@@ -16,6 +16,10 @@ export type Arquivo = {
   // aqui nem em nenhuma UI de upload — fechado na Missão 4 (fase 1/2, achado #3 da auditoria
   // de jornada: "documentos vencendo" era impossível de calcular sem este campo chegar à UI).
   data_validade: string | null;
+  // Missão 5, Fase 4 — lineage (DEC-112), mesmo padrão de `lancamentos.criado_via`. Sempre
+  // 'manual' hoje (nenhum produtor automático de arquivo existe); ponto de extensão para
+  // Vistoria Inteligente/Agente/IA, sem UI nova.
+  criado_via: 'manual' | 'automacao' | 'agente' | 'ia';
   criado_em: string;
 };
 

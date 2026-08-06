@@ -1,4 +1,4 @@
-import { supabase } from '@/shared/lib/supabase';
+import { supabase, assertLinhaAfetada } from '@/shared/lib/supabase';
 import type { Veiculo, VeiculoComRelacoes, VeiculoStatus } from '../types';
 
 const SELECT_COM_RELACOES = '*, marca:marcas(*), modelo:modelos(*)';
@@ -52,8 +52,9 @@ export async function updateVeiculoStatus(id: string, status: VeiculoStatus) {
 }
 
 export async function deleteVeiculo(id: string) {
-  const { error } = await supabase.from('veiculos').delete().eq('id', id);
+  const { data, error } = await supabase.from('veiculos').delete().eq('id', id).select('id');
   if (error) throw error;
+  assertLinhaAfetada(data);
 }
 
 // Missão 4 (Fase 1, achado #17 da auditoria de jornada — fecha DEC-044): "Vender veículo"

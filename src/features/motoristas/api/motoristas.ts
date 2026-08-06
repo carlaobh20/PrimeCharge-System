@@ -1,4 +1,4 @@
-import { supabase } from '@/shared/lib/supabase';
+import { supabase, assertLinhaAfetada } from '@/shared/lib/supabase';
 import type { Motorista, MotoristaStatus } from '../types';
 
 export async function listMotoristas(filters?: { status?: MotoristaStatus | 'todos'; busca?: string }) {
@@ -50,6 +50,7 @@ export async function updateMotoristaStatus(id: string, status: MotoristaStatus)
 }
 
 export async function deleteMotorista(id: string) {
-  const { error } = await supabase.from('motoristas').delete().eq('id', id);
+  const { data, error } = await supabase.from('motoristas').delete().eq('id', id).select('id');
   if (error) throw error;
+  assertLinhaAfetada(data);
 }

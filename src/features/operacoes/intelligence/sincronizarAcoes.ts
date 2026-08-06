@@ -7,7 +7,7 @@ import { gerarAcoesContratoVencendo } from './geradores/contratoGeradores';
 import { gerarAcoesPagamentoAtrasado, gerarAcoesParcelaAVencer } from './geradores/financeiroGeradores';
 import { gerarAcoesChecklistAbertoDemorado } from './geradores/checklistGeradores';
 import { gerarAcoesManutencaoAgendadaVencendo } from './geradores/manutencaoGeradores';
-import { gerarAcoesDocumentoVeiculoVencendo } from './geradores/documentoGeradores';
+import { gerarAcoesDocumentoVencendo } from './geradores/documentoGeradores';
 import type { AcaoCandidata, Checklist, Manutencao } from '../types';
 
 export type MontarCandidatasInput = {
@@ -33,6 +33,6 @@ export function montarCandidatas(input: MontarCandidatasInput): AcaoCandidata[] 
     ...gerarAcoesParcelaAVencer(input.pagamentosPendentes),
     ...gerarAcoesChecklistAbertoDemorado(input.checklistsAbertos),
     ...gerarAcoesManutencaoAgendadaVencendo(input.manutencoesAgendadas),
-    ...gerarAcoesDocumentoVeiculoVencendo(input.arquivosComValidade),
+    ...gerarAcoesDocumentoVencendo(input.arquivosComValidade),
   ];
 }

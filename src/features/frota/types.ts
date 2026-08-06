@@ -94,7 +94,14 @@ export const VEICULO_STATUS_TRANSITIONS: Record<VeiculoStatus, VeiculoStatus[]> 
   comprado: ['preparacao'],
   preparacao: ['disponivel'],
   disponivel: ['reservado', 'alugado', 'manutencao', 'venda'],
-  reservado: ['alugado', 'disponivel'],
+  // Achado da Fase 9 (Missão 5, auditoria geral): 'disponivel' removido daqui — o banco
+  // (fn_validar_transicao_veiculo, migration 0008) só aceita reservado→alugado; a UI oferecia
+  // "Mover para Disponível" a partir de Reservado e a transição sempre falhava com erro
+  // técnico do Postgres. O gap real (reserva cancelada precisar voltar a 'disponivel') já
+  // estava documentado na própria migration como pendência — corrigir o banco exige decidir o
+  // que acontece com um Contrato vinculado à reserva cancelada, fora do escopo desta correção
+  // pontual de UI/banco desalinhados.
+  reservado: ['alugado'],
   alugado: ['devolvido'],
   devolvido: ['manutencao', 'disponivel'],
   manutencao: ['disponivel'],

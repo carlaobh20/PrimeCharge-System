@@ -1,4 +1,4 @@
-import { supabase } from '@/shared/lib/supabase';
+import { supabase, assertLinhaAfetada } from '@/shared/lib/supabase';
 import type { Contrato, ContratoComRelacoes, ContratoStatus } from '../types';
 
 const SELECT_COM_RELACOES = '*, veiculo:veiculos(id, placa, status), motorista:motoristas(id, nome_completo, status)';
@@ -97,8 +97,9 @@ export async function renovarContrato(id: string, novaDataFimPrevista: string) {
 }
 
 export async function deleteContrato(id: string) {
-  const { error } = await supabase.from('contratos').delete().eq('id', id);
+  const { data, error } = await supabase.from('contratos').delete().eq('id', id).select('id');
   if (error) throw error;
+  assertLinhaAfetada(data);
 }
 
 // Achado crítico #2 da auditoria da Missão 2 (2026-08-06): "Encerrar contrato" só mudava o

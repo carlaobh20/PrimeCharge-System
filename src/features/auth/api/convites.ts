@@ -1,4 +1,4 @@
-import { supabase } from '@/shared/lib/supabase';
+import { supabase, assertLinhaAfetada } from '@/shared/lib/supabase';
 import type { UserRole } from '@/shared/types/database';
 
 export type Convite = {
@@ -36,8 +36,9 @@ export async function createConvite(empresaId: string, payload: { email: string;
 }
 
 export async function deleteConvite(id: string) {
-  const { error } = await supabase.from('convites').delete().eq('id', id);
+  const { data, error } = await supabase.from('convites').delete().eq('id', id).select('id');
   if (error) throw error;
+  assertLinhaAfetada(data);
 }
 
 // Leitura pública (sem sessão) de um convite por token — via RPC, não via SELECT direto na

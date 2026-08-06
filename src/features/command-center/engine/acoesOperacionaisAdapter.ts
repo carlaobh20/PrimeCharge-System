@@ -34,7 +34,15 @@ const IMPACTO_URGENCIA_POR_PRIORIDADE: Record<Prioridade, { impacto: Impacto; ur
 // tocar aqui.
 const CATEGORIA_POR_TIPO: Record<string, HealthCategoriaId> = {
   renovacao_documento: 'documental',
+  // 'documento_veiculo_vencendo' generalizado para 'documento_vencendo' na Missão 5 (Fase 4,
+  // DEC-112) — o gerador passou a cobrir Motorista/Contrato, não só Veículo. Achado da Fase 9:
+  // `sincronizarAcoesGeradas` casa candidata↔ação existente só por `(gerado_por, entidade_tipo,
+  // entidade_id)`, nunca atualiza `tipo` de uma ação já aberta — uma ação criada antes desta
+  // migration com o `tipo` antigo ficaria presa nele para sempre e cairia no fallback
+  // 'operacional'. Chave antiga mantida como alias permanente (custo zero) em vez de depender
+  // de uma migração de backfill que este ambiente nunca teve como testar contra dado real.
   documento_veiculo_vencendo: 'documental',
+  documento_vencendo: 'documental',
   renovacao_contrato: 'comercial',
   cobranca_atrasada: 'financeira',
   cobranca_a_vencer: 'financeira',

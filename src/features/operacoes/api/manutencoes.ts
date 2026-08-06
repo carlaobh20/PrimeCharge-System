@@ -1,4 +1,4 @@
-import { supabase } from '@/shared/lib/supabase';
+import { supabase, assertLinhaAfetada } from '@/shared/lib/supabase';
 import type { Manutencao } from '../types';
 
 export type ManutencaoInput = Omit<Manutencao, 'id' | 'empresa_id' | 'criado_por' | 'criado_em' | 'atualizado_em'>;
@@ -34,8 +34,9 @@ export async function createManutencao(empresaId: string, payload: ManutencaoInp
 }
 
 export async function deleteManutencao(id: string) {
-  const { error } = await supabase.from('manutencoes').delete().eq('id', id);
+  const { data, error } = await supabase.from('manutencoes').delete().eq('id', id).select('id');
   if (error) throw error;
+  assertLinhaAfetada(data);
 }
 
 // Missão 4 (Fase 3) — marca uma manutenção agendada como realizada, capturando a data real

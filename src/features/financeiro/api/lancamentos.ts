@@ -1,4 +1,4 @@
-import { supabase } from '@/shared/lib/supabase';
+import { supabase, assertLinhaAfetada } from '@/shared/lib/supabase';
 import type { Lancamento, LancamentoComRelacoes, LancamentoStatus, LancamentoTipo } from '../types';
 
 const SELECT_COM_RELACOES =
@@ -62,8 +62,9 @@ export async function updateLancamentoStatus(id: string, status: LancamentoStatu
 }
 
 export async function deleteLancamento(id: string) {
-  const { error } = await supabase.from('lancamentos').delete().eq('id', id);
+  const { data, error } = await supabase.from('lancamentos').delete().eq('id', id).select('id');
   if (error) throw error;
+  assertLinhaAfetada(data);
 }
 
 // Variante em lote, mesmo padrão de listContratosPorEmpresa — usada pela Financial

@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { BarChart3, Car, ClipboardList, FileSignature, Landmark, PieChart, Radar, LogOut, Receipt, Users, UserCog, Wallet } from 'lucide-react';
+import { BarChart3, Car, ClipboardList, FileSignature, Landmark, PieChart, Radar, LogOut, Receipt, Search, Users, UserCog, Wallet } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
+import { GlobalSearchPalette } from '@/features/search/components/GlobalSearchPalette';
 
 // Central de Comando é a Home desde a Sprint 5 (DEC-024) — Dashboard virou uma rota
 // analítica separada, não mais o índice. "Contratos" entra na Sprint 7, entre Motoristas e
@@ -25,16 +27,45 @@ const NAV_ITEMS = [
   { to: '/usuarios', label: 'Usuários', icon: UserCog, end: true },
 ];
 
-// Layout base autenticado: sidebar simples com os módulos existentes.
-// Cresce conforme cada novo módulo de negócio (Comercial, Financeiro...) for construído.
+// Movido de shared/components/layout/ para app/layout/ na Missão 5 (Fase 3, Busca Global) —
+// AppLayout é a casca autenticada única, montada direto pelo router (não um componente de UI
+// reutilizável por várias features), e agora precisa compor a Busca Global, que agrega dado de
+// 3 features (Veículos/Motoristas/Contratos). `shared/` nunca importa de `features/` (só o
+// inverso) em nenhum outro lugar do repo — mover este arquivo para `app/`, a mesma camada de
+// composição que já importa toda página de toda feature em `router.tsx`, evita abrir uma
+// exceção nova à regra de ouro (DEC-008) só para este componente.
 export function AppLayout() {
   const { data: usuario } = useCurrentUsuario();
+  const [buscaAberta, setBuscaAberta] = useState(false);
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setBuscaAberta(true);
+      }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950">
       <aside className="flex w-60 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
         <div className="px-4 py-5">
           <span className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">PrimeCharge</span>
+        </div>
+
+        <div className="px-2 pb-2">
+          <button
+            type="button"
+            onClick={() => setBuscaAberta(true)}
+            className="flex w-full items-center gap-2 rounded-md border border-neutral-200 px-3 py-2 text-xs text-neutral-500 transition-colors hover:bg-neutral-100 dark:border-white/10 dark:text-neutral-400 dark:hover:bg-neutral-800"
+          >
+            <Search className="h-3.5 w-3.5" />
+            Buscar…
+            <kbd className="ml-auto rounded border border-neutral-200 px-1 text-[10px] dark:border-white/10">Ctrl K</kbd>
+          </button>
         </div>
 
         <nav className="flex-1 space-y-1 px-2">
@@ -74,6 +105,13 @@ export function AppLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
+
+      {/* Achado da Fase 9 (auditoria geral): antes ficava sempre montada, então
+          useGlobalSearch buscava Veículos/Motoristas/Contratos inteiros em toda página
+          autenticada, mesmo sem o usuário nunca abrir a busca — exatamente o anti-padrão que
+          a Fase 1 (DEC-108) corrigiu em outro lugar. Montagem condicional evita o fetch até o
+          primeiro Ctrl/Cmd+K real. */}
+      {buscaAberta && <GlobalSearchPalette open onOpenChange={setBuscaAberta} />}
     </div>
   );
 }

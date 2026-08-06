@@ -4,34 +4,33 @@ import type { AcaoCandidata } from '../../types';
 
 const JANELA_DIAS = 30;
 
-// Gerador novo da Missão 4 (Fase 3) — mesma janela de CNH/contrato (30 dias). Só existe
-// candidata pra arquivo com `data_validade` preenchida — a maioria não tem (DEC-060 nunca
-// teve UI que capturasse isso até a Missão 4, ver ArquivosPanel). Cobre qualquer categoria de
-// documento de veículo (CRLV, seguro, licenciamento) — a distinção de qual documento é fica
-// no `nome_arquivo`, não num campo estruturado (não existe "tipo de documento" no schema,
-// Regra dos 3 — não construir isso antes de um segundo caso de uso real pedir).
+// Gerador da Missão 4 (Fase 3), generalizado na Missão 5 (Fase 4 — Documentos, DEC-112): até
+// aqui só cobria `entidade_tipo === 'veiculo'`, apesar de `arquivos.data_validade` (DEC-060) e
+// `listArquivosComValidadePorEntidadeTipo` já serem 100% agnósticos de entidade — a
+// restrição a Veículo era só de quem chamava (`AcoesListPage`), não do gerador nem do
+// agregador. Motorista e Contrato também têm a mesma capability de `arquivos` (CNH digitalizada,
+// contrato assinado, laudo de vistoria) e o mesmo campo `data_validade` disponível desde
+// sempre — generalizar aqui é aplicar o motor já existente a mais entidades, não criar
+// abstração nova (Regra dos 3 não se aplica: não é uma 4ª forma de calcular vencimento, é a
+// mesma função `ordenarPorVencimento` de sempre, sem filtro de `entidade_tipo`).
 //
-// Achado da auditoria da Fase 9: este gerador reimplementava manualmente o mesmo cálculo
-// dias-até + filtro + ordenação que `shared/intelligence/vencimentos.ts` (DEC-060) já resolve
-// de forma agnóstica de entidade — e `ordenarPorVencimento` estava órfã (nenhum consumidor a
-// chamava) desde que foi criada. Corrigido para compor sobre o agregador existente em vez de
-// duplicar a lógica — o gerador continua sendo o único lugar que sabe o vocabulário de negócio
-// (título, prioridade, tipo, gerado_por).
-export function gerarAcoesDocumentoVeiculoVencendo(arquivos: Arquivo[]): AcaoCandidata[] {
+// Continua sem `tipo_documento` estruturado (a distinção de qual documento é fica no
+// `nome_arquivo`) — decisão prévia explícita, reafirmada em DEC-112, não revisitada aqui.
+export function gerarAcoesDocumentoVencendo(arquivos: Arquivo[]): AcaoCandidata[] {
   const fontes = arquivos
-    .filter((a) => a.entidade_tipo === 'veiculo' && a.categoria === 'documento' && a.data_validade)
+    .filter((a) => a.categoria === 'documento' && a.data_validade)
     .map((a) => ({ label: a.nome_arquivo, data: a.data_validade, entidadeTipo: a.entidade_tipo, entidadeId: a.entidade_id }));
 
   return ordenarPorVencimento(fontes)
     .filter((item) => item.dias <= JANELA_DIAS)
-    .map(({ label, data, dias, entidadeId }) => ({
+    .map(({ label, data, dias, entidadeTipo, entidadeId }) => ({
       titulo: dias < 0 ? `Documento "${label}" venceu há ${Math.abs(dias)} dia(s)` : `Documento "${label}" vence em ${dias} dia(s)`,
-      descricao: 'Renovar o documento do veículo antes do vencimento (CRLV, seguro, licenciamento).',
-      tipo: 'documento_veiculo_vencendo',
+      descricao: 'Renovar o documento antes do vencimento (CRLV, seguro, licenciamento, CNH digitalizada, contrato assinado etc.).',
+      tipo: 'documento_vencendo',
       prioridade: dias < 0 ? 'critica' : dias <= 7 ? 'alta' : 'media',
       prazo: data,
-      entidade_tipo: 'veiculo',
+      entidade_tipo: entidadeTipo,
       entidade_id: entidadeId,
-      gerado_por: 'veiculo.documento_vencendo',
+      gerado_por: `${entidadeTipo}.documento_vencendo`,
     }));
 }

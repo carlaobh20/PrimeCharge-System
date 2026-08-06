@@ -55,10 +55,14 @@ export function calcularDriverScore(input: DriverScoreInput): DriverScoreResult 
   const categoriaDocumental = input.healthScore.categorias.find((c) => c.categoria === 'documental');
   const categoriaOperacional = input.healthScore.categorias.find((c) => c.categoria === 'operacional');
 
-  const scoreContratos =
-    input.contratos.total === 0
-      ? null
-      : Math.round((input.contratos.encerradosNormalmente / (input.contratos.encerradosNormalmente + input.contratos.cancelados || 1)) * 100);
+  // Achado da Fase 9 (auditoria geral): a condição original só testava `total === 0`. Um
+  // motorista com 1 contrato `ativo` (o caso mais comum) tem `total=1` mas
+  // `encerradosNormalmente=0, cancelados=0` — caía no `|| 1` do denominador e retornava score
+  // 0 ("0% de contratos cumpridos"), quando a resposta honesta é "ainda não há contrato
+  // terminado para avaliar" (`null`), exatamente o que o cabeçalho deste arquivo promete
+  // nunca violar (honestidade de dado, DEC-022). Corrigido para testar o denominador real.
+  const contratosTerminados = input.contratos.encerradosNormalmente + input.contratos.cancelados;
+  const scoreContratos = contratosTerminados === 0 ? null : Math.round((input.contratos.encerradosNormalmente / contratosTerminados) * 100);
 
   const scorePontualidade = input.pagamentos.pagos === 0 ? null : Math.round((input.pagamentos.pagosNoPrazo / input.pagamentos.pagos) * 100);
 

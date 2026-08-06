@@ -31,7 +31,14 @@ export function AcoesListPage() {
   const { data: pagamentosPendentes } = usePagamentosPendentesPorEmpresa();
   const { data: checklistsAbertos } = useChecklistsAbertosPorEmpresa();
   const { data: manutencoesAgendadas } = useManutencoesAgendadasPorEmpresa();
-  const { data: arquivosComValidade } = useArquivosComValidadePorEntidadeTipo('veiculo');
+  // Missão 5, Fase 4 (DEC-112): antes só buscava Veículo — o gerador (documentoGeradores.ts)
+  // já era agnóstico de entidade, só ninguém alimentava Motorista/Contrato. As 3 chamadas
+  // batem cache dedicado por entidade_tipo (mesmo padrão de `useArquivosPorEntidades` do
+  // Command Center), sem N+1 por documento.
+  const { data: arquivosVeiculo } = useArquivosComValidadePorEntidadeTipo('veiculo');
+  const { data: arquivosMotorista } = useArquivosComValidadePorEntidadeTipo('motorista');
+  const { data: arquivosContrato } = useArquivosComValidadePorEntidadeTipo('contrato');
+  const arquivosComValidade = [...(arquivosVeiculo ?? []), ...(arquivosMotorista ?? []), ...(arquivosContrato ?? [])];
 
   function handleSincronizar() {
     if (!usuario?.empresa_id) return;
@@ -43,7 +50,7 @@ export function AcoesListPage() {
         pagamentosPendentes: pagamentosPendentes ?? [],
         checklistsAbertos: checklistsAbertos ?? [],
         manutencoesAgendadas: manutencoesAgendadas ?? [],
-        arquivosComValidade: arquivosComValidade ?? [],
+        arquivosComValidade,
       },
       {
         onSuccess: (resultado) =>
