@@ -1,6 +1,8 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '@/shared/components/layout/AppLayout';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
+import { AceitarConvitePage } from '@/features/auth/pages/AceitarConvitePage';
+import { UsuariosPage } from '@/features/auth/pages/UsuariosPage';
 import { CommandCenterPage } from '@/features/command-center/pages/CommandCenterPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { VeiculosListPage } from '@/features/frota/pages/VeiculosListPage';
@@ -29,6 +31,10 @@ export const router = createBrowserRouter([
     element: <LoginPage />,
   },
   {
+    path: '/aceitar-convite',
+    element: <AceitarConvitePage />,
+  },
+  {
     element: <ProtectedRoute />,
     children: [
       {
@@ -53,6 +59,7 @@ export const router = createBrowserRouter([
           { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },
           { path: 'financeiro/centros-custo', element: <CentrosCustoPage /> },
           { path: 'operacoes/acoes', element: <AcoesListPage /> },
+          { path: 'usuarios', element: <UsuariosPage /> },
         ],
       },
     ],

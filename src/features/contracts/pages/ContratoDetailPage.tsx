@@ -8,6 +8,7 @@ import { TimelinePanel } from '@/shared/capabilities/components/TimelinePanel';
 import { HistoricoPanel } from '@/shared/capabilities/components/HistoricoPanel';
 import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { PlaceholderActionDialog } from '@/shared/components/ui/placeholder-action-dialog';
+import { toast } from '@/shared/components/ui/toast';
 
 import { ContratoCockpitHeader } from '../components/ContratoCockpitHeader';
 import { ContratoKpiBand } from '../components/ContratoKpiBand';
@@ -28,7 +29,7 @@ import { NovaTagDialog } from '../components/dialogs/NovaTagDialog';
 import { useContrato, useDeleteContrato, useRenovarContrato, useUpdateContratoStatus } from '../hooks/useContratos';
 import { useContractIntelligence } from '../hooks/useContractIntelligence';
 import { PLACEHOLDER_DESCRIPTIONS, type ActionKey } from '../lib/actions';
-import { CONTRATO_STATUS_TRANSITIONS, type ContratoStatus } from '../types';
+import { CONTRATO_STATUS_LABEL, CONTRATO_STATUS_TRANSITIONS, type ContratoStatus } from '../types';
 
 const CAMPOS_LABEL: Record<string, string> = {
   status: 'Status',
@@ -83,17 +84,33 @@ export function ContratoDetailPage() {
 
   function handleTransition(status: ContratoStatus) {
     if (!id) return;
-    updateStatus.mutate({ id, status });
+    updateStatus.mutate(
+      { id, status },
+      { onSuccess: () => toast.success(`Status alterado para "${CONTRATO_STATUS_LABEL[status]}"`) }
+    );
   }
 
   function handleRenovar(novaDataFimPrevista: string) {
     if (!id) return;
-    renovar.mutate({ id, novaDataFimPrevista }, { onSuccess: () => setActiveAction(null) });
+    renovar.mutate(
+      { id, novaDataFimPrevista },
+      {
+        onSuccess: () => {
+          toast.success('Contrato renovado');
+          setActiveAction(null);
+        },
+      }
+    );
   }
 
   function handleExcluir() {
     if (!id) return;
-    deleteContrato.mutate(id, { onSuccess: () => navigate('/contratos') });
+    deleteContrato.mutate(id, {
+      onSuccess: () => {
+        toast.success('Contrato excluído');
+        navigate('/contratos');
+      },
+    });
   }
 
   function handleAction(key: ActionKey) {

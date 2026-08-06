@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { BarChart3, Car, ClipboardList, FileSignature, Landmark, PieChart, Radar, LogOut, Users, Wallet } from 'lucide-react';
+import { BarChart3, Car, ClipboardList, FileSignature, Landmark, PieChart, Radar, LogOut, Users, UserCog, Wallet } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { to: '/financeiro/contas-bancarias', label: 'Contas Bancárias', icon: Landmark, end: false },
   { to: '/financeiro/centros-custo', label: 'Centros de Custo', icon: PieChart, end: false },
   { to: '/dashboard', label: 'Dashboard', icon: BarChart3, end: true },
+  { to: '/usuarios', label: 'Usuários', icon: UserCog, end: true },
 ];
 
 // Layout base autenticado: sidebar simples com os módulos existentes.

@@ -7,6 +7,7 @@ import { TimelinePanel } from '@/shared/capabilities/components/TimelinePanel';
 import { HistoricoPanel } from '@/shared/capabilities/components/HistoricoPanel';
 import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { PlaceholderActionDialog } from '@/shared/components/ui/placeholder-action-dialog';
+import { toast } from '@/shared/components/ui/toast';
 
 import { MotoristaCockpitHeader } from '../components/MotoristaCockpitHeader';
 import { MotoristaKpiBand } from '../components/MotoristaKpiBand';
@@ -26,7 +27,7 @@ import { NovaTagDialog } from '../components/dialogs/NovaTagDialog';
 import { useDeleteMotorista, useUpdateMotoristaStatus, useMotorista } from '../hooks/useMotoristas';
 import { useDriverIntelligence } from '../hooks/useDriverIntelligence';
 import { PLACEHOLDER_DESCRIPTIONS, type ActionKey } from '../lib/actions';
-import { MOTORISTA_STATUS_TRANSITIONS, type MotoristaStatus } from '../types';
+import { MOTORISTA_STATUS_LABEL, MOTORISTA_STATUS_TRANSITIONS, type MotoristaStatus } from '../types';
 
 const CAMPOS_LABEL: Record<string, string> = {
   status: 'Status',
@@ -78,12 +79,20 @@ export function MotoristaDetailPage() {
 
   function handleTransition(status: MotoristaStatus) {
     if (!id) return;
-    updateStatus.mutate({ id, status });
+    updateStatus.mutate(
+      { id, status },
+      { onSuccess: () => toast.success(`Status alterado para "${MOTORISTA_STATUS_LABEL[status]}"`) }
+    );
   }
 
   function handleExcluir() {
     if (!id) return;
-    deleteMotorista.mutate(id, { onSuccess: () => navigate('/motoristas') });
+    deleteMotorista.mutate(id, {
+      onSuccess: () => {
+        toast.success('Motorista excluído');
+        navigate('/motoristas');
+      },
+    });
   }
 
   function handleAction(key: ActionKey) {

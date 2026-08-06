@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Select } from '@/shared/components/ui/select';
 import { formatDataSimples, formatMoeda } from '@/shared/lib/format';
+import { toast } from '@/shared/components/ui/toast';
 import { useLancamentos, useUpdateLancamentoStatus } from '../hooks/useLancamentos';
 import { LancamentoFormDialog } from '../components/LancamentoFormDialog';
 import {
@@ -112,7 +113,13 @@ export function LancamentosListPage() {
                 <td className="px-4 py-3">
                   <Select
                     value={l.status}
-                    onChange={(e) => updateStatus.mutate({ id: l.id, status: e.target.value as LancamentoStatus })}
+                    onChange={(e) => {
+                      const status = e.target.value as LancamentoStatus;
+                      updateStatus.mutate(
+                        { id: l.id, status },
+                        { onSuccess: () => toast.success(`Status alterado para "${LANCAMENTO_STATUS_LABEL[status]}"`) }
+                      );
+                    }}
                     className="h-8 text-xs"
                   >
                     <option value={l.status}>{LANCAMENTO_STATUS_LABEL[l.status]}</option>

@@ -7,6 +7,7 @@ import { useMotoristas } from '@/features/motoristas/hooks/useMotoristas';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { formatDataSimples } from '@/shared/lib/format';
+import { toast } from '@/shared/components/ui/toast';
 import { useAcoes, useSincronizarAcoes, useUpdateAcaoStatus } from '../hooks/useAcoes';
 import { AcaoFormDialog } from '../components/AcaoFormDialog';
 import { ACAO_PRIORIDADE_LABEL, ACAO_STATUS_LABEL, ACAO_STATUS_TRANSITIONS, type AcaoStatus } from '../types';
@@ -28,12 +29,18 @@ export function AcoesListPage() {
 
   function handleSincronizar() {
     if (!usuario?.empresa_id) return;
-    sincronizar.mutate({
-      empresaId: usuario.empresa_id,
-      motoristas: motoristas ?? [],
-      contratos: contratos ?? [],
-      pagamentosPendentes: pagamentosPendentes ?? [],
-    });
+    sincronizar.mutate(
+      {
+        empresaId: usuario.empresa_id,
+        motoristas: motoristas ?? [],
+        contratos: contratos ?? [],
+        pagamentosPendentes: pagamentosPendentes ?? [],
+      },
+      {
+        onSuccess: (resultado) =>
+          toast.success('Ações atualizadas', `${resultado.criadas} nova(s), ${resultado.fechadas} fechada(s) automaticamente.`),
+      }
+    );
   }
 
   return (
@@ -130,7 +137,13 @@ export function AcoesListPage() {
                 <td className="px-4 py-3">
                   <Select
                     value={a.status}
-                    onChange={(e) => updateStatus.mutate({ id: a.id, status: e.target.value as AcaoStatus })}
+                    onChange={(e) => {
+                      const status = e.target.value as AcaoStatus;
+                      updateStatus.mutate(
+                        { id: a.id, status },
+                        { onSuccess: () => toast.success(`Status alterado para "${ACAO_STATUS_LABEL[status]}"`) }
+                      );
+                    }}
                     className="h-8 text-xs"
                   >
                     <option value={a.status}>{ACAO_STATUS_LABEL[a.status]}</option>

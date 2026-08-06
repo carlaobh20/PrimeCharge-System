@@ -2,9 +2,11 @@ import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { Tabs } from '@/shared/components/ui/tabs';
+import { toast } from '@/shared/components/ui/toast';
 import { ComentariosPanel } from '@/shared/capabilities/components/ComentariosPanel';
 import { TimelinePanel } from '@/shared/capabilities/components/TimelinePanel';
 import { HistoricoPanel } from '@/shared/capabilities/components/HistoricoPanel';
+import { ChecklistsPanel } from '@/features/operacoes/components/ChecklistsPanel';
 
 import { VeiculoCockpitHeader } from '../components/VeiculoCockpitHeader';
 import { VeiculoKpiBand } from '../components/VeiculoKpiBand';
@@ -28,7 +30,7 @@ import { PlaceholderActionDialog } from '../components/dialogs/PlaceholderAction
 import { useDeleteVeiculo, useUpdateVeiculoStatus, useVeiculo } from '../hooks/useVeiculos';
 import { useVehicleIntelligence } from '../hooks/useVehicleIntelligence';
 import { PLACEHOLDER_DESCRIPTIONS, type ActionKey } from '../lib/actions';
-import { VEICULO_STATUS_TRANSITIONS, type VeiculoStatus } from '../types';
+import { VEICULO_STATUS_LABEL, VEICULO_STATUS_TRANSITIONS, type VeiculoStatus } from '../types';
 
 const CAMPOS_LABEL: Record<string, string> = {
   status: 'Status',
@@ -83,12 +85,20 @@ export function VeiculoDetailPage() {
 
   function handleTransition(status: VeiculoStatus) {
     if (!id) return;
-    updateStatus.mutate({ id, status });
+    updateStatus.mutate(
+      { id, status },
+      { onSuccess: () => toast.success(`Status alterado para "${VEICULO_STATUS_LABEL[status]}"`) }
+    );
   }
 
   function handleExcluir() {
     if (!id) return;
-    deleteVeiculo.mutate(id, { onSuccess: () => navigate('/veiculos') });
+    deleteVeiculo.mutate(id, {
+      onSuccess: () => {
+        toast.success('Veículo excluído');
+        navigate('/veiculos');
+      },
+    });
   }
 
   function handleAction(key: ActionKey) {
@@ -184,6 +194,11 @@ export function VeiculoDetailPage() {
                 ),
               },
               { value: 'financeiro', label: 'Financeiro', content: <FinanceiroTab onAction={handleAction} /> },
+              {
+                value: 'checklists',
+                label: 'Checklists',
+                content: <ChecklistsPanel entidadeTipo="veiculo" entidadeId={veiculo.id} />,
+              },
               {
                 value: 'indicadores',
                 label: 'Indicadores',
