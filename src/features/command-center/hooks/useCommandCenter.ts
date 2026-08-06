@@ -4,6 +4,7 @@ import { useMotoristas } from '@/features/motoristas/hooks/useMotoristas';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
 import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
+import { useAcoesPorEmpresa } from '@/features/operacoes/hooks/useAcoes';
 import { coletarInteligenciaDaFrota, paraSnapshotGenerico } from '../services/fleetIntelligenceCollector';
 import { coletarInteligenciaDosMotoristas } from '../services/driverIntelligenceCollector';
 import { coletarInteligenciaDosContratos } from '../services/contractIntelligenceCollector';
@@ -14,6 +15,7 @@ import { consolidarOportunidades } from '../engine/opportunityEngine';
 import { consolidarRiscos } from '../engine/riskEngine';
 import { calcularResumoDaFrota } from '../engine/fleetHealthEngine';
 import { selecionarPrioridadesDoDia } from '../engine/priorityEngine';
+import { adaptarAcoesOperacionaisParaFeed } from '../engine/acoesOperacionaisAdapter';
 import type { CommandCenterFeedItem, EntityIntelligenceSnapshot } from '../types';
 
 export type UseCommandCenterResult =
@@ -52,8 +54,13 @@ export function useCommandCenter(): UseCommandCenterResult {
   // consultas fixas, não uma por origem") sem que ninguém tivesse decidido isso de propósito.
   const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
   const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
+  // Missão 4 (Fase 3, achado #2 da auditoria de jornada) — fila real de Ações Operacionais
+  // entra no mesmo feed que Alerta/Risco/Oportunidade/"Próxima Ação", ver
+  // engine/acoesOperacionaisAdapter.ts.
+  const { data: acoesOperacionais, isLoading: loadingAcoesOperacionais } = useAcoesPorEmpresa();
 
-  const loadingBase = loadingFrota || loadingMotoristas || loadingContratos || loadingLancamentos || loadingPagamentos;
+  const loadingBase =
+    loadingFrota || loadingMotoristas || loadingContratos || loadingLancamentos || loadingPagamentos || loadingAcoesOperacionais;
   const crossFeatureDeps = {
     contratos: contratos ?? [],
     lancamentos: lancamentos ?? [],
@@ -131,6 +138,7 @@ export function useCommandCenter(): UseCommandCenterResult {
     ...riscos.map((r) => ({ ...r, tipo: 'risco' as const })),
     ...oportunidades.map((o) => ({ ...o, tipo: 'oportunidade' as const })),
     ...acoes.map((a) => ({ ...a, tipo: 'acao' as const })),
+    ...adaptarAcoesOperacionaisParaFeed(acoesOperacionais ?? []),
   ];
   const prioridadesDoDia = selecionarPrioridadesDoDia(feed);
 

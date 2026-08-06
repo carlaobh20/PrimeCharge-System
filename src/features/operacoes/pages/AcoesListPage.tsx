@@ -6,9 +6,12 @@ import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { useMotoristas } from '@/features/motoristas/hooks/useMotoristas';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
+import { useArquivosComValidadePorEntidadeTipo } from '@/shared/capabilities/hooks/useArquivos';
 import { formatDataSimples } from '@/shared/lib/format';
 import { toast } from '@/shared/components/ui/toast';
 import { useAcoes, useSincronizarAcoes, useUpdateAcaoStatus } from '../hooks/useAcoes';
+import { useChecklistsAbertosPorEmpresa } from '../hooks/useChecklists';
+import { useManutencoesAgendadasPorEmpresa } from '../hooks/useManutencoes';
 import { AcaoFormDialog } from '../components/AcaoFormDialog';
 import { ACAO_PRIORIDADE_LABEL, ACAO_STATUS_LABEL, ACAO_STATUS_TRANSITIONS, type AcaoStatus } from '../types';
 
@@ -26,6 +29,9 @@ export function AcoesListPage() {
   const { data: motoristas } = useMotoristas();
   const { data: contratos } = useContratos();
   const { data: pagamentosPendentes } = usePagamentosPendentesPorEmpresa();
+  const { data: checklistsAbertos } = useChecklistsAbertosPorEmpresa();
+  const { data: manutencoesAgendadas } = useManutencoesAgendadasPorEmpresa();
+  const { data: arquivosComValidade } = useArquivosComValidadePorEntidadeTipo('veiculo');
 
   function handleSincronizar() {
     if (!usuario?.empresa_id) return;
@@ -35,6 +41,9 @@ export function AcoesListPage() {
         motoristas: motoristas ?? [],
         contratos: contratos ?? [],
         pagamentosPendentes: pagamentosPendentes ?? [],
+        checklistsAbertos: checklistsAbertos ?? [],
+        manutencoesAgendadas: manutencoesAgendadas ?? [],
+        arquivosComValidade: arquivosComValidade ?? [],
       },
       {
         onSuccess: (resultado) =>

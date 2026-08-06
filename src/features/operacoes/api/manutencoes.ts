@@ -13,6 +13,15 @@ export async function listManutencoesPorVeiculo(veiculoId: string) {
   return data as Manutencao[];
 }
 
+// Variante em lote — mesmo padrão de listContratosPorEmpresa, usada pelo gerador de Ações
+// Operacionais "manutenção agendada vencida" (Missão 4, Fase 3) sem N+1. Só as agendadas —
+// realizada/cancelada não interessa a esse gerador.
+export async function listManutencoesAgendadasPorEmpresa() {
+  const { data, error } = await supabase.from('manutencoes').select('*').eq('status_execucao', 'agendada');
+  if (error) throw error;
+  return data as Manutencao[];
+}
+
 export async function createManutencao(empresaId: string, payload: ManutencaoInput) {
   const { data: authData } = await supabase.auth.getUser();
   const { data, error } = await supabase

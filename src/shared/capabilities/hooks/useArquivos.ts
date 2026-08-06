@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteArquivo, listArquivos, uploadArquivo } from '../api/arquivos';
+import { deleteArquivo, listArquivos, listArquivosComValidadePorEntidadeTipo, uploadArquivo } from '../api/arquivos';
 import type { Arquivo } from '../types';
 
 export function useArquivos(entidadeTipo: string, entidadeId: string, categoria?: string) {
@@ -7,6 +7,14 @@ export function useArquivos(entidadeTipo: string, entidadeId: string, categoria?
     queryKey: ['arquivos', entidadeTipo, entidadeId, categoria ?? null],
     queryFn: () => listArquivos(entidadeTipo, entidadeId, categoria),
     enabled: !!entidadeId,
+  });
+}
+
+// Missão 4 (Fase 3) — usado pelo gerador de Ações Operacionais "documento de veículo vencendo".
+export function useArquivosComValidadePorEntidadeTipo(entidadeTipo: string) {
+  return useQuery({
+    queryKey: ['arquivos', 'validade', entidadeTipo],
+    queryFn: () => listArquivosComValidadePorEntidadeTipo(entidadeTipo),
   });
 }
 

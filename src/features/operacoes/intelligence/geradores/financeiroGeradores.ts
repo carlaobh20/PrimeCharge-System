@@ -36,3 +36,40 @@ export function gerarAcoesPagamentoAtrasado(pagamentosPendentes: PagamentoComRel
     })
     .filter((c): c is AcaoCandidata => c !== null);
 }
+
+const JANELA_DIAS_A_VENCER = 5;
+
+// Gerador novo da Missão 4 (Fase 3) — fecha o achado da auditoria de jornada: só existia
+// alerta de pagamento JÁ atrasado; "parcelas a vencer" (cobrança futura, ainda dentro do
+// prazo) não tinha nenhum sinal, mesmo o pedido explícito da missão citando "recebimentos"/
+// "cobranças" no painel operacional. Janela mais curta (5 dias, não 30) de propósito — uma
+// parcela vencendo em 3 semanas não é ainda uma ação do dia a dia; o que importa é a que está
+// prestes a ficar em atraso, pra alguém cobrar antes de virar cobrança atrasada.
+export function gerarAcoesParcelaAVencer(pagamentosPendentes: PagamentoComRelacoes[]): AcaoCandidata[] {
+  return pagamentosPendentes
+    .map((p) => ({ pagamento: p, dias: diasAte(p.data_prevista) }))
+    .filter((x): x is { pagamento: PagamentoComRelacoes; dias: number } => x.dias !== null && x.dias >= 0 && x.dias <= JANELA_DIAS_A_VENCER)
+    .map(({ pagamento, dias }): AcaoCandidata | null => {
+      const l = pagamento.lancamento;
+      const dimensao = l?.contrato_id
+        ? { entidade_tipo: 'contrato', entidade_id: l.contrato_id }
+        : l?.veiculo_id
+          ? { entidade_tipo: 'veiculo', entidade_id: l.veiculo_id }
+          : l?.motorista_id
+            ? { entidade_tipo: 'motorista', entidade_id: l.motorista_id }
+            : null;
+      if (!dimensao) return null;
+
+      return {
+        titulo: `Parcela "${l?.descricao ?? 'sem descrição'}" vence em ${dias} dia(s)`,
+        descricao: 'Cobrar antecipadamente para evitar que a parcela entre em atraso.',
+        tipo: 'cobranca_a_vencer',
+        prioridade: dias === 0 ? 'alta' : 'media',
+        prazo: pagamento.data_prevista,
+        entidade_tipo: dimensao.entidade_tipo,
+        entidade_id: dimensao.entidade_id,
+        gerado_por: 'financeiro.parcela_a_vencer',
+      };
+    })
+    .filter((c): c is AcaoCandidata => c !== null);
+}

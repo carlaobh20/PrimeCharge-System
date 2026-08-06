@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createManutencao,
   deleteManutencao,
+  listManutencoesAgendadasPorEmpresa,
   listManutencoesPorVeiculo,
   marcarManutencaoRealizada,
   type ManutencaoInput,
@@ -12,6 +13,14 @@ export function useManutencoesPorVeiculo(veiculoId: string | undefined) {
     queryKey: ['manutencoes', 'veiculo', veiculoId],
     queryFn: () => listManutencoesPorVeiculo(veiculoId!),
     enabled: !!veiculoId,
+  });
+}
+
+// Missão 4 (Fase 3) — usado pelo gerador de Ações Operacionais "manutenção agendada vencendo".
+export function useManutencoesAgendadasPorEmpresa() {
+  return useQuery({
+    queryKey: ['manutencoes', 'agendadas', 'empresa'],
+    queryFn: listManutencoesAgendadasPorEmpresa,
   });
 }
 

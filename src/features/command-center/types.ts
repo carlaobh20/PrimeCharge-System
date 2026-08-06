@@ -73,7 +73,12 @@ export type DadosCrossFeatureCompartilhados = {
   veiculos: import('@/features/frota/types').Veiculo[];
 };
 
-export type FeedItemTipo = 'alerta' | 'risco' | 'oportunidade' | 'acao';
+// 'acao' = "Próxima Ação" (completude de cadastro, por entidade — actionEngine.ts).
+// 'acao_operacional' = item real da fila `acoes_operacionais` (DEC-055) — os dois eram
+// pipelines paralelos até a Missão 4 (achado #2 da auditoria de jornada), unificados aqui
+// via acoesOperacionaisAdapter.ts sem fundir os dois conceitos (continuam calculados por
+// engines diferentes, só desembocam no mesmo feed).
+export type FeedItemTipo = 'alerta' | 'risco' | 'oportunidade' | 'acao' | 'acao_operacional';
 
 // Formato comum usado só pelo bloco "Prioridades do Dia", que precisa comparar itens de
 // tipos diferentes (alerta, risco, oportunidade, ação) na mesma lista ordenada.

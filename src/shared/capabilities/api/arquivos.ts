@@ -68,6 +68,19 @@ export async function uploadArquivo(params: {
   return data as Arquivo;
 }
 
+// Variante em lote — usada pelo gerador de Ações Operacionais "documento vencendo" (Missão 4,
+// Fase 3). Só arquivos com `data_validade` preenchida interessam (a maioria não tem — DEC-060
+// nunca teve UI que capturasse isso até esta missão, ver ArquivosPanel).
+export async function listArquivosComValidadePorEntidadeTipo(entidadeTipo: string) {
+  const { data, error } = await supabase
+    .from('arquivos')
+    .select('*')
+    .eq('entidade_tipo', entidadeTipo)
+    .not('data_validade', 'is', null);
+  if (error) throw error;
+  return data as Arquivo[];
+}
+
 export async function getArquivoUrl(caminhoStorage: string) {
   const [bucket, ...rest] = caminhoStorage.split('/');
   const path = rest.join('/');

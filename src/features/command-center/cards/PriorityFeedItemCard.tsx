@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ListTodo, ShieldAlert, TrendingUp, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, CheckSquare, ListTodo, ShieldAlert, TrendingUp, type LucideIcon } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import type { CommandCenterFeedItem, FeedItemTipo } from '../types';
 import type { Prioridade } from '@/shared/intelligence/types';
@@ -9,6 +9,7 @@ const TIPO_ICON: Record<FeedItemTipo, LucideIcon> = {
   risco: ShieldAlert,
   oportunidade: TrendingUp,
   acao: ListTodo,
+  acao_operacional: CheckSquare,
 };
 
 const TIPO_LABEL: Record<FeedItemTipo, string> = {
@@ -16,6 +17,7 @@ const TIPO_LABEL: Record<FeedItemTipo, string> = {
   risco: 'Risco',
   oportunidade: 'Oportunidade',
   acao: 'Ação',
+  acao_operacional: 'Ação operacional',
 };
 
 const PRIORIDADE_BADGE: Record<Prioridade, string> = {

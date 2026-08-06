@@ -23,6 +23,15 @@ export async function listChecklistsPorEntidade(entidadeTipo: string, entidadeId
   return data as unknown as ChecklistComItens[];
 }
 
+// Variante em lote — mesmo padrão de listContratosPorEmpresa/listMultasPorEmpresa, usada
+// pelo gerador de Ações Operacionais "checklist aberto há muito tempo" (Missão 4, Fase 3)
+// sem N+1. Só os campos da tabela `checklists`, sem itens (o gerador não precisa deles).
+export async function listChecklistsPorEmpresa() {
+  const { data, error } = await supabase.from('checklists').select('*').eq('status', 'aberto');
+  if (error) throw error;
+  return data as Checklist[];
+}
+
 export async function getChecklist(id: string) {
   const { data, error } = await supabase.from('checklists').select('*, itens:checklist_itens(*)').eq('id', id).single();
   if (error) throw error;

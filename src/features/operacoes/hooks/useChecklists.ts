@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createChecklist,
   getChecklist,
+  listChecklistsPorEmpresa,
   listChecklistsPorEntidade,
   responderChecklistItem,
   updateChecklistStatus,
@@ -16,6 +17,14 @@ export function useChecklistsPorEntidade(entidadeTipo: string, entidadeId: strin
     queryKey: ['checklists', entidadeTipo, entidadeId],
     queryFn: () => listChecklistsPorEntidade(entidadeTipo, entidadeId),
     enabled: !!entidadeTipo && !!entidadeId,
+  });
+}
+
+// Missão 4 (Fase 3) — usado pelo gerador de Ações Operacionais "checklist aberto demorado".
+export function useChecklistsAbertosPorEmpresa() {
+  return useQuery({
+    queryKey: ['checklists', 'abertos', 'empresa'],
+    queryFn: listChecklistsPorEmpresa,
   });
 }
 

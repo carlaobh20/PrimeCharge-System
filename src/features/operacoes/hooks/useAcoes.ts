@@ -73,11 +73,9 @@ export function useSincronizarAcoes() {
   return useMutation({
     mutationFn: ({
       empresaId,
-      motoristas,
-      contratos,
-      pagamentosPendentes,
+      ...candidatasInput
     }: Parameters<typeof montarCandidatas>[0] & { empresaId: string }) =>
-      sincronizarAcoesGeradas(empresaId, montarCandidatas({ motoristas, contratos, pagamentosPendentes })),
+      sincronizarAcoesGeradas(empresaId, montarCandidatas(candidatasInput)),
     onSuccess: () => invalidateAcoes(queryClient),
   });
 }
