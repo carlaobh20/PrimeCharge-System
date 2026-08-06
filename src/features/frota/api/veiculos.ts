@@ -58,10 +58,13 @@ export async function deleteVeiculo(id: string) {
 
 // Missão 4 (Fase 1, achado #17 da auditoria de jornada — fecha DEC-044): "Vender veículo"
 // era só uma transição de status sem nenhum dado da venda em si (sem comprador, valor, data).
-// Diferente de Contrato, a State Machine de Veículo não tem trigger de validação no banco
-// (só client-side, VEICULO_STATUS_TRANSITIONS) — mesma lacuna real de sempre, não nova desta
-// função; a validação de "só pode chegar em 'venda' a partir de 'disponivel'" continua
-// acontecendo na UI (VeiculoDetailPage), igual já acontecia antes desta mudança.
+// Correção de registro (Fase 9, DEC-106): ao contrário do que DEC-101 registrou, `veiculos`
+// TEM trigger de validação de transição no banco desde a migration 0008
+// (fn_validar_transicao_veiculo/trg_veiculos_valida_transicao, `before update`) — DEC-101 foi
+// escrita checando só a migration 0003 e não achou a trigger, que só existe em 0008. Essa
+// trigger valida `update` normalmente (incluindo esta chamada). O gap real (confirmado na Fase
+// 9) é outro: a trigger só dispara em UPDATE, nunca em INSERT — um INSERT direto já pode
+// nascer em qualquer status, sem passar pela state machine. Ver DEC-106.
 export async function venderVeiculo(id: string, payload: { comprador: string; valorVenda: number; dataVenda: string }) {
   const { data, error } = await supabase
     .from('veiculos')

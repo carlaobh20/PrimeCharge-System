@@ -4,6 +4,7 @@ import { Label } from '@/shared/components/ui/label';
 import { Input } from '@/shared/components/ui/input';
 import { Select } from '@/shared/components/ui/select';
 import { Button } from '@/shared/components/ui/button';
+import { toast } from '@/shared/components/ui/toast';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { useContasBancarias, useCreateContaBancaria } from '../hooks/useContasBancarias';
 import { contaBancariaSchema, type ContaBancariaFormInput, type ContaBancariaFormValues } from '../schemas/contaBancaria.schema';
@@ -38,7 +39,7 @@ export function ContasBancariasPage() {
           ativa: values.ativa,
         },
       },
-      { onSuccess: () => reset() }
+      { onSuccess: () => { reset(); toast.success('Conta bancária adicionada'); } }
     );
   }
 

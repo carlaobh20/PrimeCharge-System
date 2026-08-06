@@ -84,7 +84,7 @@ export function ContratoSidebar({
           <Sparkles className="h-4 w-4" />
           Nova ação
         </Button>
-        <Button type="button" variant="outline" size="sm" className="w-full justify-start" onClick={() => onAction('enviar')}>
+        <Button type="button" variant="outline" size="sm" className="w-full justify-start" onClick={() => onAction('relatorio')}>
           <FileDown className="h-4 w-4" />
           Exportar PDF
         </Button>

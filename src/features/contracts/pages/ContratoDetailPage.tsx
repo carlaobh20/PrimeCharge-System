@@ -197,11 +197,14 @@ export function ContratoDetailPage() {
       copiar();
       return;
     }
-    if (key === 'pagamento') {
+    if (key === 'pagamento' || key === 'atraso') {
       // Antes da Missão 2 (2026-08-06) isto era um placeholder — a página de Pagamentos não
       // existia em lugar nenhum da aplicação (achado crítico #1 da auditoria). Navega para a
       // visão global em vez de um dialog específico do contrato: Pagamento se relaciona com
       // Lançamento, não com Contrato diretamente, e a tela já suporta criar o pagamento certo.
+      // "atraso" segue o mesmo destino desde a Missão 4 (Fase 9, auditoria de UX): o texto do
+      // placeholder já dizia "acompanhe em Pagamentos" mas nunca levava lá de fato — igual ao
+      // padrão que MotoristaDetailPage já usa para 'cobranca'.
       navigate('/financeiro/pagamentos');
       return;
     }
@@ -212,13 +215,13 @@ export function ContratoDetailPage() {
     commandActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  const placeholderKeys: ActionKey[] = ['atraso', 'enviar'];
+  const placeholderKeys: ActionKey[] = ['enviar', 'relatorio'];
   const isPlaceholderOpen = placeholderKeys.includes(activeAction as ActionKey);
 
   const placeholderTitles: Partial<Record<ActionKey, string>> = {
     pagamento: 'Registrar pagamento',
-    atraso: 'Registrar atraso',
     enviar: 'Enviar contrato',
+    relatorio: 'Gerar relatório',
   };
 
   return (

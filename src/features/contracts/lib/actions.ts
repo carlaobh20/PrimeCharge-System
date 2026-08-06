@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   Ban,
+  Camera,
   Copy,
   FileText,
   MessageSquarePlus,
@@ -34,7 +35,11 @@ export type ActionKey =
   | 'pagamento'
   | 'atraso'
   | 'compartilhar'
-  | 'enviar';
+  | 'enviar'
+  // "Exportar PDF" (ContratoSidebar) chamava 'enviar' por engano — mesmo bug de copy-paste que
+  // levou 'relatorio' a existir em frota/motoristas/lib/actions.ts mas nunca em contracts/. Missão
+  // 4 (Fase 9, auditoria de UX): corrigido para o mesmo placeholder honesto dos outros dois Cockpits.
+  | 'relatorio';
 
 export const COMMAND_ACTIONS: { key: ActionKey; label: string; icon: LucideIcon; real: boolean }[] = [
   { key: 'status', label: 'Alterar status', icon: Repeat, real: true },
@@ -45,12 +50,16 @@ export const COMMAND_ACTIONS: { key: ActionKey; label: string; icon: LucideIcon;
   { key: 'comentario', label: 'Novo comentário', icon: MessageSquarePlus, real: true },
   { key: 'tag', label: 'Nova tag', icon: Tags, real: true },
   { key: 'pagamento', label: 'Registrar pagamento', icon: Receipt, real: true },
-  { key: 'atraso', label: 'Registrar atraso', icon: AlertTriangle, real: false },
+  // "atraso" virou ação real na Missão 4 (Fase 9, auditoria de UX) — navega direto para
+  // /financeiro/pagamentos (mesmo padrão de 'pagamento' e de 'cobranca' em motoristas/lib/actions.ts),
+  // em vez de abrir um placeholder que só explicava e não levava lá.
+  { key: 'atraso', label: 'Registrar atraso', icon: AlertTriangle, real: true },
   { key: 'compartilhar', label: 'Compartilhar contrato', icon: Copy, real: true },
   { key: 'enviar', label: 'Enviar contrato', icon: Send, real: false },
+  { key: 'relatorio', label: 'Gerar relatório', icon: Camera, real: false },
 ];
 
 export const PLACEHOLDER_DESCRIPTIONS: Partial<Record<ActionKey, string>> = {
-  atraso: 'Registro de atraso é sempre calculado (pagamento pendente com data prevista vencida), não um botão manual — acompanhe em Pagamentos.',
   enviar: 'Envio automático (e-mail/WhatsApp) depende da estratégia de notificações, planejada para a Fase 8 — hoje o compartilhamento é por link direto.',
+  relatorio: 'Geração de relatório/PDF deste contrato ainda não foi construída.',
 };

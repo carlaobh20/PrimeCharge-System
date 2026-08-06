@@ -4,6 +4,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Badge } from '@/shared/components/ui/badge';
+import { toast } from '@/shared/components/ui/toast';
 import { diasAte, formatDataSimples } from '@/shared/lib/format';
 import { getArquivoUrl } from '../api/arquivos';
 import { useArquivos, useDeleteArquivo, useUploadArquivo } from '../hooks/useArquivos';
@@ -57,7 +58,10 @@ export function ArquivosPanel({
   function handleFiles(files: FileList | null) {
     if (!files || !empresaId) return;
     Array.from(files).forEach((file) => {
-      upload.mutate({ bucket, empresaId, entidadeTipo, entidadeId, categoria, usuarioId, file, dataValidade: dataValidade || null });
+      upload.mutate(
+        { bucket, empresaId, entidadeTipo, entidadeId, categoria, usuarioId, file, dataValidade: dataValidade || null },
+        { onSuccess: () => toast.success(`"${file.name}" enviado com sucesso`) }
+      );
     });
     if (inputRef.current) inputRef.current.value = '';
     setDataValidade('');
@@ -121,7 +125,7 @@ export function ArquivosPanel({
               <span className="text-xs text-neutral-500">{formatBytes(arquivo.tamanho_bytes)}</span>
               <button
                 type="button"
-                onClick={() => remove.mutate(arquivo)}
+                onClick={() => remove.mutate(arquivo, { onSuccess: () => toast.success('Arquivo excluído') })}
                 aria-label="Excluir arquivo"
                 className="text-neutral-400 hover:text-red-600"
               >

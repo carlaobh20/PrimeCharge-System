@@ -6,6 +6,7 @@ import { Input } from '@/shared/components/ui/input';
 import { Select } from '@/shared/components/ui/select';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Button } from '@/shared/components/ui/button';
+import { toast } from '@/shared/components/ui/toast';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { useCentrosCusto } from '../hooks/useCentrosCusto';
 import { useCreateLancamento } from '../hooks/useLancamentos';
@@ -60,7 +61,7 @@ export function LancamentoFormDialog({
           observacoes: values.observacoes ?? null,
         },
       },
-      { onSuccess: handleClose }
+      { onSuccess: () => { toast.success('Lançamento criado'); handleClose(); } }
     );
   }
 

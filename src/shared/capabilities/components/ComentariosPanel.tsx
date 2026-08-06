@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Textarea } from '@/shared/components/ui/textarea';
+import { toast } from '@/shared/components/ui/toast';
 import { useComentarios, useCreateComentario, useDeleteComentario } from '../hooks/useComentarios';
 
 function formatData(iso: string) {
@@ -27,7 +28,7 @@ export function ComentariosPanel({
     if (!texto.trim() || !usuarioId || !empresaId) return;
     createComentario.mutate(
       { empresaId, entidadeTipo, entidadeId, texto: texto.trim(), usuarioId },
-      { onSuccess: () => setTexto('') }
+      { onSuccess: () => { setTexto(''); toast.success('Comentário adicionado'); } }
     );
   }
 
@@ -59,7 +60,7 @@ export function ComentariosPanel({
               {comentario.usuario_id === usuarioId && (
                 <button
                   type="button"
-                  onClick={() => deleteComentario.mutate(comentario.id)}
+                  onClick={() => deleteComentario.mutate(comentario.id, { onSuccess: () => toast.success('Comentário excluído') })}
                   className="text-xs text-red-600 hover:underline"
                 >
                   excluir

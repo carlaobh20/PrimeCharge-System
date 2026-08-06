@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Badge } from '@/shared/components/ui/badge';
+import { toast } from '@/shared/components/ui/toast';
 import { useAddTag, useRemoveTag, useTags } from '../hooks/useTags';
 
 export function TagsPanel({
@@ -25,7 +26,7 @@ export function TagsPanel({
     if (!novaTag.trim() || !empresaId) return;
     addTag.mutate(
       { empresaId, entidadeTipo, entidadeId, tag: novaTag.trim(), usuarioId },
-      { onSuccess: () => setNovaTag('') }
+      { onSuccess: () => { setNovaTag(''); toast.success('Tag adicionada'); } }
     );
   }
 
@@ -51,7 +52,11 @@ export function TagsPanel({
         {tags?.map((tag) => (
           <Badge key={tag.id} variant="secondary" className="gap-1">
             {tag.tag}
-            <button type="button" onClick={() => removeTag.mutate(tag.id)} aria-label={`Remover tag ${tag.tag}`}>
+            <button
+              type="button"
+              onClick={() => removeTag.mutate(tag.id, { onSuccess: () => toast.success('Tag removida') })}
+              aria-label={`Remover tag ${tag.tag}`}
+            >
               <X className="h-3 w-3" />
             </button>
           </Badge>

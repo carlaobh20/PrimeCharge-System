@@ -7,8 +7,8 @@ export function ConfiguracoesTab({ onAction }: { onAction: (key: ActionKey) => v
   return (
     <EmptyState
       icon={Settings}
-      title="Nenhuma configuração específica ainda"
-      description="Preferências deste motorista (notificações de vencimento de CNH, responsável padrão) vão morar aqui."
+      title="Nenhuma preferência configurável ainda"
+      description="Notificações de vencimento de CNH e responsável padrão ainda não existem — isso é só texto. O botão abaixo já é uma ação real: bloqueia o motorista imediatamente, não é uma prévia."
       action={
         <Button type="button" variant="outline" size="sm" onClick={() => onAction('bloquear')}>
           Bloquear motorista

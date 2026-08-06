@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Label } from '@/shared/components/ui/label';
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
+import { toast } from '@/shared/components/ui/toast';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { useCentrosCusto, useCreateCentroCusto } from '../hooks/useCentrosCusto';
 import { centroCustoSchema, type CentroCustoFormInput, type CentroCustoFormValues } from '../schemas/contaBancaria.schema';
@@ -26,7 +27,7 @@ export function CentrosCustoPage() {
     if (!usuario?.empresa_id) return;
     createCentro.mutate(
       { empresaId: usuario.empresa_id, payload: { nome: values.nome, descricao: values.descricao ?? null, ativo: values.ativo } },
-      { onSuccess: () => reset() }
+      { onSuccess: () => { reset(); toast.success('Centro de custo adicionado'); } }
     );
   }
 

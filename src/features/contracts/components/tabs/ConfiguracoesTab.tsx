@@ -7,8 +7,8 @@ export function ConfiguracoesTab({ onAction }: { onAction: (key: ActionKey) => v
   return (
     <EmptyState
       icon={Settings}
-      title="Nenhuma configuração específica ainda"
-      description="Preferências deste contrato (lembrete de renovação, responsável padrão) vão morar aqui."
+      title="Nenhuma preferência configurável ainda"
+      description="Lembrete de renovação e responsável padrão ainda não existem — isso é só texto. O botão abaixo já é uma ação real: cancela o contrato imediatamente, não é uma prévia."
       action={
         <Button type="button" variant="outline" size="sm" onClick={() => onAction('cancelar')}>
           Cancelar contrato

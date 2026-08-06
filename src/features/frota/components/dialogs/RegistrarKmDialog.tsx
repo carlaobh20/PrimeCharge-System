@@ -3,6 +3,7 @@ import { Dialog } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import { toast } from '@/shared/components/ui/toast';
 import { useUpdateVeiculo } from '../../hooks/useVeiculos';
 
 export function RegistrarKmDialog({
@@ -24,7 +25,7 @@ export function RegistrarKmDialog({
     if (!Number.isFinite(km) || km < quilometragemAtual) return;
     updateVeiculo.mutate(
       { id: veiculoId, payload: { quilometragem: km } },
-      { onSuccess: () => onOpenChange(false) }
+      { onSuccess: () => { toast.success('Quilometragem atualizada'); onOpenChange(false); } }
     );
   }
 

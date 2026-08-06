@@ -1,4 +1,4 @@
-import { diasAte } from '@/shared/lib/format';
+import { ordenarPorVencimento } from '@/shared/intelligence/vencimentos';
 import type { Arquivo } from '@/shared/capabilities/types';
 import type { AcaoCandidata } from '../../types';
 
@@ -10,22 +10,28 @@ const JANELA_DIAS = 30;
 // documento de veículo (CRLV, seguro, licenciamento) — a distinção de qual documento é fica
 // no `nome_arquivo`, não num campo estruturado (não existe "tipo de documento" no schema,
 // Regra dos 3 — não construir isso antes de um segundo caso de uso real pedir).
+//
+// Achado da auditoria da Fase 9: este gerador reimplementava manualmente o mesmo cálculo
+// dias-até + filtro + ordenação que `shared/intelligence/vencimentos.ts` (DEC-060) já resolve
+// de forma agnóstica de entidade — e `ordenarPorVencimento` estava órfã (nenhum consumidor a
+// chamava) desde que foi criada. Corrigido para compor sobre o agregador existente em vez de
+// duplicar a lógica — o gerador continua sendo o único lugar que sabe o vocabulário de negócio
+// (título, prioridade, tipo, gerado_por).
 export function gerarAcoesDocumentoVeiculoVencendo(arquivos: Arquivo[]): AcaoCandidata[] {
-  return arquivos
+  const fontes = arquivos
     .filter((a) => a.entidade_tipo === 'veiculo' && a.categoria === 'documento' && a.data_validade)
-    .map((a) => ({ arquivo: a, dias: diasAte(a.data_validade) }))
-    .filter((x): x is { arquivo: Arquivo; dias: number } => x.dias !== null && x.dias <= JANELA_DIAS)
-    .map(({ arquivo, dias }) => ({
-      titulo:
-        dias < 0
-          ? `Documento "${arquivo.nome_arquivo}" venceu há ${Math.abs(dias)} dia(s)`
-          : `Documento "${arquivo.nome_arquivo}" vence em ${dias} dia(s)`,
+    .map((a) => ({ label: a.nome_arquivo, data: a.data_validade, entidadeTipo: a.entidade_tipo, entidadeId: a.entidade_id }));
+
+  return ordenarPorVencimento(fontes)
+    .filter((item) => item.dias <= JANELA_DIAS)
+    .map(({ label, data, dias, entidadeId }) => ({
+      titulo: dias < 0 ? `Documento "${label}" venceu há ${Math.abs(dias)} dia(s)` : `Documento "${label}" vence em ${dias} dia(s)`,
       descricao: 'Renovar o documento do veículo antes do vencimento (CRLV, seguro, licenciamento).',
       tipo: 'documento_veiculo_vencendo',
       prioridade: dias < 0 ? 'critica' : dias <= 7 ? 'alta' : 'media',
-      prazo: arquivo.data_validade,
+      prazo: data,
       entidade_tipo: 'veiculo',
-      entidade_id: arquivo.entidade_id,
+      entidade_id: entidadeId,
       gerado_por: 'veiculo.documento_vencendo',
     }));
 }

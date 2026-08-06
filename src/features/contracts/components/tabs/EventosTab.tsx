@@ -11,7 +11,7 @@ export function EventosTab({ onAction }: { onAction: (key: ActionKey) => void })
     <EmptyState
       icon={CalendarClock}
       title="Nenhum evento operacional ainda"
-      description="Atrasos e ocorrências durante a locação vão aparecer aqui em ordem cronológica quando o módulo Financeiro existir."
+      description="Atrasos e ocorrências durante a locação vão aparecer aqui em ordem cronológica. Atraso é sempre calculado a partir de pagamentos pendentes vencidos — clique abaixo para ver a fila real em Pagamentos."
       action={
         <Button type="button" variant="outline" size="sm" onClick={() => onAction('atraso')}>
           Registrar atraso

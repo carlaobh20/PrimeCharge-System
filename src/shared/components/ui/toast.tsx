@@ -65,16 +65,44 @@ export const toast = {
   },
 };
 
-// Extrai a mensagem de erro no formato mais legível disponível — o erro do supabase-js
-// (PostgrestError) já traz em `.message` exatamente o texto do `raise exception '...'` dos
-// triggers de banco (ex.: fn_validar_transicao_veiculo, fn_bloquear_autoescalada_usuario),
-// que já foram escritos em português legível — nenhum mapeamento adicional é necessário para
-// a maioria dos casos que mais importam (permissão negada, transição inválida).
+// Códigos SQLSTATE do Postgres/PostgREST que aparecem sem passar por nenhum `raise exception`
+// escrito à mão nos triggers deste projeto — mapeados para texto em português, para nunca
+// repassar o texto técnico cru (nome de tabela/constraint/coluna em inglês) para quem está
+// operando a plataforma. Lista não exaustiva de propósito — cobre os casos mais prováveis de
+// aparecer numa operação real (duplicidade, vínculo obrigatório, campo obrigatório, permissão,
+// sessão expirada); qualquer código fora desta lista cai no fallback genérico abaixo.
+const CODIGOS_CONHECIDOS: Record<string, string> = {
+  '23505': 'Já existe um registro com esse valor — verifique se não é duplicado (ex.: placa, CPF, e-mail).',
+  '23503': 'Não é possível concluir: existem outros registros vinculados a este.',
+  '23502': 'Preencha todos os campos obrigatórios antes de salvar.',
+  '42501': 'Você não tem permissão para executar esta ação.',
+  '28000': 'Sessão expirada — faça login novamente.',
+  'PGRST301': 'Sessão expirada — faça login novamente.',
+};
+
+// Achado da auditoria de UX da Missão 4 (Fase 9): esta função repassava `error.message` cru
+// para o usuário sempre que o erro não vinha de um `raise exception` escrito à mão — qualquer
+// outro erro do Postgres/Supabase (violação de unique/FK, RLS "new row violates row-level
+// security policy...", timeout de rede) aparecia em inglês, com nome de tabela/constraint,
+// direto na tela de quem está operando. Correção: `P0001` é o código SQLSTATE padrão de um
+// `raise exception '...'` escrito à mão nos triggers de banco deste projeto (ex.:
+// fn_validar_transicao_veiculo, fn_bloquear_autoescalada_usuario) — sempre em português
+// legível, e é o único caso em que repassamos `.message` diretamente. Qualquer outro código
+// conhecido vira texto amigável (`CODIGOS_CONHECIDOS`); qualquer erro sem código reconhecido
+// (rede, timeout, erro inesperado do Postgres) cai num texto genérico, nunca no texto técnico.
 export function extrairMensagemDeErro(error: unknown): string {
-  if (error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string') {
-    return (error as { message: string }).message;
+  const GENERICA = 'Não foi possível concluir a ação. Tente novamente ou avise o suporte.';
+
+  if (error && typeof error === 'object') {
+    const err = error as { message?: unknown; code?: unknown };
+    const code = typeof err.code === 'string' ? err.code : undefined;
+    const message = typeof err.message === 'string' ? err.message : undefined;
+
+    if (code === 'P0001' && message) return message;
+    if (code && CODIGOS_CONHECIDOS[code]) return CODIGOS_CONHECIDOS[code];
+    if (message) return GENERICA;
   }
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) return GENERICA;
   return 'Ocorreu um erro inesperado.';
 }
 

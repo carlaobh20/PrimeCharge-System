@@ -1,13 +1,23 @@
 import { CalendarClock, Clock, FileCheck2, HeartPulse, Percent, Timer, TrendingUp, Wallet } from 'lucide-react';
 import { KpiCard } from '@/shared/components/ui/kpi-card';
-import { diasDesde } from '@/shared/lib/format';
+import { diasDesde, formatMoeda } from '@/shared/lib/format';
+import { useLancamentos } from '@/features/financeiro/hooks/useLancamentos';
+import { calcularResumoFinanceiro } from '@/features/financeiro/intelligence';
 import type { Motorista } from '../types';
 import type { HealthScoreResult } from '../intelligence/types';
 
-// Faixa de KPIs do Cockpit do Motorista (Sprint 6). Os que dependem de módulos ainda não
-// construídos (Contratos, Financeiro) ficam "Em breve" de propósito, nunca com número
-// inventado (ver DEC-021). "Health Score" e "Score documental" já são reais desde já (Driver
-// Intelligence, DEC-022/DEC-025) — vêm do mesmo healthScore usado na aba Indicadores.
+// Faixa de KPIs do Cockpit do Motorista (Sprint 6). "Health Score" e "Score documental" já
+// eram reais desde a Sprint 6 (Driver Intelligence, DEC-022/DEC-025). "Receita gerada" virou
+// real na Missão 4 (Fase 9, auditoria de UX) — mesmo achado #4 já corrigido para Veículo
+// (ver VeiculoKpiBand): a tela ficou "Em breve" hardcoded mesmo com `lancamentos.motorista_id`
+// já existindo desde a Sprint 8, e o mesmo fix (useLancamentos + calcularResumoFinanceiro,
+// nunca duplicando o cálculo) nunca foi replicado aqui. "Tempo médio de contrato",
+// "Pontualidade" e "Lifetime Value" continuam "Em breve" de propósito — dependem de cruzar
+// Pagamento×Lançamento×Contrato (duração média entre vários contratos, pontualidade de
+// pagamento por data_pagamento vs. data_prevista) que ainda não tem nenhuma função de cálculo
+// existente para reaproveitar; construir a fórmula agora, sem banco real conectado para
+// validar contra, seria o tipo de risco que a Missão 4 (Fase 9) decidiu não assumir — ver
+// DEC-106 no DECISION_LOG.md.
 export function MotoristaKpiBand({
   motorista,
   healthScore,
@@ -18,6 +28,9 @@ export function MotoristaKpiBand({
   const diasComoCliente = diasDesde(motorista.criado_em);
   const documental = healthScore?.categorias.find((c) => c.categoria === 'documental') ?? null;
 
+  const { data: lancamentos, isLoading: carregandoLancamentos } = useLancamentos({ motoristaId: motorista.id });
+  const resumo = calcularResumoFinanceiro({ lancamentos: lancamentos ?? [], pagamentos: [] });
+
   return (
     <div className="flex gap-3 overflow-x-auto pb-1">
       <KpiCard
@@ -26,7 +39,12 @@ export function MotoristaKpiBand({
         value={diasComoCliente !== null ? `${diasComoCliente}` : '—'}
         hint="desde o cadastro"
       />
-      <KpiCard icon={Wallet} label="Receita gerada" value="" pending />
+      <KpiCard
+        icon={Wallet}
+        label="Receita gerada"
+        value={carregandoLancamentos ? '' : formatMoeda(resumo.receitaConfirmada)}
+        pending={carregandoLancamentos}
+      />
       <KpiCard icon={Clock} label="Tempo médio de contrato" value="" pending />
       <KpiCard icon={Timer} label="Pontualidade" value="" pending />
       <KpiCard icon={Percent} label="Inadimplência" value="" pending />
