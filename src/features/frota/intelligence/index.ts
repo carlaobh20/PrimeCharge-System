@@ -23,6 +23,14 @@ export type { NextActionsInput } from './nextActions';
 export { gerarOportunidades } from './opportunities';
 export type { OpportunitiesInput } from './opportunities';
 
+// calcularSaudePatrimonial (categorias/) é consumida por features/motoristas (Saúde
+// Patrimonial do Motorista reaproveita a mesma regra do Veículo — ver comentário em
+// motoristas/intelligence/categories/patrimonial.ts). Corrigido na Missão 3 (Parte 12,
+// auditoria arquitetural): o import cross-feature ia direto na pasta categories/, sem
+// passar por este barril — reexportado aqui para fechar o único ponto auditável de saída
+// que DEC-024 pede.
+export { calcularSaudePatrimonial } from './categories/patrimonial';
+
 // gerarRiscos é 100% genérica (sem nenhum dado específico de veículo) — mora em shared/
 // desde a Sprint 6 (ver DEC-025), reexportada aqui só para não quebrar quem já importa
 // risco através deste barril.

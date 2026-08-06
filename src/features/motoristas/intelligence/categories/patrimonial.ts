@@ -1,4 +1,4 @@
-import { calcularSaudePatrimonial as calcularSaudePatrimonialVeiculo } from '@/features/frota/intelligence/categories/patrimonial';
+import { calcularSaudePatrimonial as calcularSaudePatrimonialVeiculo } from '@/features/frota/intelligence';
 import type { Veiculo } from '@/features/frota/types';
 import type { CategoriaHealthResult } from '../types';
 

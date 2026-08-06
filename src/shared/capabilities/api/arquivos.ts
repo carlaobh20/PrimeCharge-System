@@ -77,7 +77,12 @@ export async function getArquivoUrl(caminhoStorage: string) {
 export async function deleteArquivo(arquivo: Arquivo) {
   const [bucket, ...rest] = arquivo.caminho_storage.split('/');
   const path = rest.join('/');
-  await supabase.storage.from(bucket).remove([path]);
+  // Corrigido na Missão 3 (Parte 12): antes o erro de storage.remove() era descartado —
+  // se o RLS do bucket negasse a exclusão (ex.: mismatch de autoria com a policy de
+  // `arquivos`, ver migration 0011), a linha em `arquivos` era apagada mesmo assim e a
+  // UI reportava sucesso com o binário órfão no bucket para sempre.
+  const { error: storageError } = await supabase.storage.from(bucket).remove([path]);
+  if (storageError) throw storageError;
   const { error } = await supabase.from('arquivos').delete().eq('id', arquivo.id);
   if (error) throw error;
 }
