@@ -11,14 +11,9 @@ import {
   gerarProximasAcoes,
   gerarRiscos,
 } from '@/features/frota/intelligence';
-// Leitura cross-feature em lote do Financeiro — mesmo motivo de useVehicleIntelligence
-// (DEC-048), só que aqui pra frota inteira de uma vez (padrão de coleta em lote deste
-// arquivo), não uma consulta por veículo.
-import { listLancamentosPorEmpresa } from '@/features/financeiro/api/lancamentos';
-import { listPagamentosPendentesPorEmpresa } from '@/features/financeiro/api/pagamentos';
 import type { VeiculoComRelacoes } from '@/features/frota/types';
 import type { Alerta, HealthScoreResult, Insight, NextAction, Opportunity, Risk } from '@/shared/intelligence/types';
-import type { EntityIntelligenceSnapshot } from '../types';
+import type { DadosCrossFeatureCompartilhados, EntityIntelligenceSnapshot } from '../types';
 
 function agruparPorId<T>(itens: T[], getId: (item: T) => string | null | undefined): Map<string, T[]> {
   const mapa = new Map<string, T[]>();
@@ -61,27 +56,35 @@ function agruparPorEntidade<T extends { entidade_id: string }>(itens: T[]): Map<
 // tamanho da frota (ainda que o número de consultas continue fixo). Para o tamanho de
 // frota esperado nesta fase do produto isso é aceitável; se a Home ficar lenta com frotas
 // grandes, o próximo passo é paginar ou pré-calcular/cachear, não voltar a 1 consulta por
-// veículo. Sprint 8 (DEC-047/DEC-048) soma 2 consultas em lote do Financeiro às 4 já
-// existentes — mesmo raciocínio, não uma consulta por veículo.
-export async function coletarInteligenciaDaFrota(frota: VeiculoComRelacoes[]): Promise<VeiculoIntelligenceSnapshot[]> {
+// veículo.
+//
+// Contratos/Lançamentos/Pagamentos NÃO são mais buscados aqui (auditoria de CTO,
+// 2026-08-06): até então este arquivo, driverIntelligenceCollector.ts e
+// contractIntelligenceCollector.ts buscavam cada um a própria cópia de lancamentos/
+// pagamentos (3x) e contratos (2x) numa única carga da Home — o objetivo original da
+// DEC-024 ("sempre N consultas fixas") furou sem ninguém decidir isso de propósito.
+// useCommandCenter agora busca essas três listas uma única vez e repassa via `deps`.
+export async function coletarInteligenciaDaFrota(
+  frota: VeiculoComRelacoes[],
+  deps: DadosCrossFeatureCompartilhados
+): Promise<VeiculoIntelligenceSnapshot[]> {
   if (frota.length === 0) return [];
   const ids = frota.map((v) => v.id);
 
-  const [documentos, eventos, comentarios, tags, lancamentos, pagamentosPendentes] = await Promise.all([
+  const [documentos, eventos, comentarios, tags] = await Promise.all([
     listArquivosPorEntidades('veiculo', ids),
     listTimelinePorEntidades('veiculo', ids),
     listComentariosPorEntidades('veiculo', ids),
     listTagsPorEntidades('veiculo', ids),
-    listLancamentosPorEmpresa(),
-    listPagamentosPendentesPorEmpresa(),
   ]);
 
   const documentosPorVeiculo = agruparPorEntidade(documentos);
   const eventosPorVeiculo = agruparPorEntidade(eventos);
   const comentariosPorVeiculo = agruparPorEntidade(comentarios);
   const tagsPorVeiculo = agruparPorEntidade(tags);
-  const lancamentosPorVeiculo = agruparPorId(lancamentos, (l) => l.veiculo_id);
-  const pagamentosPorVeiculo = agruparPorId(pagamentosPendentes, (p) => p.lancamento?.veiculo_id);
+  const lancamentosPorVeiculo = agruparPorId(deps.lancamentos, (l) => l.veiculo_id);
+  const pagamentosPorVeiculo = agruparPorId(deps.pagamentosPendentes, (p) => p.lancamento?.veiculo_id);
+  const contratosPorVeiculo = agruparPorId(deps.contratos, (c) => c.veiculo_id);
 
   return frota.map((veiculo) => {
     const totalDocumentos = documentosPorVeiculo.get(veiculo.id)?.length ?? 0;
@@ -98,7 +101,14 @@ export async function coletarInteligenciaDaFrota(frota: VeiculoComRelacoes[]): P
       pagamentosPendentes: (pagamentosPorVeiculo.get(veiculo.id) ?? []).map((p) => ({ data_prevista: p.data_prevista })),
     };
 
-    const healthScore = calcularHealthScore({ veiculo, totalDocumentos, diasDesdeUltimoEvento, saudeFinanceira });
+    const contratosDoVeiculo = contratosPorVeiculo.get(veiculo.id) ?? [];
+    const saudeComercial = {
+      totalContratos: contratosDoVeiculo.length,
+      contratosAtivos: contratosDoVeiculo.filter((c) => c.status === 'ativo').length,
+      contratosCancelados: contratosDoVeiculo.filter((c) => c.status === 'cancelado').length,
+    };
+
+    const healthScore = calcularHealthScore({ veiculo, totalDocumentos, diasDesdeUltimoEvento, saudeFinanceira, saudeComercial });
     const alertas = gerarAlertas({ veiculo, totalDocumentos, diasDesdeUltimoEvento });
 
     return {

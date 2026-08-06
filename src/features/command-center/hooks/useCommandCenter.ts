@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useVeiculos } from '@/features/frota/hooks/useVeiculos';
 import { useMotoristas } from '@/features/motoristas/hooks/useMotoristas';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
+import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
+import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { coletarInteligenciaDaFrota, paraSnapshotGenerico } from '../services/fleetIntelligenceCollector';
 import { coletarInteligenciaDosMotoristas } from '../services/driverIntelligenceCollector';
 import { coletarInteligenciaDosContratos } from '../services/contractIntelligenceCollector';
@@ -43,29 +45,61 @@ export function useCommandCenter(): UseCommandCenterResult {
   const { data: frota, isLoading: loadingFrota } = useVeiculos();
   const { data: motoristas, isLoading: loadingMotoristas } = useMotoristas();
   const { data: contratos, isLoading: loadingContratos } = useContratos();
+  // Lançamentos/Pagamentos buscados UMA vez aqui e repassados aos três coletores — antes,
+  // cada coletor (fleet/driver/contract) buscava a própria cópia (3x lançamentos, 3x
+  // pagamentos, 2x contratos numa única carga da Home). Achado da auditoria de CTO
+  // (2026-08-06, ver DECISION_LOG.md) — furava o objetivo original da DEC-024 ("sempre N
+  // consultas fixas, não uma por origem") sem que ninguém tivesse decidido isso de propósito.
+  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
+  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
+
+  const loadingBase = loadingFrota || loadingMotoristas || loadingContratos || loadingLancamentos || loadingPagamentos;
+  const crossFeatureDeps = {
+    contratos: contratos ?? [],
+    lancamentos: lancamentos ?? [],
+    pagamentosPendentes: pagamentosPendentes ?? [],
+  };
 
   const { data: snapshotsFrota, isLoading: loadingIntelFrota } = useQuery({
-    queryKey: ['command-center', 'fleet-intelligence', (frota ?? []).map((v) => v.id).join(',')],
-    queryFn: () => coletarInteligenciaDaFrota(frota ?? []),
-    enabled: !loadingFrota,
+    queryKey: [
+      'command-center',
+      'fleet-intelligence',
+      (frota ?? []).map((v) => v.id).join(','),
+      crossFeatureDeps.contratos.length,
+      crossFeatureDeps.lancamentos.length,
+      crossFeatureDeps.pagamentosPendentes.length,
+    ],
+    queryFn: () => coletarInteligenciaDaFrota(frota ?? [], crossFeatureDeps),
+    enabled: !loadingBase,
   });
 
   const { data: snapshotsMotoristas, isLoading: loadingIntelMotoristas } = useQuery({
-    queryKey: ['command-center', 'driver-intelligence', (motoristas ?? []).map((m) => m.id).join(',')],
-    queryFn: () => coletarInteligenciaDosMotoristas(motoristas ?? []),
-    enabled: !loadingMotoristas,
+    queryKey: [
+      'command-center',
+      'driver-intelligence',
+      (motoristas ?? []).map((m) => m.id).join(','),
+      crossFeatureDeps.contratos.length,
+      crossFeatureDeps.lancamentos.length,
+      crossFeatureDeps.pagamentosPendentes.length,
+    ],
+    queryFn: () => coletarInteligenciaDosMotoristas(motoristas ?? [], crossFeatureDeps),
+    enabled: !loadingBase,
   });
 
   const { data: snapshotsContratos, isLoading: loadingIntelContratos } = useQuery({
-    queryKey: ['command-center', 'contract-intelligence', (contratos ?? []).map((c) => c.id).join(',')],
-    queryFn: () => coletarInteligenciaDosContratos(contratos ?? []),
-    enabled: !loadingContratos,
+    queryKey: [
+      'command-center',
+      'contract-intelligence',
+      (contratos ?? []).map((c) => c.id).join(','),
+      crossFeatureDeps.lancamentos.length,
+      crossFeatureDeps.pagamentosPendentes.length,
+    ],
+    queryFn: () => coletarInteligenciaDosContratos(contratos ?? [], crossFeatureDeps),
+    enabled: !loadingBase,
   });
 
   const isLoading =
-    loadingFrota ||
-    loadingMotoristas ||
-    loadingContratos ||
+    loadingBase ||
     loadingIntelFrota ||
     loadingIntelMotoristas ||
     loadingIntelContratos ||

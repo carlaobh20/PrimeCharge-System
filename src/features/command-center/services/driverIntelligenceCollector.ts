@@ -11,14 +11,8 @@ import {
   gerarProximasAcoes,
   gerarRiscos,
 } from '@/features/motoristas/intelligence';
-// Leitura cross-feature em lote — mesmo motivo de useDriverIntelligence (DEC-039/DEC-048),
-// só que aqui para todos os motoristas de uma vez, seguindo o padrão de coleta em lote
-// deste arquivo (não uma consulta por motorista).
-import { listContratosPorEmpresa } from '@/features/contracts/api/contratos';
-import { listLancamentosPorEmpresa } from '@/features/financeiro/api/lancamentos';
-import { listPagamentosPendentesPorEmpresa } from '@/features/financeiro/api/pagamentos';
 import type { Motorista } from '@/features/motoristas/types';
-import type { EntityIntelligenceSnapshot } from '../types';
+import type { DadosCrossFeatureCompartilhados, EntityIntelligenceSnapshot } from '../types';
 
 function agruparPorEntidade<T extends { entidade_id: string }>(itens: T[]): Map<string, T[]> {
   const mapa = new Map<string, T[]>();
@@ -47,29 +41,32 @@ function agruparPorId<T>(itens: T[], getId: (item: T) => string | null | undefin
 // Command Center passa a ser genérico mesmo (ver EntityIntelligenceSnapshot). Mesmo padrão de
 // coletarInteligenciaDaFrota: uma rodada de consultas em lote pra todos os motoristas, não
 // uma consulta por motorista, e as mesmas funções puras da ficha do motorista (via o barril
-// features/motoristas/intelligence/index.ts). Sprint 8 (DEC-047/DEC-048) soma Contratos e
-// Financeiro em lote às 4 consultas já existentes.
-export async function coletarInteligenciaDosMotoristas(motoristas: Motorista[]): Promise<EntityIntelligenceSnapshot[]> {
+// features/motoristas/intelligence/index.ts).
+//
+// Contratos/Lançamentos/Pagamentos vêm por parâmetro (`deps`), não são mais buscados aqui —
+// auditoria de CTO (2026-08-06) encontrou os três coletores buscando a mesma lista cada um
+// por conta própria; useCommandCenter busca uma vez só e repassa (ver types.ts).
+export async function coletarInteligenciaDosMotoristas(
+  motoristas: Motorista[],
+  deps: DadosCrossFeatureCompartilhados
+): Promise<EntityIntelligenceSnapshot[]> {
   if (motoristas.length === 0) return [];
   const ids = motoristas.map((m) => m.id);
 
-  const [documentos, eventos, comentarios, tags, contratos, lancamentos, pagamentosPendentes] = await Promise.all([
+  const [documentos, eventos, comentarios, tags] = await Promise.all([
     listArquivosPorEntidades('motorista', ids),
     listTimelinePorEntidades('motorista', ids),
     listComentariosPorEntidades('motorista', ids),
     listTagsPorEntidades('motorista', ids),
-    listContratosPorEmpresa(),
-    listLancamentosPorEmpresa(),
-    listPagamentosPendentesPorEmpresa(),
   ]);
 
   const documentosPorMotorista = agruparPorEntidade(documentos);
   const eventosPorMotorista = agruparPorEntidade(eventos);
   const comentariosPorMotorista = agruparPorEntidade(comentarios);
   const tagsPorMotorista = agruparPorEntidade(tags);
-  const contratosPorMotorista = agruparPorId(contratos, (c) => c.motorista_id);
-  const lancamentosPorMotorista = agruparPorId(lancamentos, (l) => l.motorista_id);
-  const pagamentosPorMotorista = agruparPorId(pagamentosPendentes, (p) => p.lancamento?.motorista_id);
+  const contratosPorMotorista = agruparPorId(deps.contratos, (c) => c.motorista_id);
+  const lancamentosPorMotorista = agruparPorId(deps.lancamentos, (l) => l.motorista_id);
+  const pagamentosPorMotorista = agruparPorId(deps.pagamentosPendentes, (p) => p.lancamento?.motorista_id);
 
   return motoristas.map((motorista) => {
     const totalDocumentos = documentosPorMotorista.get(motorista.id)?.length ?? 0;

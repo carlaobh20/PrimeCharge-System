@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Select } from '@/shared/components/ui/select';
+import { formatDataSimples, formatMoeda } from '@/shared/lib/format';
 import { useLancamentos, useUpdateLancamentoStatus } from '../hooks/useLancamentos';
 import { LancamentoFormDialog } from '../components/LancamentoFormDialog';
 import {
@@ -11,10 +12,6 @@ import {
   type LancamentoStatus,
   type LancamentoTipo,
 } from '../types';
-
-function formatMoeda(valor: number) {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 // Sem página de detalhe (DEC-052) — lista + Dialog de criação é a interação completa desta
 // sprint. Mudança de status acontece direto na linha, via Select, mesma lógica de
@@ -110,9 +107,7 @@ export function LancamentosListPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{formatMoeda(l.valor)}</td>
-                <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">
-                  {new Date(l.data_prevista).toLocaleDateString('pt-BR')}
-                </td>
+                <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{formatDataSimples(l.data_prevista)}</td>
                 <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{l.centro_custo?.nome ?? '—'}</td>
                 <td className="px-4 py-3">
                   <Select

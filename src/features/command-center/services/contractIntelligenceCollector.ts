@@ -10,12 +10,8 @@ import {
   gerarProximasAcoes,
   gerarRiscos,
 } from '@/features/contracts/intelligence';
-// Leitura cross-feature em lote do Financeiro — mesmo motivo de useContractIntelligence
-// (DEC-048), aqui em lote pra todos os contratos, não uma consulta por contrato.
-import { listLancamentosPorEmpresa } from '@/features/financeiro/api/lancamentos';
-import { listPagamentosPendentesPorEmpresa } from '@/features/financeiro/api/pagamentos';
 import type { ContratoComRelacoes } from '@/features/contracts/types';
-import type { EntityIntelligenceSnapshot } from '../types';
+import type { DadosCrossFeatureCompartilhados, EntityIntelligenceSnapshot } from '../types';
 
 function agruparPorEntidade<T extends { entidade_id: string }>(itens: T[]): Map<string, T[]> {
   const mapa = new Map<string, T[]>();
@@ -43,24 +39,28 @@ function agruparPorId<T>(itens: T[], getId: (item: T) => string | null | undefin
 // consultas em lote pra todos os contratos (não uma por contrato), reaproveitando as mesmas
 // funções puras da ficha do contrato (via features/contracts/intelligence/index.ts). Sem tags
 // (Contract Intelligence não usa totalTags em nenhuma regra hoje, ver
-// useContractIntelligence.ts). Sprint 8 (DEC-047/DEC-048) soma Financeiro em lote.
-export async function coletarInteligenciaDosContratos(contratos: ContratoComRelacoes[]): Promise<EntityIntelligenceSnapshot[]> {
+// useContractIntelligence.ts).
+//
+// Lançamentos/Pagamentos vêm por parâmetro (`deps`) desde a auditoria de CTO (2026-08-06) —
+// ver o mesmo comentário em fleetIntelligenceCollector.ts/driverIntelligenceCollector.ts.
+export async function coletarInteligenciaDosContratos(
+  contratos: ContratoComRelacoes[],
+  deps: Pick<DadosCrossFeatureCompartilhados, 'lancamentos' | 'pagamentosPendentes'>
+): Promise<EntityIntelligenceSnapshot[]> {
   if (contratos.length === 0) return [];
   const ids = contratos.map((c) => c.id);
 
-  const [documentos, eventos, comentarios, lancamentos, pagamentosPendentes] = await Promise.all([
+  const [documentos, eventos, comentarios] = await Promise.all([
     listArquivosPorEntidades('contrato', ids),
     listTimelinePorEntidades('contrato', ids),
     listComentariosPorEntidades('contrato', ids),
-    listLancamentosPorEmpresa(),
-    listPagamentosPendentesPorEmpresa(),
   ]);
 
   const documentosPorContrato = agruparPorEntidade(documentos);
   const eventosPorContrato = agruparPorEntidade(eventos);
   const comentariosPorContrato = agruparPorEntidade(comentarios);
-  const lancamentosPorContrato = agruparPorId(lancamentos, (l) => l.contrato_id);
-  const pagamentosPorContrato = agruparPorId(pagamentosPendentes, (p) => p.lancamento?.contrato_id);
+  const lancamentosPorContrato = agruparPorId(deps.lancamentos, (l) => l.contrato_id);
+  const pagamentosPorContrato = agruparPorId(deps.pagamentosPendentes, (p) => p.lancamento?.contrato_id);
 
   return contratos.map((contrato) => {
     const totalDocumentos = documentosPorContrato.get(contrato.id)?.length ?? 0;

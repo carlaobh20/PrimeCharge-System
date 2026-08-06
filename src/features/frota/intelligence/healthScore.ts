@@ -3,7 +3,7 @@ import { calcularSaudeOperacional } from './categories/operacional';
 import { calcularSaudeDocumental } from './categories/documental';
 import { calcularSaudePatrimonial } from './categories/patrimonial';
 import { calcularSaudeFinanceira } from './categories/financeira';
-import { calcularSaudeComercial } from './categories/comercial';
+import { calcularSaudeComercial, type SaudeComercialInput } from './categories/comercial';
 import type { HealthScoreResult } from './types';
 import type { SaudeFinanceiraInput } from '@/shared/intelligence/saudeFinanceira';
 
@@ -12,6 +12,7 @@ export type HealthScoreInput = {
   totalDocumentos: number;
   diasDesdeUltimoEvento: number | null;
   saudeFinanceira: SaudeFinanceiraInput;
+  saudeComercial: SaudeComercialInput;
 };
 
 // Agregador do Health Score. Cada categoria calcula seu próprio score (ou null, se ainda
@@ -23,7 +24,7 @@ export function calcularHealthScore(input: HealthScoreInput): HealthScoreResult 
     calcularSaudeDocumental({ totalDocumentos: input.totalDocumentos }),
     calcularSaudePatrimonial({ veiculo: input.veiculo }),
     calcularSaudeFinanceira(input.saudeFinanceira),
-    calcularSaudeComercial(),
+    calcularSaudeComercial(input.saudeComercial),
   ];
 
   const avaliadas = categorias.filter((c) => c.score !== null);

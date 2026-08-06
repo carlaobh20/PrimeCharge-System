@@ -4,9 +4,13 @@ import { useComentarios } from '@/shared/capabilities/hooks/useComentarios';
 import { useTags } from '@/shared/capabilities/hooks/useTags';
 import { useTimeline } from '@/shared/capabilities/hooks/useTimeline';
 // Leitura cross-feature de hooks de listagem do Financeiro — DEC-048 (extensão de DEC-039)
-// para alimentar a categoria financeira do Health Score com dado real.
+// para alimentar a categoria financeira do Health Score com dado real. `useContratos()` sem
+// filtro entra pelo mesmo motivo (fecha o `score: null` hardcoded da categoria Comercial —
+// ver DECISION_LOG.md, auditoria de CTO 2026-08-06) — mesmo padrão "PorEmpresa" já em uso,
+// registrado como consumidor adicional na mesma auditoria.
 import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
 import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
+import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { calcularHealthScore } from '../intelligence/healthScore';
 import { gerarInsights } from '../intelligence/insights';
 import { gerarAlertas } from '../intelligence/alerts';
@@ -41,9 +45,17 @@ export function useVehicleIntelligence(veiculo: VeiculoComRelacoes | undefined):
   const { data: frota, isLoading: loadingFrota } = useVeiculos();
   const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
   const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
+  const { data: contratos, isLoading: loadingContratos } = useContratos();
 
   const isLoading =
-    loadingDocumentos || loadingComentarios || loadingTags || loadingEventos || loadingFrota || loadingLancamentos || loadingPagamentos;
+    loadingDocumentos ||
+    loadingComentarios ||
+    loadingTags ||
+    loadingEventos ||
+    loadingFrota ||
+    loadingLancamentos ||
+    loadingPagamentos ||
+    loadingContratos;
 
   return useMemo(() => {
     if (!veiculo || isLoading) return { isLoading: true as const };
@@ -61,11 +73,19 @@ export function useVehicleIntelligence(veiculo: VeiculoComRelacoes | undefined):
         .map((p) => ({ data_prevista: p.data_prevista })),
     };
 
+    const contratosDoVeiculo = (contratos ?? []).filter((c) => c.veiculo_id === veiculo.id);
+    const saudeComercial = {
+      totalContratos: contratosDoVeiculo.length,
+      contratosAtivos: contratosDoVeiculo.filter((c) => c.status === 'ativo').length,
+      contratosCancelados: contratosDoVeiculo.filter((c) => c.status === 'cancelado').length,
+    };
+
     const healthScore = calcularHealthScore({
       veiculo,
       totalDocumentos,
       diasDesdeUltimoEvento,
       saudeFinanceira,
+      saudeComercial,
     });
 
     const insights = gerarInsights({ veiculo, diasNaFrota, totalComentarios, totalTags });
@@ -90,5 +110,5 @@ export function useVehicleIntelligence(veiculo: VeiculoComRelacoes | undefined):
       proximasAcoes,
       comparativos,
     };
-  }, [veiculo, isLoading, documentos, comentarios, tags, eventos, frota, lancamentos, pagamentosPendentes]);
+  }, [veiculo, isLoading, documentos, comentarios, tags, eventos, frota, lancamentos, pagamentosPendentes, contratos]);
 }

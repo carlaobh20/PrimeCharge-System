@@ -57,6 +57,19 @@ export type EntityIntelligenceSnapshot = {
   riscos: Risk[];
 };
 
+// Auditoria de CTO (2026-08-06, ver DECISION_LOG.md): os três coletores
+// (fleet/driver/contractIntelligenceCollector) chamavam listLancamentosPorEmpresa/
+// listPagamentosPendentesPorEmpresa/listContratosPorEmpresa cada um por conta própria —
+// 3x lancamentos, 3x pagamentos, 2x contratos numa única carga da Home, violando o objetivo
+// original da DEC-024 ("sempre N consultas fixas, não uma por origem"). Este tipo formaliza
+// o contrato: useCommandCenter busca cada lista UMA vez e repassa para os três coletores —
+// nenhum deles faz fetch próprio de dado cross-feature a partir de agora.
+export type DadosCrossFeatureCompartilhados = {
+  contratos: import('@/features/contracts/types').ContratoComRelacoes[];
+  lancamentos: import('@/features/financeiro/types').Lancamento[];
+  pagamentosPendentes: import('@/features/financeiro/types').PagamentoComRelacoes[];
+};
+
 export type FeedItemTipo = 'alerta' | 'risco' | 'oportunidade' | 'acao';
 
 // Formato comum usado só pelo bloco "Prioridades do Dia", que precisa comparar itens de
