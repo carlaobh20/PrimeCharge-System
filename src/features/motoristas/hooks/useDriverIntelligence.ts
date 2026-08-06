@@ -10,12 +10,13 @@ import { diasDesde, diasAte } from '@/shared/lib/format';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { useVeiculos } from '@/features/frota/hooks/useVeiculos';
 import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
-import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
+import { usePagamentosPendentesPorEmpresa, usePagamentosPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { calcularHealthScore } from '../intelligence/healthScore';
 import { gerarInsights } from '../intelligence/insights';
 import { gerarAlertas } from '../intelligence/alerts';
 import { gerarProximasAcoes } from '../intelligence/nextActions';
 import { gerarComparativos } from '../intelligence/comparatives';
+import { calcularDriverScore, calcularNivelPrimeDriver, type DriverScoreResult, type NivelPrimeDriver } from '../intelligence/driverScore';
 import { useMotoristas } from './useMotoristas';
 import type { Motorista } from '../types';
 import type { Alerta, ComparativoResult, HealthScoreResult, Insight, NextAction } from '../intelligence/types';
@@ -29,6 +30,8 @@ export type UseDriverIntelligenceResult =
       alertas: Alerta[];
       proximasAcoes: NextAction[];
       comparativos: ComparativoResult;
+      driverScore: DriverScoreResult;
+      nivelPrimeDriver: NivelPrimeDriver;
     };
 
 // Ponte entre os hooks de dado (React Query + Supabase) e a camada intelligence/ (funções
@@ -46,6 +49,7 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
   const { data: veiculos, isLoading: loadingVeiculos } = useVeiculos();
   const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
   const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
+  const { data: pagamentosTodos, isLoading: loadingPagamentosTodos } = usePagamentosPorEmpresa();
 
   const isLoading =
     loadingDocumentos ||
@@ -56,7 +60,8 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
     loadingContratos ||
     loadingVeiculos ||
     loadingLancamentos ||
-    loadingPagamentos;
+    loadingPagamentos ||
+    loadingPagamentosTodos;
 
   return useMemo(() => {
     if (!motorista || isLoading) return { isLoading: true as const };
@@ -119,6 +124,45 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
       grupoComDiasComoCliente: grupoLista.map((m) => ({ id: m.id, dias: diasDesde(m.criado_em) })),
     });
 
+    // Driver Score / Prime Driver (Missão 3) — implementa PRIME_DRIVER_PROGRAM.md seções 3/4.
+    // "Tempo contínuo no status atual" usa o evento de status mais recente na Timeline como
+    // proxy do início do ciclo atual — timeline_eventos não guarda "para qual status" de
+    // forma estruturada (só na descrição em texto), limitação registrada em DEC desta missão.
+    const eventosDeStatus = (eventos ?? []).filter((e) => e.tipo === 'status_alterado');
+    const diasNoStatusAtual = eventosDeStatus.length > 0 ? diasDesde(eventosDeStatus[0].criado_em) : diasComoCliente;
+
+    const pagamentosDoMotorista = (pagamentosTodos ?? []).filter((p) => p.lancamento?.motorista_id === motorista.id);
+    const pagamentosPagos = pagamentosDoMotorista.filter((p) => p.status === 'pago');
+    const pagamentosPagosNoPrazo = pagamentosPagos.filter(
+      (p) => !p.data_pagamento || p.data_pagamento <= p.data_prevista
+    );
+    const pagamentosPendentesDoMotorista = pagamentosDoMotorista.filter((p) => p.status === 'pendente');
+    const hoje = new Date().toISOString().slice(0, 10);
+    const semPagamentoEmAtraso = !pagamentosPendentesDoMotorista.some((p) => p.data_prevista < hoje);
+
+    const driverScore = calcularDriverScore({
+      motorista,
+      healthScore,
+      diasNoStatusAtual,
+      contratos: {
+        total: contratosDoMotorista.length,
+        encerradosNormalmente: contratosDoMotorista.filter((c) => c.status === 'encerrado').length,
+        cancelados: contratosDoMotorista.filter((c) => c.status === 'cancelado').length,
+      },
+      pagamentos: { total: pagamentosDoMotorista.length, pagos: pagamentosPagos.length, pagosNoPrazo: pagamentosPagosNoPrazo.length },
+    });
+
+    const categoriaDocumental = healthScore.categorias.find((c) => c.categoria === 'documental');
+    const categoriaOperacional = healthScore.categorias.find((c) => c.categoria === 'operacional');
+    const nivelPrimeDriver = calcularNivelPrimeDriver({
+      motoristaAtivo: motorista.status === 'ativo',
+      documentacaoEmDia: categoriaDocumental?.status === 'ok',
+      diasContinuosAtivo: motorista.status === 'ativo' ? diasNoStatusAtual : null,
+      semAlertaCriticoOperacionalOuDocumental: categoriaDocumental?.status !== 'critico' && categoriaOperacional?.status !== 'critico',
+      semContratoCancelado: contratosDoMotorista.every((c) => c.status !== 'cancelado'),
+      semPagamentoEmAtraso,
+    });
+
     return {
       isLoading: false as const,
       healthScore,
@@ -126,6 +170,8 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
       alertas,
       proximasAcoes,
       comparativos,
+      driverScore,
+      nivelPrimeDriver,
     };
-  }, [motorista, isLoading, documentos, comentarios, tags, eventos, grupo, contratos, veiculos, lancamentos, pagamentosPendentes]);
+  }, [motorista, isLoading, documentos, comentarios, tags, eventos, grupo, contratos, veiculos, lancamentos, pagamentosPendentes, pagamentosTodos]);
 }

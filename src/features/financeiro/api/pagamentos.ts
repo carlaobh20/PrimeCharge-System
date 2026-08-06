@@ -42,3 +42,12 @@ export async function listPagamentosPendentesPorEmpresa() {
   if (error) throw error;
   return data as unknown as PagamentoComRelacoes[];
 }
+
+// Todos os pagamentos da empresa, qualquer status — usado pelo Driver Score (Missão 3) para
+// calcular pontualidade real (proporção pago no prazo), sinal que não existia antes da
+// Missão 2 criar a tela de Pagamentos. Mesmo padrão de listLancamentosPorEmpresa.
+export async function listPagamentosPorEmpresa() {
+  const { data, error } = await supabase.from('pagamentos').select(SELECT_COM_RELACOES);
+  if (error) throw error;
+  return data as unknown as PagamentoComRelacoes[];
+}

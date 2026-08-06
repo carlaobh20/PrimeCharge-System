@@ -928,3 +928,113 @@ Como parte desta decisão, os 6 tipos de Card pedidos foram avaliados um a um:
 **Alternativas consideradas:** Nenhuma — é um registro de observação estratégica, não uma decisão técnica com alternativas.
 **Riscos aceitos:** O valor desse dado só se realiza se a captura for consistente desde a primeira operação real — se `km_final`/`carga_final_pct`/manutenção ficarem em branco por preguiça operacional, o moat não se forma. Risco de processo, não de arquitetura.
 **Revisitar quando:** A PrimeCharge tiver dado real acumulado de múltiplos veículos por tempo suficiente (6-12 meses) para o primeiro modelo de depreciação/valor residual próprio ser viável — aí sim vira caso real de IA (Fase 5/6 de uma missão futura), não antes.
+
+## DEC-084 — Driver Score implementado com dado real, sem tabela de histórico persistida
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** `motoristas/intelligence/driverScore.ts` implementa exatamente o vocabulário de `PRIME_DRIVER_PROGRAM.md` seção 3 (sinais). Calculado on-the-fly a cada carregamento da ficha do motorista — nenhuma tabela `driver_score_historico` foi criada.
+**Contexto:** A Missão 3 pediu "implementar definitivamente... histórico, evolução". Dois dos sete sinais (pontualidade de pagamento, contratos cumpridos) só se tornaram calculáveis com dado real nesta sessão, porque dependiam de Pagamentos (Missão 2) e de contratos encerrados normalmente existirem.
+**Motivo:** Persistir histórico de um score que muda a cada carregamento, sem nenhum consumidor que precise comparar "Driver Score de há 3 meses" ainda, seria abstração antecipada (regra dos 3, DEC-010) — o cálculo em tempo real já responde "qual é o Driver Score agora", que é a única pergunta feita até hoje.
+**Alternativas consideradas:** Tabela de snapshot mensal — rejeitada por falta de consumidor real (nenhum gráfico de evolução foi pedido ainda). Persistir só no momento de mudança de nível — rejeitada pela mesma razão, complexidade sem uso real.
+**Riscos aceitos:** Sem histórico, não é possível hoje responder "o Driver Score deste motorista está subindo ou caindo" — só o valor atual.
+**Revisitar quando:** Um Dashboard/relatório pedir evolução de Driver Score ao longo do tempo — nesse momento, um snapshot periódico (não a cada carregamento) é a forma certa de persistir.
+
+## DEC-085 — Prime Driver Program: camada estrutural (níveis) implementada; benefícios/descontos e elegibilidade de compra do veículo permanecem só desenho
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** `calcularNivelPrimeDriver` implementa os 4 níveis (Bronze/Prata/Ouro/Black) e seus critérios de entrada exatamente como `PRIME_DRIVER_PROGRAM.md` seção 4 descreve. Nenhuma tabela de benefício/desconto, nenhuma implementação de elegibilidade de compra do veículo (seção 7 daquele documento) foi construída.
+**Contexto:** A missão pediu "implementar definitivamente... benefícios, descontos, vantagens, privilégios, preparação para compra do veículo".
+**Motivo:** Nível calculado é regra determinística sobre dado real — implementável com honestidade hoje. Benefício/desconto é decisão de precificação e negócio que ninguém tomou ainda (que desconto, em qual condição, custeado como) — codificar um valor aqui seria inventar dado de negócio, o mesmo erro que DEC-022 rejeita para score. Elegibilidade de compra do veículo é, pelo próprio `PRIME_DRIVER_PROGRAM.md` seção 7, "o mais especulativo... merece validação com motoristas reais antes de qualquer implementação" — o próprio documento de fundação já pede para não implementar isso ainda.
+**Alternativas consideradas:** Criar uma tabela `beneficios_prime` vazia, pronta para o Carlos popular — avaliada; não criada agora porque a estrutura certa (desconto percentual? prioridade de fila? cashback?) ainda não foi decidida, e uma tabela errada custaria uma migration de correção depois. Preferível esperar a primeira decisão real de benefício.
+**Riscos aceitos:** O programa hoje só existe como cálculo de nível — nenhum motorista percebe diferença prática de estar em Black vs. Bronze ainda, o que é honesto (nenhum benefício real existe) mas reduz o valor de retenção do programa até um benefício real ser definido.
+**Revisitar quando:** O Carlos decidir o primeiro benefício real e concreto para pelo menos um nível (ex.: "Prata tem prioridade de atendimento" já está registrado como não tendo custo de implementação — pode ser o primeiro a sair do papel).
+
+## DEC-086 — Investment Simulator: conecta ROI/resumo financeiro já existentes (nunca consumidos), acrescenta custo por KM e payback; TIR completa não implementada
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** `frota/intelligence/investmentSimulator.ts` acrescenta `calcularCustoPorKm`/`calcularPaybackMeses` e conecta pela primeira vez `financeiro/intelligence/roi.ts`/`resumoFinanceiro.ts` (existentes desde a Sprint 8, zero consumidores até esta missão) à aba Financeiro do Cockpit do Veículo.
+**Contexto:** Achado direto desta missão: as funções que um "simulador de investimento" precisaria já existiam, prontas, nunca conectadas a nenhuma tela — construir um módulo novo do zero teria duplicado lógica já correta.
+**Motivo:** TIR real (taxa interna de retorno com fluxo de caixa mês a mês) e "vale comprar ou alugar/vale trocar" exigem premissas de negócio (taxa de desconto, cenário de revenda) que não foram definidas — implementar a fórmula sem essas premissas seria inventar dado, rejeitado por DEC-022 pelo mesmo motivo de sempre.
+**Alternativas consideradas:** Construir TIR com uma taxa de desconto arbitrária "só para ter o número" — rejeitada, é exatamente o tipo de número "cheio mas sem dado real por trás" que este projeto evita desde a Sprint 3.
+**Riscos aceitos:** Payback estimado é linear (lucro médio mensal), não fluxo de caixa descontado — impreciso para decisões de grande porte, adequado para uma primeira leitura rápida por veículo, com o aviso explícito na própria UI.
+**Revisitar quando:** O Carlos definir uma taxa de desconto/premissa de cenário de revenda real — aí sim TIR completa e "vale comprar/trocar/vender" fazem sentido.
+
+## DEC-087 — Driver App Foundation (Missão 3, Parte 1): maior parte já coberta pela Missão 2; resto fica em decisão de arquitetura, sem código novo
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** Nenhuma tabela nova para autenticação/sessão/sincronização/offline/upload/fila/notificação/preferência/cache do Driver App. `checklists` (DEC-080, Missão 2) já cobre GPS/assinatura/score/versão/comparação — o núcleo de dado que o app vai escrever.
+**Contexto:** A missão pediu preparar "autenticação, sessão, sincronização, modo offline, upload, fila de sincronização, permissões, notificações, configuração, preferências, armazenamento local, cache, sincronização incremental" sem construir o app.
+**Motivo:** Autenticação/sessão já são resolvidas pelo Supabase Auth existente (mesmo mecanismo, sem nada de mobile-específico decidido ainda: token de app separado? mesma sessão? não decidido, e não há como decidir sem saber o framework do app). Offline/fila de sincronização são o item mais caro e mais arriscado de acertar sem um app real para validar contra — uma tabela de fila desenhada agora, sem cliente real gravando nela, corre alto risco de ter o formato errado. Preferências/configuração/cache são inteiramente do lado do cliente (app), não do backend — não existe schema de servidor para "preparar" aqui.
+**Alternativas consideradas:** Tabela `sync_queue`/`device_sessions` genérica — rejeitada, mesmo risco de formato errado do Telemetria (DEC-081), mas sem o benefício de já ter sido pedido explicitamente com exemplos concretos de métrica (SOC/SOH); aqui não há exemplos concretos o suficiente para desenhar com confiança.
+**Riscos aceitos:** Quando o Driver App começar a ser construído de verdade, autenticação mobile e sincronização offline vão exigir desenho real, não uma extensão do que existe — aceito, é trabalho genuíno de uma missão futura, não dívida desta.
+**Revisitar quando:** A Fase 4 (Driver App) virar uma missão de construção real, não mais de fundação.
+
+## DEC-088 — Smart Inspection Foundation (Missão 3, Parte 2): já concluída na Missão 2, confirmado sem mudança
+
+**Data:** 2026-08-06 · **Status:** ativa (confirmação)
+**Decisão:** Nenhuma mudança — `checklists.gps_lat/gps_lng/assinatura_url/score/versao/checklist_anterior_id` (DEC-080) já cobre exatamente o que a Parte 2 desta missão pediu (vistoria, entrega, devolução, comparação, histórico, versionamento, fotos, assinaturas, GPS, timestamp, score, checklist, observações — `checklist_itens.observacao` também já existe e já ganhou UI na Missão 2).
+**Contexto:** Auditoria desta missão confirmou que não sobrou nenhum item da lista pedida sem cobertura de schema.
+**Motivo:** Registrar explicitamente para não redigitar a mesma migration numa sessão futura sem checar o que já existe primeiro.
+**Alternativas consideradas:** Nenhuma — é confirmação, não decisão nova.
+**Riscos aceitos:** Nenhum novo.
+**Revisitar quando:** Nunca precisa — só se o schema de `checklists` mudar de forma que invalide esta confirmação.
+
+## DEC-089 — Telemetria Foundation (Missão 3, Parte 5): já concluída na Missão 2, LGPD/retenção documentados em DATA_PLATFORM.md
+
+**Data:** 2026-08-06 · **Status:** ativa (confirmação + extensão de documentação)
+**Decisão:** `telemetria_eventos` (DEC-081) já cobre o modelo pedido (eventos, sensores, fontes, versionamento leve via `origem`). O que a Parte 5 desta missão pedia a mais — retenção, LGPD, pipeline — foi endereçado como documentação em `DATA_PLATFORM.md` seção 7 e 8, não como código (zero linhas na tabela ainda, nada para reter ou expurgar de verdade).
+**Contexto:** Mesma lógica de DEC-088 — auditoria confirmou cobertura, sem gap de schema real.
+**Motivo:** Política de retenção sobre uma tabela vazia é documentação, não implementação — não existe "dado antigo" para expurgar ainda.
+**Alternativas consideradas:** Nenhuma.
+**Riscos aceitos:** Nenhum novo.
+**Revisitar quando:** `telemetria_eventos` tiver volume real — aí a política de retenção documentada em `DATA_PLATFORM.md` precisa virar código (job de expurgo/agregação).
+
+## DEC-090 — Battery Intelligence Foundation (Missão 3, Parte 6): nenhum código/schema novo, documentado como consumidor futuro de `telemetria_eventos`
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** Nenhuma tabela, view ou função nova para Battery Guardian/Score/Timeline/Health/Degradation/Risk/Prediction/Remaining Life/Value. `MOAT.md` seção 1 e `DATA_PLATFORM.md` documentam que, quando telemetria real de bateria existir, ela chega em `telemetria_eventos.tipo in ('soc','soh',...)` — sem tabela nova necessária para os 9 conceitos pedidos.
+**Contexto:** A missão pediu "criar toda arquitetura" para 9 conceitos de análise de bateria, com zero dado de bateria real fluindo hoje (telemetria vazia por design, DEC-081).
+**Motivo:** 9 tabelas/serviços para 9 conceitos analíticos sobre uma fonte de dado que ainda não existe seria o exemplo mais claro de arquitetura antecipada que esta sessão inteira vem evitando — cada um desses 9 conceitos é, na prática, uma consulta/agregação diferente sobre `telemetria_eventos`, não uma entidade de dado nova. Construir os 9 agora seria adivinhar 9 formatos de saída sem nenhum dado de entrada real para validar contra.
+**Alternativas consideradas:** Criar as 9 como views SQL vazias "prontas para popular" — rejeitada, view sobre tabela vazia não testa nada e ainda carrega risco de schema errado.
+**Riscos aceitos:** Quando telemetria real chegar, ainda será necessário desenhar as consultas/agregações dos 9 conceitos — não é trabalho eliminado, só adiado para quando houver dado real para desenhar contra (o que é mais barato, não mais caro).
+**Revisitar quando:** Uma integração real de OBD2/BMS existir e `telemetria_eventos` tiver volume real (mesmo gatilho de DEC-081).
+
+## DEC-091 — Smart Fleet Guardians (Missão 3, Parte 7): nenhum código novo, já coberto por `AGENT_PLATFORM.md` e `acoes_operacionais.origem`
+
+**Data:** 2026-08-06 · **Status:** ativa (confirmação)
+**Decisão:** Nenhuma tabela/serviço novo para os 8 Guardians pedidos (Asset/Maintenance/Contract/Driver/Inspection/Financial/Document/Fleet Guardian). Cada um, quando existir, é um Agente (`AGENT_PLATFORM.md`) especializado em um domínio — a infraestrutura para um Agente atuar (registrar ação, nunca executar direto — Princípio 5 de `FOUNDATION_PRINCIPLES.md`) já existe via `acoes_operacionais` (`origem = 'agente'`, desde a Sprint 9).
+**Contexto:** Mesmo achado de DEC-082 (sessão anterior) revisitado — a plataforma já estava adequada para Fase 7/8 antes desta missão, e continua.
+**Motivo:** 8 "Guardians" nomeados nesta missão não são 8 arquiteturas diferentes — são 8 áreas de responsabilidade sobre a mesma infraestrutura de Agente já existente. Nomeá-los em código antes de qualquer Agente real existir criaria 8 pontos de extensão vazios.
+**Alternativas consideradas:** Registrar os 8 nomes como enum/constante em algum lugar do código "pra já ter o vocabulário" — avaliada e rejeitada: o vocabulário já está registrado aqui, em texto, que é onde vocabulário de produto pertence antes de virar código.
+**Riscos aceitos:** Nenhum novo.
+**Revisitar quando:** O primeiro Agente real (qualquer um dos 8) começar a ser construído — nesse momento, ele nasce como um novo valor de `acoes_operacionais.tipo`/gerador, mesmo padrão dos geradores da Sprint 9, não como arquitetura nova.
+
+## DEC-092 — Marketplace Foundation (Missão 3, Parte 8): declinado inteiramente, registrado só em MOAT.md
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** Nenhuma tabela, tipo ou documento técnico novo para postos/restaurantes/farmácias/seguros/cashback/cupons/parceiros/campanhas/indicações. Registrado como oportunidade futura em `MOAT.md` seção 8, sem nenhuma arquitetura.
+**Contexto:** É o item mais especulativo de toda a missão — nenhum parceiro externo existe, nenhuma validação de mercado específica de marketplace de benefícios existe nos documentos de pesquisa (que cobrem ERP de locadora e battery analytics, não marketplace).
+**Motivo:** Moat de marketplace depende de poder de negociação comercial com parceiros externos (posto, seguradora), que é capacidade de negócio, não técnica — nenhuma tabela ou schema resolve isso adiantado. Construir agora seria o exemplo mais puro de "arquitetura que não ajuda a locadora a ganhar mais dinheiro hoje", o próprio critério que a Missão 2 já usou para podar escopo.
+**Alternativas consideradas:** Tabela genérica `parceiros`/`cupons` vazia — rejeitada pela mesma razão de Battery Intelligence (DEC-090): zero dado real para validar o formato, e zero alavancagem de negociação hoje que tornaria essas linhas úteis em qualquer prazo previsível.
+**Riscos aceitos:** Nenhum — é a decisão de menor risco de toda a missão, porque não constrói nada.
+**Revisitar quando:** Volume real de motoristas (centenas) tornar a PrimeCharge um canal de distribuição atrativo para um parceiro externo negociar — ver `MOAT.md` seção 8.
+
+## DEC-093 — `DATA_PLATFORM.md` criado; lacuna de lineage (`origem`/`criado_via`) identificada como pré-requisito de Agente, não implementada
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** Novo documento de fundação `DATA_PLATFORM.md`. Nenhuma migration — a lacuna real identificada (maioria das tabelas não distingue "criado por humano" de "criado por automação/Agente/IA", ao contrário de `acoes_operacionais.origem`) fica registrada como pré-requisito explícito, não implementada agora.
+**Contexto:** Parte 10 da missão pedia o documento; a auditoria que o produziu encontrou essa lacuna real ao comparar as 4 fontes de dado genéricas já existentes (`timeline_eventos`, `arquivos`, `audit_log`, `telemetria_eventos`).
+**Motivo:** Adicionar `origem`/`criado_via` a toda tabela do sistema agora, sem nenhum Agente com permissão de escrita ainda, seria a mesma abstração antecipada rejeitada em todo o resto desta missão — o valor desse campo só existe no momento em que algo não-humano começa a escrever.
+**Alternativas consideradas:** Adicionar agora "para não esquecer depois" — rejeitada; o registro por escrito (este DEC + `DATA_PLATFORM.md` seção 4) já cumpre o papel de "não esquecer" sem o custo de campo morto em produção.
+**Riscos aceitos:** Se um Agente futuro ganhar permissão de escrita antes desta lacuna ser fechada, não have\rá como diferenciar automaticamente o que ele criou do que um humano criou — bloqueador explícito, registrado para ser barrado em revisão de código quando o momento chegar.
+**Revisitar quando:** Qualquer Agente (`AGENT_PLATFORM.md`) receber permissão de escrita em qualquer tabela — o campo de lineage é pré-requisito daquela tabela específica antes disso acontecer, não do sistema inteiro de uma vez.
+
+## DEC-094 — `MOAT.md` criado, consolidando e expandindo DEC-083
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** Novo documento de fundação `MOAT.md`, com 8 categorias de moat avaliadas (dado proprietário, honestidade de dado, arquitetura pronta, posicionamento de mercado, suporte nacional, Prime Driver, compra de veículo, marketplace), cada uma com valor/dificuldade de cópia/dependência/risco/momento correto, e marcação de confiança ([Certo]/[Provável]/[Palpite]) por afirmação.
+**Contexto:** Parte 11 da missão pedia o documento; consolida achados já dispersos em `claude/analise-posicionamento-proposta-valor.md` (projeto), `claude/pesquisa-mercado-rental-ev-2026.md` (projeto) e DEC-083 (sessão anterior) num único lugar, sem repetir o que já estava escrito — só referenciando.
+**Motivo:** Nenhum dos dois documentos de projeto citados vive no repositório de código (são documentos de projeto, não de fundação técnica) — `MOAT.md` traz a síntese estratégica para dentro do mesmo corpus que `DECISION_LOG.md`/`PRODUCT_VISION.md` já ocupam, onde qualquer sessão futura (ou Agente) vai procurar primeiro.
+**Alternativas consideradas:** Deixar só em DEC-083 — rejeitada, a missão pediu explicitamente um documento dedicado e mais abrangente (8 categorias vs. 1 registrada antes).
+**Riscos aceitos:** Nenhum novo — é documentação, sem efeito em código.
+**Revisitar quando:** Cada categoria tem seu próprio "revisitar quando" — este documento como um todo deve ser revisto a cada missão que mude significativamente a posição competitiva real (não a cada missão de código pequena).

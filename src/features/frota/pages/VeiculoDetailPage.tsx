@@ -194,7 +194,7 @@ export function VeiculoDetailPage() {
                   />
                 ),
               },
-              { value: 'financeiro', label: 'Financeiro', content: <FinanceiroTab veiculoId={veiculo.id} /> },
+              { value: 'financeiro', label: 'Financeiro', content: <FinanceiroTab veiculo={veiculo} /> },
               {
                 value: 'checklists',
                 label: 'Checklists',

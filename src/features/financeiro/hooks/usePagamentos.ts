@@ -3,6 +3,7 @@ import {
   createPagamento,
   listPagamentos,
   listPagamentosPendentesPorEmpresa,
+  listPagamentosPorEmpresa,
   updatePagamentoStatus,
   type PagamentoInput,
 } from '../api/pagamentos';
@@ -20,6 +21,14 @@ export function usePagamentosPendentesPorEmpresa() {
   return useQuery({
     queryKey: ['pagamentos', 'pendentes'],
     queryFn: listPagamentosPendentesPorEmpresa,
+  });
+}
+
+// Consumida pelo Driver Score (Missão 3) para calcular pontualidade real de pagamento.
+export function usePagamentosPorEmpresa() {
+  return useQuery({
+    queryKey: ['pagamentos', 'todos'],
+    queryFn: listPagamentosPorEmpresa,
   });
 }
 

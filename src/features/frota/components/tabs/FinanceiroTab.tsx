@@ -6,6 +6,11 @@ import { Badge } from '@/shared/components/ui/badge';
 import { formatDataSimples, formatMoeda } from '@/shared/lib/format';
 import { useLancamentos } from '@/features/financeiro/hooks/useLancamentos';
 import { LANCAMENTO_STATUS_LABEL, LANCAMENTO_TIPO_LABEL, type LancamentoStatus } from '@/features/financeiro/types';
+import { calcularResumoFinanceiro } from '@/features/financeiro/intelligence/resumoFinanceiro';
+import { calcularRoi } from '@/features/financeiro/intelligence/roi';
+import { useContratos } from '@/features/contracts/hooks/useContratos';
+import { calcularCustoPorKm, calcularPaybackMeses } from '../../intelligence/investmentSimulator';
+import type { Veiculo } from '../../types';
 
 const STATUS_BADGE: Record<LancamentoStatus, 'warning' | 'success' | 'secondary'> = {
   prevista: 'warning',
@@ -17,15 +22,38 @@ const STATUS_BADGE: Record<LancamentoStatus, 'warning' | 'success' | 'secondary'
 // dizendo "aguardando o módulo Financeiro/Contratos" — desatualizado desde a Sprint 8, quando
 // `lancamentos.veiculo_id` já existia e nunca tinha sido conectado aqui. Mesma classe de dívida
 // que DEC-070 fechou para o Health Score Comercial.
-export function FinanceiroTab({ veiculoId }: { veiculoId: string }) {
+//
+// Simulador de Investimento (Missão 3, Parte 9): conecta `calcularRoi`/`calcularResumoFinanceiro`
+// (financeiro/intelligence/, existentes desde a Sprint 8, sem nenhum consumidor até esta
+// missão) pela primeira vez, mais custo-por-KM e payback estimado (novos, investmentSimulator.ts).
+export function FinanceiroTab({ veiculo }: { veiculo: Pick<Veiculo, 'id' | 'valor_compra' | 'data_compra'> }) {
+  const veiculoId = veiculo.id;
   const { data: lancamentos, isLoading } = useLancamentos({ veiculoId });
+  const { data: contratos, isLoading: loadingContratos } = useContratos();
 
   const receitas = (lancamentos ?? []).filter((l) => l.tipo === 'receita' && l.status !== 'cancelada');
   const despesas = (lancamentos ?? []).filter((l) => l.tipo === 'despesa' && l.status !== 'cancelada');
   const totalReceita = receitas.reduce((soma, l) => soma + l.valor, 0);
   const totalDespesa = despesas.reduce((soma, l) => soma + l.valor, 0);
 
-  if (isLoading) {
+  const contratosDoVeiculo = (contratos ?? []).filter((c) => c.veiculo_id === veiculoId);
+  const kmRodado = contratosDoVeiculo.reduce((soma, c) => {
+    if (c.km_final !== null && c.km_inicial !== null && c.km_final >= c.km_inicial) return soma + (c.km_final - c.km_inicial);
+    return soma;
+  }, 0);
+
+  const resumo = calcularResumoFinanceiro({
+    lancamentos: lancamentos ?? [],
+    pagamentos: [],
+  });
+  const roi = calcularRoi(resumo.lucroConfirmado, veiculo.valor_compra);
+  const custoPorKm = calcularCustoPorKm(resumo.despesaConfirmada, kmRodado > 0 ? kmRodado : null);
+  const mesesDeOperacao = veiculo.data_compra
+    ? Math.max(1, Math.floor((Date.now() - new Date(veiculo.data_compra).getTime()) / (30 * 86_400_000)))
+    : 0;
+  const payback = calcularPaybackMeses(veiculo.valor_compra, resumo.lucroConfirmado, mesesDeOperacao);
+
+  if (isLoading || loadingContratos) {
     return <div className="h-32 cockpit-shimmer rounded-2xl" />;
   }
 
@@ -61,6 +89,30 @@ export function FinanceiroTab({ veiculoId }: { veiculoId: string }) {
           <p className="text-xs text-neutral-500">Resultado</p>
           <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{formatMoeda(totalReceita - totalDespesa)}</p>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-neutral-200 p-4 dark:border-white/10">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Simulador de Investimento</h3>
+        <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+          <div>
+            <p className="text-xs text-neutral-400">ROI acumulado</p>
+            <p className="font-medium text-neutral-900 dark:text-neutral-100">{roi.roiPercentual !== null ? `${roi.roiPercentual}%` : '—'}</p>
+            {roi.roiPercentual === null && <p className="mt-0.5 text-[11px] text-neutral-400">{roi.motivos[0]}</p>}
+          </div>
+          <div>
+            <p className="text-xs text-neutral-400">Custo por KM</p>
+            <p className="font-medium text-neutral-900 dark:text-neutral-100">{custoPorKm.valor !== null ? formatMoeda(custoPorKm.valor) : '—'}</p>
+            {custoPorKm.valor === null && <p className="mt-0.5 text-[11px] text-neutral-400">{custoPorKm.motivo}</p>}
+          </div>
+          <div>
+            <p className="text-xs text-neutral-400">Payback estimado</p>
+            <p className="font-medium text-neutral-900 dark:text-neutral-100">{payback.meses !== null ? `${payback.meses} mês(es)` : '—'}</p>
+            {payback.meses === null && <p className="mt-0.5 text-[11px] text-neutral-400">{payback.motivo}</p>}
+          </div>
+        </div>
+        <p className="mt-3 text-[11px] text-neutral-400">
+          Estimativa linear sobre lucro confirmado — não é fluxo de caixa descontado (TIR). Fundação da Missão 3, Parte 9.
+        </p>
       </div>
 
       <div className="space-y-2">
