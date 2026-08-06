@@ -21,13 +21,21 @@ import { EventosTab } from '../components/tabs/EventosTab';
 import { ConfiguracoesTab } from '../components/tabs/ConfiguracoesTab';
 
 import { AlterarStatusDialog } from '../components/dialogs/AlterarStatusDialog';
+import { AtivarContratoDialog } from '../components/dialogs/AtivarContratoDialog';
 import { EncerrarContratoDialog } from '../components/dialogs/EncerrarContratoDialog';
 import { RenovarContratoDialog } from '../components/dialogs/RenovarContratoDialog';
 import { AdicionarDocumentoDialog } from '../components/dialogs/AdicionarDocumentoDialog';
 import { NovoComentarioDialog } from '../components/dialogs/NovoComentarioDialog';
 import { NovaTagDialog } from '../components/dialogs/NovaTagDialog';
 
-import { useContrato, useDeleteContrato, useEncerrarContrato, useRenovarContrato, useUpdateContratoStatus } from '../hooks/useContratos';
+import {
+  useAtivarContrato,
+  useContrato,
+  useDeleteContrato,
+  useEncerrarContrato,
+  useRenovarContrato,
+  useUpdateContratoStatus,
+} from '../hooks/useContratos';
 import { useContractIntelligence } from '../hooks/useContractIntelligence';
 import { PLACEHOLDER_DESCRIPTIONS, type ActionKey } from '../lib/actions';
 import { CONTRATO_STATUS_LABEL, CONTRATO_STATUS_TRANSITIONS, type ContratoStatus } from '../types';
@@ -67,6 +75,7 @@ export function ContratoDetailPage() {
   const { data: contrato, isLoading } = useContrato(id);
   const { data: usuario } = useCurrentUsuario();
   const updateStatus = useUpdateContratoStatus();
+  const ativar = useAtivarContrato();
   const encerrar = useEncerrarContrato();
   const renovar = useRenovarContrato();
   const deleteContrato = useDeleteContrato();
@@ -85,10 +94,31 @@ export function ContratoDetailPage() {
   }
 
   function handleTransition(status: ContratoStatus) {
-    if (!id) return;
+    if (!id || !contrato) return;
+    // Entrega real do veículo (achado da auditoria de jornada da Missão 4): a transição
+    // assinado→ativo é o momento físico da entrega. Se km_inicial/carga_inicial_pct ainda não
+    // foram capturados (fluxo normal — foram deixados em branco na criação), abre o dialog em
+    // vez de ativar sem esse dado; se já foram preenchidos (fluxo antigo), segue direto.
+    if (status === 'ativo' && (contrato.km_inicial === null || contrato.carga_inicial_pct === null)) {
+      setActiveAction('ativar');
+      return;
+    }
     updateStatus.mutate(
       { id, status },
       { onSuccess: () => toast.success(`Status alterado para "${CONTRATO_STATUS_LABEL[status]}"`) }
+    );
+  }
+
+  function handleAtivar(kmInicial: number, cargaInicialPct: number) {
+    if (!id) return;
+    ativar.mutate(
+      { id, kmInicial, cargaInicialPct },
+      {
+        onSuccess: () => {
+          toast.success('Entrega registrada — contrato ativo');
+          setActiveAction(null);
+        },
+      }
     );
   }
 
@@ -288,6 +318,12 @@ export function ContratoDetailPage() {
         contratoId={contrato.id}
         empresaId={usuario?.empresa_id ?? undefined}
         usuarioId={usuario?.id}
+      />
+      <AtivarContratoDialog
+        open={activeAction === 'ativar'}
+        onOpenChange={(open) => setActiveAction(open ? 'ativar' : null)}
+        onConfirm={handleAtivar}
+        isPending={ativar.isPending}
       />
       <EncerrarContratoDialog
         open={activeAction === 'encerrar'}

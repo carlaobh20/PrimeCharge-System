@@ -28,3 +28,18 @@ export async function deleteManutencao(id: string) {
   const { error } = await supabase.from('manutencoes').delete().eq('id', id);
   if (error) throw error;
 }
+
+// Missão 4 (Fase 3) — marca uma manutenção agendada como realizada, capturando a data real
+// de execução (pode divergir da data agendada) e o custo final. O trigger
+// `fn_manutencao_gera_lancamento` (migration 0012) dispara também em UPDATE, então o
+// Lançamento financeiro é gerado neste momento, não na criação do agendamento.
+export async function marcarManutencaoRealizada(id: string, payload: { dataExecucao: string; custo: number | null }) {
+  const { data, error } = await supabase
+    .from('manutencoes')
+    .update({ status_execucao: 'realizada', data_execucao: payload.dataExecucao, custo: payload.custo })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Manutencao;
+}

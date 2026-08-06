@@ -35,6 +35,11 @@ export type ActionKey =
   | 'ocorrencia'
   | 'relatorio';
 
+// "cobranca" e "ocorrencia" viraram ações reais na Missão 4 (Fase 1, achado de texto stale +
+// achado #12 da auditoria de jornada): o módulo Financeiro/Pagamentos existe desde a Missão 2
+// (o texto antigo dizia "ainda não construído"), e "ocorrência" agora abre o registro real de
+// Multa (única infraestrutura que a jornada tinha; sinistro/avaria continuam sem tela própria
+// — Regra dos 3, sem um segundo caso de uso real ainda).
 export const COMMAND_ACTIONS: { key: ActionKey; label: string; icon: LucideIcon; real: boolean }[] = [
   { key: 'documento', label: 'Adicionar documento', icon: FileText, real: true },
   { key: 'status', label: 'Alterar status', icon: Repeat, real: true },
@@ -43,13 +48,11 @@ export const COMMAND_ACTIONS: { key: ActionKey; label: string; icon: LucideIcon;
   { key: 'bloquear', label: 'Bloquear motorista', icon: Ban, real: true },
   { key: 'vincular-veiculo', label: 'Vincular veículo', icon: Car, real: true },
   { key: 'contrato', label: 'Novo contrato', icon: FileSignature, real: true },
-  { key: 'cobranca', label: 'Registrar cobrança', icon: Receipt, real: false },
-  { key: 'ocorrencia', label: 'Registrar ocorrência', icon: AlertTriangle, real: false },
+  { key: 'cobranca', label: 'Registrar cobrança', icon: Receipt, real: true },
+  { key: 'ocorrencia', label: 'Registrar multa', icon: AlertTriangle, real: true },
   { key: 'relatorio', label: 'Gerar relatório', icon: Camera, real: false },
 ];
 
 export const PLACEHOLDER_DESCRIPTIONS: Partial<Record<ActionKey, string>> = {
-  cobranca: 'Registro de cobrança depende do módulo Financeiro, ainda não construído — vai alimentar o KPI de Inadimplência.',
-  ocorrencia: 'Registro de ocorrência (multa, sinistro, avaria) ainda não foi construído — vai alimentar o Health Score e os Riscos deste motorista.',
   relatorio: 'Geração de relatório/PDF deste motorista ainda não foi construída.',
 };

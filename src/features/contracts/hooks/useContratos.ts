@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ativarContrato,
   createContrato,
   deleteContrato,
   encerrarContrato,
@@ -69,6 +70,15 @@ export function useEncerrarContrato() {
   return useMutation({
     mutationFn: ({ id, kmFinal, cargaFinalPct }: { id: string; kmFinal: number; cargaFinalPct: number }) =>
       encerrarContrato(id, { kmFinal, cargaFinalPct }),
+    onSuccess: (_data, variables) => invalidateContrato(queryClient, variables.id),
+  });
+}
+
+export function useAtivarContrato() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, kmInicial, cargaInicialPct }: { id: string; kmInicial: number; cargaInicialPct: number }) =>
+      ativarContrato(id, { kmInicial, cargaInicialPct }),
     onSuccess: (_data, variables) => invalidateContrato(queryClient, variables.id),
   });
 }

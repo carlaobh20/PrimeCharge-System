@@ -8,6 +8,9 @@ import { TimelinePanel } from '@/shared/capabilities/components/TimelinePanel';
 import { HistoricoPanel } from '@/shared/capabilities/components/HistoricoPanel';
 import { ChecklistsPanel } from '@/features/operacoes/components/ChecklistsPanel';
 import { ManutencoesPanel } from '@/features/operacoes/components/ManutencoesPanel';
+import { MultasPanel } from '@/features/operacoes/components/MultasPanel';
+import { NovaManutencaoDialog } from '@/features/operacoes/components/NovaManutencaoDialog';
+import { NovaMultaDialog } from '@/features/operacoes/components/NovaMultaDialog';
 
 import { VeiculoCockpitHeader } from '../components/VeiculoCockpitHeader';
 import { VeiculoKpiBand } from '../components/VeiculoKpiBand';
@@ -25,10 +28,11 @@ import { AlterarStatusDialog } from '../components/dialogs/AlterarStatusDialog';
 import { NovoComentarioDialog } from '../components/dialogs/NovoComentarioDialog';
 import { NovaTagDialog } from '../components/dialogs/NovaTagDialog';
 import { RegistrarKmDialog } from '../components/dialogs/RegistrarKmDialog';
+import { VenderVeiculoDialog } from '../components/dialogs/VenderVeiculoDialog';
 import { ConfirmDialog } from '../components/dialogs/ConfirmDialog';
 import { PlaceholderActionDialog } from '../components/dialogs/PlaceholderActionDialog';
 
-import { useDeleteVeiculo, useUpdateVeiculoStatus, useVeiculo } from '../hooks/useVeiculos';
+import { useDeleteVeiculo, useUpdateVeiculoStatus, useVeiculo, useVenderVeiculo } from '../hooks/useVeiculos';
 import { useVehicleIntelligence } from '../hooks/useVehicleIntelligence';
 import { PLACEHOLDER_DESCRIPTIONS, type ActionKey } from '../lib/actions';
 import { VEICULO_STATUS_LABEL, VEICULO_STATUS_TRANSITIONS, type VeiculoStatus } from '../types';
@@ -72,6 +76,7 @@ export function VeiculoDetailPage() {
   const { data: veiculo, isLoading } = useVeiculo(id);
   const { data: usuario } = useCurrentUsuario();
   const updateStatus = useUpdateVeiculoStatus();
+  const venderVeiculo = useVenderVeiculo();
   const deleteVeiculo = useDeleteVeiculo();
   const intelligence = useVehicleIntelligence(veiculo);
   const commandActionsRef = useRef<HTMLDivElement>(null);
@@ -100,6 +105,19 @@ export function VeiculoDetailPage() {
         navigate('/veiculos');
       },
     });
+  }
+
+  function handleVender(comprador: string, valorVenda: number, dataVenda: string) {
+    if (!id) return;
+    venderVeiculo.mutate(
+      { id, comprador, valorVenda, dataVenda },
+      {
+        onSuccess: () => {
+          toast.success('Venda registrada');
+          setActiveAction(null);
+        },
+      }
+    );
   }
 
   function handleAction(key: ActionKey) {
@@ -144,7 +162,7 @@ export function VeiculoDetailPage() {
     commandActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  const placeholderKeys: ActionKey[] = ['manutencao', 'abastecimento', 'relatorio', 'arquivar'];
+  const placeholderKeys: ActionKey[] = ['abastecimento', 'relatorio', 'arquivar'];
   const isPlaceholderOpen = placeholderKeys.includes(activeAction as ActionKey);
 
   return (
@@ -206,6 +224,11 @@ export function VeiculoDetailPage() {
                 content: <ManutencoesPanel veiculoId={veiculo.id} />,
               },
               {
+                value: 'multas',
+                label: 'Multas',
+                content: <MultasPanel veiculoId={veiculo.id} />,
+              },
+              {
                 value: 'indicadores',
                 label: 'Indicadores',
                 content: <IndicadoresTab resultado={intelligence} veiculoId={veiculo.id} onAction={handleAction} />,
@@ -259,17 +282,21 @@ export function VeiculoDetailPage() {
         veiculoId={veiculo.id}
         quilometragemAtual={veiculo.quilometragem}
       />
-      <ConfirmDialog
+      <NovaManutencaoDialog
+        open={activeAction === 'manutencao'}
+        onOpenChange={(open) => setActiveAction(open ? 'manutencao' : null)}
+        veiculoId={veiculo.id}
+      />
+      <NovaMultaDialog
+        open={activeAction === 'multa'}
+        onOpenChange={(open) => setActiveAction(open ? 'multa' : null)}
+        veiculoId={veiculo.id}
+      />
+      <VenderVeiculoDialog
         open={activeAction === 'vender'}
         onOpenChange={(open) => setActiveAction(open ? 'vender' : null)}
-        title="Vender este veículo?"
-        description='Move o status para "Em venda" — a próxima transição válida a partir de agora.'
-        confirmLabel="Marcar como em venda"
-        onConfirm={() => {
-          handleTransition('venda');
-          setActiveAction(null);
-        }}
-        isPending={updateStatus.isPending}
+        onConfirm={handleVender}
+        isPending={venderVeiculo.isPending}
       />
       <PlaceholderActionDialog
         open={vendaIndisponivel}
@@ -282,13 +309,11 @@ export function VeiculoDetailPage() {
           open={isPlaceholderOpen}
           onOpenChange={(open) => setActiveAction(open ? activeAction : null)}
           title={
-            activeAction === 'manutencao'
-              ? 'Registrar manutenção'
-              : activeAction === 'abastecimento'
-                ? 'Registrar abastecimento'
-                : activeAction === 'relatorio'
-                  ? 'Gerar relatório'
-                  : 'Arquivar'
+            activeAction === 'abastecimento'
+              ? 'Registrar abastecimento'
+              : activeAction === 'relatorio'
+                ? 'Gerar relatório'
+                : 'Arquivar'
           }
           description={PLACEHOLDER_DESCRIPTIONS[activeAction as ActionKey] ?? 'Ainda não construído.'}
         />

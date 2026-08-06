@@ -12,6 +12,10 @@ export type Arquivo = {
   tipo_mime: string | null;
   tamanho_bytes: number | null;
   usuario_id: string | null;
+  // Coluna existe desde a Sprint 9 (DEC-060, migration 0007) mas nunca tinha sido exposta
+  // aqui nem em nenhuma UI de upload — fechado na Missão 4 (fase 1/2, achado #3 da auditoria
+  // de jornada: "documentos vencendo" era impossível de calcular sem este campo chegar à UI).
+  data_validade: string | null;
   criado_em: string;
 };
 

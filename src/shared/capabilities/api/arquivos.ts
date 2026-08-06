@@ -40,8 +40,9 @@ export async function uploadArquivo(params: {
   categoria?: string;
   usuarioId?: string;
   file: File;
+  dataValidade?: string | null;
 }) {
-  const { bucket, empresaId, entidadeTipo, entidadeId, categoria, usuarioId, file } = params;
+  const { bucket, empresaId, entidadeTipo, entidadeId, categoria, usuarioId, file, dataValidade } = params;
   const path = `${empresaId}/${entidadeId}/${crypto.randomUUID()}-${file.name}`;
 
   const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file);
@@ -59,6 +60,7 @@ export async function uploadArquivo(params: {
       tipo_mime: file.type || null,
       tamanho_bytes: file.size,
       usuario_id: usuarioId ?? null,
+      data_validade: dataValidade ?? null,
     })
     .select()
     .single();

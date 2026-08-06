@@ -20,6 +20,11 @@ import {
 // declarar, não uma regra reutilizável).
 export type ActionKey =
   | 'status'
+  // "ativar" não é uma Command Action visível (não entra em COMMAND_ACTIONS) — é um estado
+  // interno de `activeAction` disparado programaticamente por handleTransition quando a
+  // transição assinado→ativo precisa capturar km/carga da entrega primeiro (Missão 4, ver
+  // AtivarContratoDialog). Mesma lista de ActionKey porque activeAction é tipado por ela.
+  | 'ativar'
   | 'renovar'
   | 'encerrar'
   | 'cancelar'

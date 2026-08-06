@@ -55,3 +55,20 @@ export async function deleteVeiculo(id: string) {
   const { error } = await supabase.from('veiculos').delete().eq('id', id);
   if (error) throw error;
 }
+
+// Missão 4 (Fase 1, achado #17 da auditoria de jornada — fecha DEC-044): "Vender veículo"
+// era só uma transição de status sem nenhum dado da venda em si (sem comprador, valor, data).
+// Diferente de Contrato, a State Machine de Veículo não tem trigger de validação no banco
+// (só client-side, VEICULO_STATUS_TRANSITIONS) — mesma lacuna real de sempre, não nova desta
+// função; a validação de "só pode chegar em 'venda' a partir de 'disponivel'" continua
+// acontecendo na UI (VeiculoDetailPage), igual já acontecia antes desta mudança.
+export async function venderVeiculo(id: string, payload: { comprador: string; valorVenda: number; dataVenda: string }) {
+  const { data, error } = await supabase
+    .from('veiculos')
+    .update({ status: 'venda', comprador: payload.comprador, valor_venda: payload.valorVenda, data_venda: payload.dataVenda })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Veiculo;
+}

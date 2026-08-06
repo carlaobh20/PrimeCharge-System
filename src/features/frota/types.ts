@@ -62,6 +62,12 @@ export type Veiculo = {
   valor_mercado: number | null;
   valor_residual_estimado: number | null;
   observacoes: string | null;
+  // Dado real da venda — Missão 4 (fecha DEC-044). Antes só existia a transição de status
+  // para 'venda', sem capturar comprador/valor/data; "venda" ficava indistinguível de
+  // qualquer outra baixa de veículo no histórico.
+  comprador: string | null;
+  valor_venda: number | null;
+  data_venda: string | null;
   criado_em: string;
   atualizado_em: string;
 };

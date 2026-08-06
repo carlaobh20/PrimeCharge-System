@@ -32,6 +32,11 @@ export function VeiculoCreatePage() {
           valor_mercado: values.valor_mercado ?? null,
           valor_residual_estimado: values.valor_residual_estimado ?? null,
           observacoes: values.observacoes ?? null,
+          // Só preenchidos pelo fluxo de venda (VenderVeiculoDialog, Missão 4) — nunca no
+          // cadastro inicial.
+          comprador: null,
+          valor_venda: null,
+          data_venda: null,
         },
       },
       {

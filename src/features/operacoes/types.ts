@@ -130,6 +130,13 @@ export const CHECKLIST_STATUS_TRANSITIONS: Record<ChecklistStatus, ChecklistStat
 // (regra dos 3 — não há ainda um segundo consumidor que justifique um módulo dedicado).
 export type ManutencaoTipo = 'preventiva' | 'corretiva' | 'outro';
 
+// status_execucao/data_agendada — Missão 4 (Fase 3): antes desta migration, manutencoes só
+// registrava o que JÁ tinha acontecido (data_execucao obrigatória) — não existia "manutenção
+// pendente" como estado possível, o que tornava impossível atender o pedido explícito da
+// missão de mostrar "manutenções pendentes" no painel operacional. `data_execucao` continua
+// obrigatória quando `status_execucao = 'realizada'` (constraint no banco, migration 0012).
+export type ManutencaoStatusExecucao = 'agendada' | 'realizada' | 'cancelada';
+
 export type Manutencao = {
   id: string;
   empresa_id: string;
@@ -139,7 +146,9 @@ export type Manutencao = {
   oficina: string | null;
   km: number | null;
   custo: number | null;
-  data_execucao: string;
+  data_execucao: string | null;
+  data_agendada: string | null;
+  status_execucao: ManutencaoStatusExecucao;
   criado_por: string | null;
   criado_em: string;
   atualizado_em: string;
@@ -149,4 +158,52 @@ export const MANUTENCAO_TIPO_LABEL: Record<ManutencaoTipo, string> = {
   preventiva: 'Preventiva',
   corretiva: 'Corretiva',
   outro: 'Outro',
+};
+
+export const MANUTENCAO_STATUS_EXECUCAO_LABEL: Record<ManutencaoStatusExecucao, string> = {
+  agendada: 'Agendada',
+  realizada: 'Realizada',
+  cancelada: 'Cancelada',
+};
+
+// ============================================================
+// Multas — Missão 4 (Fase 1, achado #12 da auditoria de jornada): único ponto da jornada
+// operacional sem NENHUMA infraestrutura (nem campo, nem tela) — diferente de itens
+// conscientemente recusados (Battery Intelligence, Marketplace), "multa" nunca tinha sido
+// avaliado, era só um placeholder herdado da Sprint 6. Mora em `operacoes/` pelo mesmo
+// motivo de Manutenções/Checklists — capability operacional exibida no Cockpit do Veículo
+// (e, em modo leitura, no do Motorista), sem módulo de permissão próprio (reaproveita
+// `pode('veiculos', ...)`, mesmo racional de Manutenções — Regra dos 3).
+// ============================================================
+
+export type MultaStatus = 'pendente' | 'paga' | 'recorrida' | 'cancelada';
+
+export type Multa = {
+  id: string;
+  empresa_id: string;
+  veiculo_id: string;
+  motorista_id: string | null;
+  contrato_id: string | null;
+  orgao_autuador: string;
+  descricao: string;
+  data_infracao: string;
+  data_vencimento: string | null;
+  valor: number | null;
+  pontos: number | null;
+  status: MultaStatus;
+  criado_por: string | null;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type MultaComRelacoes = Multa & {
+  veiculo?: { id: string; placa: string } | null;
+  motorista?: { id: string; nome_completo: string } | null;
+};
+
+export const MULTA_STATUS_LABEL: Record<MultaStatus, string> = {
+  pendente: 'Pendente',
+  paga: 'Paga',
+  recorrida: 'Recorrida',
+  cancelada: 'Cancelada',
 };

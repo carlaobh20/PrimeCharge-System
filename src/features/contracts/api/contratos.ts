@@ -106,6 +106,21 @@ export async function encerrarContrato(id: string, payload: { kmFinal: number; c
   return data as Contrato;
 }
 
+// Fecha um achado real da auditoria de jornada da Missão 4: km_inicial/carga_inicial_pct só
+// eram capturados na criação do contrato ('rascunho'), não no momento real da entrega física
+// ('assinado' → 'ativo') — ver AtivarContratoDialog. Mesmo padrão de encerrarContrato: um
+// único UPDATE, o trigger de state machine (fn_validar_transicao_contrato) valida a transição.
+export async function ativarContrato(id: string, payload: { kmInicial: number; cargaInicialPct: number }) {
+  const { data, error } = await supabase
+    .from('contratos')
+    .update({ status: 'ativo', km_inicial: payload.kmInicial, carga_inicial_pct: payload.cargaInicialPct })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Contrato;
+}
+
 // Variante em lote — mesmo padrão de listArquivosPorEntidades (shared/capabilities), usada
 // pelo Command Center para coletar a inteligência de todos os contratos sem N+1.
 export async function listContratosPorEmpresa() {

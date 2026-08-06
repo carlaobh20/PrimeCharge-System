@@ -8,6 +8,7 @@ import {
   Gauge,
   MessageSquarePlus,
   Repeat,
+  ShieldAlert,
   Tags,
   Wrench,
   type LucideIcon,
@@ -17,6 +18,7 @@ import {
 // sem "Action Registry" genérico (ver DEC-021 / DEC-010: motor genérico só com 3 casos reais).
 export type ActionKey =
   | 'manutencao'
+  | 'multa'
   | 'documento'
   | 'status'
   | 'comentario'
@@ -28,8 +30,13 @@ export type ActionKey =
   | 'vender'
   | 'arquivar';
 
+// "manutencao" virou ação real na Missão 4: a aba Manutenções já existia desde a Missão 2,
+// mas o atalho aqui ainda abria um placeholder dizendo "o módulo ainda não existe" — achado
+// #13 da auditoria de jornada (texto desatualizado, não gap funcional). "multa" é ação real
+// nova (achado #12 — único ponto da jornada sem nenhuma infraestrutura antes desta missão).
 export const COMMAND_ACTIONS: { key: ActionKey; label: string; icon: LucideIcon; real: boolean }[] = [
-  { key: 'manutencao', label: 'Registrar manutenção', icon: Wrench, real: false },
+  { key: 'manutencao', label: 'Registrar manutenção', icon: Wrench, real: true },
+  { key: 'multa', label: 'Registrar multa', icon: ShieldAlert, real: true },
   { key: 'documento', label: 'Adicionar documento', icon: FileText, real: true },
   { key: 'status', label: 'Alterar status', icon: Repeat, real: true },
   { key: 'comentario', label: 'Novo comentário', icon: MessageSquarePlus, real: true },
@@ -43,8 +50,7 @@ export const COMMAND_ACTIONS: { key: ActionKey; label: string; icon: LucideIcon;
 ];
 
 export const PLACEHOLDER_DESCRIPTIONS: Partial<Record<ActionKey, string>> = {
-  manutencao: 'O módulo de Manutenção ainda não existe — quando for construído, cada ordem de serviço aparece aqui e alimenta os KPIs de Saúde do ativo e Custo acumulado.',
-  abastecimento: 'Registro de abastecimento depende do módulo Financeiro/Operações, ainda não construído — vai alimentar Custo acumulado e ROI.',
+  abastecimento: 'Registro de abastecimento/recarga depende do módulo Financeiro/Operações — sem um segundo caso de uso real ainda que justifique uma tela própria (Regra dos 3); hoje entra como Lançamento genérico.',
   relatorio: 'Geração de relatório/PDF deste veículo ainda não foi construída.',
   arquivar: 'Arquivamento (retirar da frota ativa sem excluir o histórico) ainda não foi construído — hoje o único jeito de remover um veículo é excluir.',
 };

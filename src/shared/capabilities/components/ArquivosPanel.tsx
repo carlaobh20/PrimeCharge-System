@@ -1,6 +1,10 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Trash2, Upload } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Badge } from '@/shared/components/ui/badge';
+import { diasAte, formatDataSimples } from '@/shared/lib/format';
 import { getArquivoUrl } from '../api/arquivos';
 import { useArquivos, useDeleteArquivo, useUploadArquivo } from '../hooks/useArquivos';
 
@@ -9,6 +13,19 @@ function formatBytes(bytes: number | null) {
   const kb = bytes / 1024;
   if (kb < 1024) return `${kb.toFixed(0)} KB`;
   return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+// Fecha achado #3 da auditoria de jornada da Missão 4: `arquivos.data_validade` existe desde
+// a Sprint 9 (DEC-060) mas nenhuma UI de upload a capturava, o que tornava "documento
+// vencendo" impossível de calcular. Campo aparece só pra categoria "documento" — foto não
+// tem validade.
+function ValidadeBadge({ dataValidade }: { dataValidade: string | null }) {
+  if (!dataValidade) return null;
+  const dias = diasAte(dataValidade);
+  if (dias === null) return null;
+  const variant = dias < 0 ? 'destructive' : dias <= 30 ? 'warning' : 'secondary';
+  const texto = dias < 0 ? `venceu há ${Math.abs(dias)}d` : `vence em ${dias}d`;
+  return <Badge variant={variant}>{texto}</Badge>;
 }
 
 export function ArquivosPanel({
@@ -34,13 +51,16 @@ export function ArquivosPanel({
   const { data: arquivos, isLoading } = useArquivos(entidadeTipo, entidadeId, categoria);
   const upload = useUploadArquivo(entidadeTipo, entidadeId);
   const remove = useDeleteArquivo(entidadeTipo, entidadeId);
+  const capturaValidade = categoria === 'documento';
+  const [dataValidade, setDataValidade] = useState('');
 
   function handleFiles(files: FileList | null) {
     if (!files || !empresaId) return;
     Array.from(files).forEach((file) => {
-      upload.mutate({ bucket, empresaId, entidadeTipo, entidadeId, categoria, usuarioId, file });
+      upload.mutate({ bucket, empresaId, entidadeTipo, entidadeId, categoria, usuarioId, file, dataValidade: dataValidade || null });
     });
     if (inputRef.current) inputRef.current.value = '';
+    setDataValidade('');
   }
 
   async function handleOpen(caminhoStorage: string) {
@@ -58,6 +78,15 @@ export function ArquivosPanel({
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
       />
+      {capturaValidade && (
+        <div>
+          <Label>Validade do documento (opcional)</Label>
+          <Input type="date" value={dataValidade} onChange={(e) => setDataValidade(e.target.value)} />
+          <p className="mt-1 text-xs text-neutral-400">
+            Preencha antes de enviar o arquivo (CRLV, seguro, licenciamento) para aparecer nos alertas de vencimento.
+          </p>
+        </div>
+      )}
       <Button
         type="button"
         variant="outline"
@@ -85,6 +114,10 @@ export function ArquivosPanel({
               {arquivo.nome_arquivo}
             </button>
             <div className="flex items-center gap-3">
+              {arquivo.data_validade && (
+                <span className="hidden text-xs text-neutral-500 sm:inline">{formatDataSimples(arquivo.data_validade)}</span>
+              )}
+              <ValidadeBadge dataValidade={arquivo.data_validade} />
               <span className="text-xs text-neutral-500">{formatBytes(arquivo.tamanho_bytes)}</span>
               <button
                 type="button"

@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createManutencao, deleteManutencao, listManutencoesPorVeiculo, type ManutencaoInput } from '../api/manutencoes';
+import {
+  createManutencao,
+  deleteManutencao,
+  listManutencoesPorVeiculo,
+  marcarManutencaoRealizada,
+  type ManutencaoInput,
+} from '../api/manutencoes';
 
 export function useManutencoesPorVeiculo(veiculoId: string | undefined) {
   return useQuery({
@@ -28,5 +34,19 @@ export function useDeleteManutencao() {
   return useMutation({
     mutationFn: ({ id }: { id: string; veiculoId: string }) => deleteManutencao(id),
     onSuccess: (_data, variables) => invalidateManutencoes(queryClient, variables.veiculoId),
+  });
+}
+
+export function useMarcarManutencaoRealizada() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dataExecucao, custo }: { id: string; veiculoId: string; dataExecucao: string; custo: number | null }) =>
+      marcarManutencaoRealizada(id, { dataExecucao, custo }),
+    onSuccess: (data) => {
+      invalidateManutencoes(queryClient, data.veiculo_id);
+      // Pode ter gerado um Lançamento (fn_manutencao_gera_lancamento) — invalida Financeiro
+      // também, mesmo padrão de useEncerrarContrato ao propagar pra Veículos/Motoristas.
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] });
+    },
   });
 }

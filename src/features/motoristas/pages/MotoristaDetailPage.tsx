@@ -19,6 +19,8 @@ import { IndicadoresTab } from '../components/tabs/IndicadoresTab';
 import { EventosTab } from '../components/tabs/EventosTab';
 import { ConfiguracoesTab } from '../components/tabs/ConfiguracoesTab';
 
+import { NovaMultaDialog } from '@/features/operacoes/components/NovaMultaDialog';
+
 import { AdicionarDocumentoDialog } from '../components/dialogs/AdicionarDocumentoDialog';
 import { AlterarStatusDialog } from '../components/dialogs/AlterarStatusDialog';
 import { NovoComentarioDialog } from '../components/dialogs/NovoComentarioDialog';
@@ -117,6 +119,13 @@ export function MotoristaDetailPage() {
       navigate(`/contratos/novo?motoristaId=${motorista.id}`);
       return;
     }
+    if (key === 'cobranca') {
+      // Mesmo padrão de ContratoDetailPage: Pagamento se relaciona com Lançamento, não com
+      // Motorista diretamente — a tela de Pagamentos já suporta criar o pagamento certo.
+      // Texto antigo dizia "módulo Financeiro ainda não construído" (existe desde a Missão 2).
+      navigate('/financeiro/pagamentos');
+      return;
+    }
     setActiveAction(key);
   }
 
@@ -124,12 +133,10 @@ export function MotoristaDetailPage() {
     commandActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  const placeholderKeys: ActionKey[] = ['cobranca', 'ocorrencia', 'relatorio'];
+  const placeholderKeys: ActionKey[] = ['relatorio'];
   const isPlaceholderOpen = placeholderKeys.includes(activeAction as ActionKey);
 
   const placeholderTitles: Partial<Record<ActionKey, string>> = {
-    cobranca: 'Registrar cobrança',
-    ocorrencia: 'Registrar ocorrência',
     relatorio: 'Gerar relatório',
   };
 
@@ -185,7 +192,7 @@ export function MotoristaDetailPage() {
                 label: 'Indicadores',
                 content: <IndicadoresTab resultado={intelligence} motoristaId={motorista.id} onAction={handleAction} />,
               },
-              { value: 'eventos', label: 'Eventos', content: <EventosTab onAction={handleAction} /> },
+              { value: 'eventos', label: 'Eventos', content: <EventosTab motoristaId={motorista.id} onAction={handleAction} /> },
               {
                 value: 'historico',
                 label: 'Histórico',
@@ -227,6 +234,11 @@ export function MotoristaDetailPage() {
         motoristaId={motorista.id}
         empresaId={usuario?.empresa_id ?? undefined}
         usuarioId={usuario?.id}
+      />
+      <NovaMultaDialog
+        open={activeAction === 'ocorrencia'}
+        onOpenChange={(open) => setActiveAction(open ? 'ocorrencia' : null)}
+        motoristaId={motorista.id}
       />
       <ConfirmDialog
         open={activeAction === 'bloquear'}
