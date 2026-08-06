@@ -122,3 +122,31 @@ export const CHECKLIST_STATUS_TRANSITIONS: Record<ChecklistStatus, ChecklistStat
   concluido: [],
   cancelado: [],
 };
+
+// Manutenções — Missão 2 (Operação Real), migration 0010. Mora em `operacoes/` pelo mesmo
+// motivo de Checklists (DEC-059/DEC-073): é uma capability operacional que aparece no
+// Cockpit do Veículo, mas não é dado estrutural do módulo Veículos em si. Sem policy de
+// DELETE de UI ainda — reaproveita `pode('veiculos', ...)`, sem módulo de permissão próprio
+// (regra dos 3 — não há ainda um segundo consumidor que justifique um módulo dedicado).
+export type ManutencaoTipo = 'preventiva' | 'corretiva' | 'outro';
+
+export type Manutencao = {
+  id: string;
+  empresa_id: string;
+  veiculo_id: string;
+  tipo: ManutencaoTipo;
+  descricao: string;
+  oficina: string | null;
+  km: number | null;
+  custo: number | null;
+  data_execucao: string;
+  criado_por: string | null;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export const MANUTENCAO_TIPO_LABEL: Record<ManutencaoTipo, string> = {
+  preventiva: 'Preventiva',
+  corretiva: 'Corretiva',
+  outro: 'Outro',
+};

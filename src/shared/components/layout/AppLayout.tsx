@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { BarChart3, Car, ClipboardList, FileSignature, Landmark, PieChart, Radar, LogOut, Users, UserCog, Wallet } from 'lucide-react';
+import { BarChart3, Car, ClipboardList, FileSignature, Landmark, PieChart, Radar, LogOut, Receipt, Users, UserCog, Wallet } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/contratos', label: 'Contratos', icon: FileSignature, end: false },
   { to: '/operacoes/acoes', label: 'Ações Operacionais', icon: ClipboardList, end: false },
   { to: '/financeiro/lancamentos', label: 'Lançamentos', icon: Wallet, end: false },
+  { to: '/financeiro/pagamentos', label: 'Pagamentos', icon: Receipt, end: false },
   { to: '/financeiro/contas-bancarias', label: 'Contas Bancárias', icon: Landmark, end: false },
   { to: '/financeiro/centros-custo', label: 'Centros de Custo', icon: PieChart, end: false },
   { to: '/dashboard', label: 'Dashboard', icon: BarChart3, end: true },

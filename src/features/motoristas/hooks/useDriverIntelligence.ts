@@ -8,6 +8,7 @@ import { diasDesde, diasAte } from '@/shared/lib/format';
 // existia desde a Sprint 7, só não estava conectado ao Health Score do Motorista — DEC-047);
 // Financeiro alimenta a categoria financeira.
 import { useContratos } from '@/features/contracts/hooks/useContratos';
+import { useVeiculos } from '@/features/frota/hooks/useVeiculos';
 import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
 import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { calcularHealthScore } from '../intelligence/healthScore';
@@ -42,6 +43,7 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
   const { data: eventos, isLoading: loadingEventos } = useTimeline('motorista', motoristaId);
   const { data: grupo, isLoading: loadingGrupo } = useMotoristas();
   const { data: contratos, isLoading: loadingContratos } = useContratos();
+  const { data: veiculos, isLoading: loadingVeiculos } = useVeiculos();
   const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
   const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
 
@@ -52,6 +54,7 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
     loadingEventos ||
     loadingGrupo ||
     loadingContratos ||
+    loadingVeiculos ||
     loadingLancamentos ||
     loadingPagamentos;
 
@@ -72,6 +75,16 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
       contratosCancelados: contratosDoMotorista.filter((c) => c.status === 'cancelado').length,
     };
 
+    // Veículo do contrato ativo (ou, na ausência, do contrato mais recente) alimenta a Saúde
+    // Patrimonial — mesmo dado que a Saúde Comercial já usa, achado da auditoria da Missão 2
+    // (2026-08-06): antes, esta categoria nunca tinha sido conectada mesmo com o dado disponível.
+    const contratoDeReferencia =
+      contratosDoMotorista.find((c) => c.status === 'ativo') ??
+      [...contratosDoMotorista].sort((a, b) => b.criado_em.localeCompare(a.criado_em))[0];
+    const veiculoDoMotorista = contratoDeReferencia
+      ? (veiculos ?? []).find((v) => v.id === contratoDeReferencia.veiculo_id) ?? null
+      : null;
+
     const saudeFinanceira = {
       temAlgumLancamentoVinculado: (lancamentos ?? []).some((l) => l.motorista_id === motorista.id),
       pagamentosPendentes: (pagamentosPendentes ?? [])
@@ -86,6 +99,7 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
       diasDesdeUltimoEvento,
       saudeFinanceira,
       saudeComercial,
+      saudePatrimonial: { veiculo: veiculoDoMotorista },
     });
 
     const insights = gerarInsights({ diasComoCliente, diasAteVencimentoCnh, totalComentarios, totalTags });
@@ -113,5 +127,5 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
       proximasAcoes,
       comparativos,
     };
-  }, [motorista, isLoading, documentos, comentarios, tags, eventos, grupo, contratos, lancamentos, pagamentosPendentes]);
+  }, [motorista, isLoading, documentos, comentarios, tags, eventos, grupo, contratos, veiculos, lancamentos, pagamentosPendentes]);
 }

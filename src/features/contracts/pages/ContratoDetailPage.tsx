@@ -21,12 +21,13 @@ import { EventosTab } from '../components/tabs/EventosTab';
 import { ConfiguracoesTab } from '../components/tabs/ConfiguracoesTab';
 
 import { AlterarStatusDialog } from '../components/dialogs/AlterarStatusDialog';
+import { EncerrarContratoDialog } from '../components/dialogs/EncerrarContratoDialog';
 import { RenovarContratoDialog } from '../components/dialogs/RenovarContratoDialog';
 import { AdicionarDocumentoDialog } from '../components/dialogs/AdicionarDocumentoDialog';
 import { NovoComentarioDialog } from '../components/dialogs/NovoComentarioDialog';
 import { NovaTagDialog } from '../components/dialogs/NovaTagDialog';
 
-import { useContrato, useDeleteContrato, useRenovarContrato, useUpdateContratoStatus } from '../hooks/useContratos';
+import { useContrato, useDeleteContrato, useEncerrarContrato, useRenovarContrato, useUpdateContratoStatus } from '../hooks/useContratos';
 import { useContractIntelligence } from '../hooks/useContractIntelligence';
 import { PLACEHOLDER_DESCRIPTIONS, type ActionKey } from '../lib/actions';
 import { CONTRATO_STATUS_LABEL, CONTRATO_STATUS_TRANSITIONS, type ContratoStatus } from '../types';
@@ -66,6 +67,7 @@ export function ContratoDetailPage() {
   const { data: contrato, isLoading } = useContrato(id);
   const { data: usuario } = useCurrentUsuario();
   const updateStatus = useUpdateContratoStatus();
+  const encerrar = useEncerrarContrato();
   const renovar = useRenovarContrato();
   const deleteContrato = useDeleteContrato();
   const intelligence = useContractIntelligence(contrato);
@@ -87,6 +89,19 @@ export function ContratoDetailPage() {
     updateStatus.mutate(
       { id, status },
       { onSuccess: () => toast.success(`Status alterado para "${CONTRATO_STATUS_LABEL[status]}"`) }
+    );
+  }
+
+  function handleEncerrar(kmFinal: number, cargaFinalPct: number) {
+    if (!id) return;
+    encerrar.mutate(
+      { id, kmFinal, cargaFinalPct },
+      {
+        onSuccess: () => {
+          toast.success('Contrato encerrado');
+          setActiveAction(null);
+        },
+      }
     );
   }
 
@@ -152,6 +167,14 @@ export function ContratoDetailPage() {
       copiar();
       return;
     }
+    if (key === 'pagamento') {
+      // Antes da Missão 2 (2026-08-06) isto era um placeholder — a página de Pagamentos não
+      // existia em lugar nenhum da aplicação (achado crítico #1 da auditoria). Navega para a
+      // visão global em vez de um dialog específico do contrato: Pagamento se relaciona com
+      // Lançamento, não com Contrato diretamente, e a tela já suporta criar o pagamento certo.
+      navigate('/financeiro/pagamentos');
+      return;
+    }
     setActiveAction(key);
   }
 
@@ -159,7 +182,7 @@ export function ContratoDetailPage() {
     commandActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  const placeholderKeys: ActionKey[] = ['pagamento', 'atraso', 'enviar'];
+  const placeholderKeys: ActionKey[] = ['atraso', 'enviar'];
   const isPlaceholderOpen = placeholderKeys.includes(activeAction as ActionKey);
 
   const placeholderTitles: Partial<Record<ActionKey, string>> = {
@@ -266,18 +289,12 @@ export function ContratoDetailPage() {
         empresaId={usuario?.empresa_id ?? undefined}
         usuarioId={usuario?.id}
       />
-      <ConfirmDialog
+      <EncerrarContratoDialog
         open={activeAction === 'encerrar'}
         onOpenChange={(open) => setActiveAction(open ? 'encerrar' : null)}
-        title="Encerrar este contrato?"
-        description='Move o status para "Encerrado" e registra a data de fim real — a próxima transição válida a partir de agora.'
-        confirmLabel="Encerrar"
-        destructive
-        onConfirm={() => {
-          handleTransition('encerrado');
-          setActiveAction(null);
-        }}
-        isPending={updateStatus.isPending}
+        contrato={contrato}
+        onConfirm={handleEncerrar}
+        isPending={encerrar.isPending}
       />
       <ConfirmDialog
         open={activeAction === 'cancelar'}

@@ -48,31 +48,51 @@ function ChecklistCard({ checklist }: { checklist: ChecklistComItens }) {
       {expandido && (
         <div className="border-t border-neutral-100 px-4 py-3 dark:border-white/5">
           <div className="space-y-1.5">
-            {checklist.itens.map((item) => (
-              <label
-                key={item.id}
-                className="flex items-start gap-2.5 rounded-lg px-1 py-1.5 text-sm hover:bg-neutral-50 dark:hover:bg-white/5"
-              >
-                <input
-                  type="checkbox"
-                  checked={item.resposta ?? false}
-                  disabled={checklist.status !== 'aberto' || responder.isPending}
-                  onChange={(e) =>
-                    responder.mutate({ itemId: item.id, payload: { resposta: e.target.checked, observacao: item.observacao } })
-                  }
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500"
-                />
-                <span
-                  className={
-                    item.resposta
-                      ? 'text-neutral-500 line-through decoration-neutral-300'
-                      : 'text-neutral-700 dark:text-neutral-300'
-                  }
-                >
-                  {item.descricao}
-                </span>
-              </label>
-            ))}
+            {checklist.itens.map((item) => {
+              const reprovado = item.resposta === false;
+              return (
+                <div key={item.id} className="rounded-lg px-1 py-1.5 hover:bg-neutral-50 dark:hover:bg-white/5">
+                  <label className="flex items-start gap-2.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={item.resposta ?? false}
+                      disabled={checklist.status !== 'aberto' || responder.isPending}
+                      onChange={(e) =>
+                        responder.mutate({ itemId: item.id, payload: { resposta: e.target.checked, observacao: item.observacao } })
+                      }
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span
+                      className={
+                        item.resposta
+                          ? 'text-neutral-500 line-through decoration-neutral-300'
+                          : 'text-neutral-700 dark:text-neutral-300'
+                      }
+                    >
+                      {item.descricao}
+                    </span>
+                  </label>
+                  {/* Item reprovado ganha campo de observação — coluna já existia desde a
+                      Sprint 9, mas nunca tinha ganho UI (achado da auditoria da Missão 2). */}
+                  {reprovado && checklist.status === 'aberto' && (
+                    <input
+                      type="text"
+                      defaultValue={item.observacao ?? ''}
+                      placeholder="Motivo da reprovação (opcional)"
+                      onBlur={(e) => {
+                        if (e.target.value !== (item.observacao ?? '')) {
+                          responder.mutate({ itemId: item.id, payload: { resposta: false, observacao: e.target.value || null } });
+                        }
+                      }}
+                      className="mt-1 ml-7 w-[calc(100%-1.75rem)] rounded-md border border-neutral-200 px-2 py-1 text-xs dark:border-white/10 dark:bg-transparent"
+                    />
+                  )}
+                  {reprovado && checklist.status !== 'aberto' && item.observacao && (
+                    <p className="mt-0.5 ml-7 text-xs text-neutral-500">Motivo: {item.observacao}</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {transicoes.length > 0 && (

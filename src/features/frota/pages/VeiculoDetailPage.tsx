@@ -7,6 +7,7 @@ import { ComentariosPanel } from '@/shared/capabilities/components/ComentariosPa
 import { TimelinePanel } from '@/shared/capabilities/components/TimelinePanel';
 import { HistoricoPanel } from '@/shared/capabilities/components/HistoricoPanel';
 import { ChecklistsPanel } from '@/features/operacoes/components/ChecklistsPanel';
+import { ManutencoesPanel } from '@/features/operacoes/components/ManutencoesPanel';
 
 import { VeiculoCockpitHeader } from '../components/VeiculoCockpitHeader';
 import { VeiculoKpiBand } from '../components/VeiculoKpiBand';
@@ -193,11 +194,16 @@ export function VeiculoDetailPage() {
                   />
                 ),
               },
-              { value: 'financeiro', label: 'Financeiro', content: <FinanceiroTab onAction={handleAction} /> },
+              { value: 'financeiro', label: 'Financeiro', content: <FinanceiroTab veiculoId={veiculo.id} /> },
               {
                 value: 'checklists',
                 label: 'Checklists',
                 content: <ChecklistsPanel entidadeTipo="veiculo" entidadeId={veiculo.id} />,
+              },
+              {
+                value: 'manutencoes',
+                label: 'Manutenções',
+                content: <ManutencoesPanel veiculoId={veiculo.id} />,
               },
               {
                 value: 'indicadores',

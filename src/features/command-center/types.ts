@@ -68,6 +68,9 @@ export type DadosCrossFeatureCompartilhados = {
   contratos: import('@/features/contracts/types').ContratoComRelacoes[];
   lancamentos: import('@/features/financeiro/types').Lancamento[];
   pagamentosPendentes: import('@/features/financeiro/types').PagamentoComRelacoes[];
+  // Adicionado na Missão 2 (2026-08-06) para alimentar a Saúde Patrimonial do Motorista —
+  // `frota` já era buscado aqui para o próprio coletor de Veículos, só faltava repassar.
+  veiculos: import('@/features/frota/types').Veiculo[];
 };
 
 export type FeedItemTipo = 'alerta' | 'risco' | 'oportunidade' | 'acao';

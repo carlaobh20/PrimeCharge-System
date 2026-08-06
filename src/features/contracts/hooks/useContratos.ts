@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createContrato,
   deleteContrato,
+  encerrarContrato,
   getContrato,
   listContratos,
   renovarContrato,
@@ -59,6 +60,15 @@ export function useUpdateContratoStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: ContratoStatus }) => updateContratoStatus(id, status),
+    onSuccess: (_data, variables) => invalidateContrato(queryClient, variables.id),
+  });
+}
+
+export function useEncerrarContrato() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, kmFinal, cargaFinalPct }: { id: string; kmFinal: number; cargaFinalPct: number }) =>
+      encerrarContrato(id, { kmFinal, cargaFinalPct }),
     onSuccess: (_data, variables) => invalidateContrato(queryClient, variables.id),
   });
 }

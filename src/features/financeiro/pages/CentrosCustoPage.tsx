@@ -9,7 +9,7 @@ import { centroCustoSchema, type CentroCustoFormInput, type CentroCustoFormValue
 
 export function CentrosCustoPage() {
   const { data: usuario } = useCurrentUsuario();
-  const { data: centros, isLoading } = useCentrosCusto();
+  const { data: centros, isLoading, isError } = useCentrosCusto();
   const createCentro = useCreateCentroCusto();
 
   const {
@@ -67,7 +67,14 @@ export function CentrosCustoPage() {
                 </td>
               </tr>
             )}
-            {!isLoading && centros?.length === 0 && (
+            {isError && (
+              <tr>
+                <td colSpan={3} className="px-4 py-6 text-center text-red-600">
+                  Erro ao carregar centros de custo.
+                </td>
+              </tr>
+            )}
+            {!isLoading && !isError && centros?.length === 0 && (
               <tr>
                 <td colSpan={3} className="px-4 py-6 text-center text-neutral-500">
                   Nenhum centro de custo cadastrado ainda.

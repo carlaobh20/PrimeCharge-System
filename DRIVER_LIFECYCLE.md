@@ -7,6 +7,8 @@ Este documento não redefine State Machines/Policies/Eventos como conceito técn
 
 Criado em 2026-08-05, a pedido do Carlos, pausando a Sprint 8 (Financeiro) para consolidar regras de negócio de fundação antes de continuar. Documentação pura — nenhum código, migration, tela ou componente foi alterado junto com este documento.
 
+> **Nota de atualização (2026-08-06, auditoria da Missão 2):** o gap 6.1 abaixo ("motorista nunca sai de `ativo`") foi fechado na migration `0006_modulo_financeiro.sql` (DEC-050) — `fn_propagar_status_contrato` ganhou o caminho inverso (`contrato encerrado/cancelado` → motorista `inativo`, se não houver outro contrato ativo). A validação de transição em si (`fn_validar_transicao_motorista`) ganhou trigger de banco na migration `0008_auditoria_seguranca.sql` (DEC-067). O texto original abaixo não foi reescrito (preserva o histórico da decisão), só este aviso foi adicionado.
+
 ## Objetivo
 
 A PrimeCharge já trata o Motorista como Cliente final (DEC-006) e já tem Driver Intelligence (DEC-025) julgando a saúde dessa relação. O que ainda não existe por escrito é a jornada completa: o que acontece **antes** do motorista virar um registro no banco (`lead`), o que precisa ser verdade em cada transição para ela ser legítima, e o que acontece **depois** que a relação formal termina. Sem isso, cada nova decisão de produto sobre motorista (renovação, fidelidade, indicação, reativação) corre o risco de inventar sua própria versão da jornada — este documento existe para que exista uma única versão, referenciada por todos os outros.

@@ -7,6 +7,8 @@ Este documento não redefine State Machines/Policies/Eventos como conceito técn
 
 Criado em 2026-08-05, a pedido do Carlos, pausando a Sprint 8 (Financeiro) para consolidar regras de negócio de fundação antes de continuar. Documentação pura — nenhum código, migration, tela ou componente foi alterado junto com este documento.
 
+> **Nota de atualização (2026-08-06, auditoria da Missão 2):** a seção 2 abaixo descreve a State Machine como "ainda sem trigger de banco dedicado" — isso deixou de ser verdade na migration `0008_auditoria_seguranca.sql` (DEC-067), que implementou `fn_validar_transicao_veiculo` no banco, validado linha a linha contra este documento sem nenhuma divergência de transição. O texto original abaixo não foi reescrito (preserva o histórico da decisão), só este aviso foi adicionado.
+
 ## Objetivo
 
 O Veículo já tem State Machine implementada e validada desde a Fase 1 (`CORE_CONCEPTS.md`, seção 2), e já tem Vehicle Intelligence julgando sua saúde (DEC-022). O que ainda não existe por escrito é a jornada completa como conceito de negócio: como "Compra", "Manutenção" e "Renovação" — palavras que o Carlos usa no dia a dia da operação — se relacionam com os 10 estados técnicos já implementados, e o que acontece com um ativo depois que ele sai definitivamente da frota. Este documento fecha essa lacuna, e serve de ponte entre a State Machine técnica e o ciclo de valor econômico já registrado em `VALUE_ENGINE.md`.

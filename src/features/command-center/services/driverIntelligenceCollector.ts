@@ -67,6 +67,7 @@ export async function coletarInteligenciaDosMotoristas(
   const contratosPorMotorista = agruparPorId(deps.contratos, (c) => c.motorista_id);
   const lancamentosPorMotorista = agruparPorId(deps.lancamentos, (l) => l.motorista_id);
   const pagamentosPorMotorista = agruparPorId(deps.pagamentosPendentes, (p) => p.lancamento?.motorista_id);
+  const veiculosPorId = new Map(deps.veiculos.map((v) => [v.id, v]));
 
   return motoristas.map((motorista) => {
     const totalDocumentos = documentosPorMotorista.get(motorista.id)?.length ?? 0;
@@ -89,6 +90,11 @@ export async function coletarInteligenciaDosMotoristas(
       pagamentosPendentes: (pagamentosPorMotorista.get(motorista.id) ?? []).map((p) => ({ data_prevista: p.data_prevista })),
     };
 
+    const contratoDeReferencia =
+      contratosDoMotorista.find((c) => c.status === 'ativo') ??
+      [...contratosDoMotorista].sort((a, b) => b.criado_em.localeCompare(a.criado_em))[0];
+    const veiculoDoMotorista = contratoDeReferencia ? veiculosPorId.get(contratoDeReferencia.veiculo_id) ?? null : null;
+
     const healthScore = calcularHealthScore({
       motorista,
       totalDocumentos,
@@ -96,6 +102,7 @@ export async function coletarInteligenciaDosMotoristas(
       diasDesdeUltimoEvento,
       saudeFinanceira,
       saudeComercial,
+      saudePatrimonial: { veiculo: veiculoDoMotorista },
     });
     const alertas = gerarAlertas({ motorista, totalDocumentos, diasAteVencimentoCnh, diasDesdeUltimoEvento });
 

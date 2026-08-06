@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Select } from '@/shared/components/ui/select';
+import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { formatDataSimples, formatMoeda } from '@/shared/lib/format';
 import { toast } from '@/shared/components/ui/toast';
-import { useLancamentos, useUpdateLancamentoStatus } from '../hooks/useLancamentos';
+import { useDeleteLancamento, useLancamentos, useUpdateLancamentoStatus } from '../hooks/useLancamentos';
 import { LancamentoFormDialog } from '../components/LancamentoFormDialog';
 import {
   LANCAMENTO_STATUS_LABEL,
@@ -22,8 +23,10 @@ export function LancamentosListPage() {
   const [tipo, setTipo] = useState<LancamentoTipo | 'todos'>('todos');
   const [status, setStatus] = useState<LancamentoStatus | 'todos'>('todos');
   const [dialogAberto, setDialogAberto] = useState(false);
+  const [excluirId, setExcluirId] = useState<string | null>(null);
   const { data: lancamentos, isLoading, isError } = useLancamentos({ tipo, status });
   const updateStatus = useUpdateLancamentoStatus();
+  const deleteLancamento = useDeleteLancamento();
 
   return (
     <div className="p-8">
@@ -69,26 +72,27 @@ export function LancamentosListPage() {
               <th className="px-4 py-3">Data prevista</th>
               <th className="px-4 py-3">Centro de custo</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
             {isLoading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-neutral-500">
                   Carregando…
                 </td>
               </tr>
             )}
             {isError && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-red-600">
+                <td colSpan={7} className="px-4 py-6 text-center text-red-600">
                   Erro ao carregar lançamentos.
                 </td>
               </tr>
             )}
             {!isLoading && lancamentos?.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-neutral-500">
                   Nenhum lançamento cadastrado ainda.
                 </td>
               </tr>
@@ -130,6 +134,16 @@ export function LancamentosListPage() {
                     ))}
                   </Select>
                 </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => setExcluirId(l.id)}
+                    aria-label={`Excluir lançamento "${l.descricao}"`}
+                    className="text-neutral-400 hover:text-red-600"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -137,6 +151,22 @@ export function LancamentosListPage() {
       </div>
 
       <LancamentoFormDialog open={dialogAberto} onOpenChange={setDialogAberto} />
+
+      <ConfirmDialog
+        open={!!excluirId}
+        onOpenChange={(open) => !open && setExcluirId(null)}
+        title="Excluir este lançamento?"
+        description="Esta ação não pode ser desfeita. Se já existir um pagamento vinculado, o banco recusa a exclusão."
+        confirmLabel="Excluir"
+        destructive
+        isPending={deleteLancamento.isPending}
+        onConfirm={() => {
+          if (!excluirId) return;
+          deleteLancamento.mutate(excluirId, {
+            onSuccess: () => { toast.success('Lançamento excluído'); setExcluirId(null); },
+          });
+        }}
+      />
     </div>
   );
 }

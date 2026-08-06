@@ -58,6 +58,7 @@ export function useCommandCenter(): UseCommandCenterResult {
     contratos: contratos ?? [],
     lancamentos: lancamentos ?? [],
     pagamentosPendentes: pagamentosPendentes ?? [],
+    veiculos: frota ?? [],
   };
 
   const { data: snapshotsFrota, isLoading: loadingIntelFrota } = useQuery({
@@ -81,6 +82,7 @@ export function useCommandCenter(): UseCommandCenterResult {
       crossFeatureDeps.contratos.length,
       crossFeatureDeps.lancamentos.length,
       crossFeatureDeps.pagamentosPendentes.length,
+      crossFeatureDeps.veiculos.length,
     ],
     queryFn: () => coletarInteligenciaDosMotoristas(motoristas ?? [], crossFeatureDeps),
     enabled: !loadingBase,

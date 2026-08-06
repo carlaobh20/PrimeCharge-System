@@ -849,3 +849,82 @@ Como parte desta decisão, os 6 tipos de Card pedidos foram avaliados um a um:
 **Alternativas consideradas:** Continuar entregando um zip por missão (o que já vinha sendo feito) — rejeitado: é o próprio risco que motivou esta DEC, cria uma fila crescente de pacotes manuais sem garantia de ordem ou de aplicação. Forçar um merge entre os dois históricos divergentes — rejeitado: sem ancestral comum, um merge real geraria conflito em praticamente todo arquivo, sem ganho sobre recriar a branch do zero.
 **Riscos aceitos:** O histórico de commits da branch `dev` (datas/hashes dos commits Parte 7 em diante) é reescrito em relação ao `main` do sandbox — os hashes originais (`7e4cb18`, `c9690ab`, etc.) deixam de ser os que chegam ao GitHub; o conteúdo é idêntico, só a árvore de commits muda. Aceito porque nenhum desses hashes já estava público no GitHub (só existiam no sandbox).
 **Revisitar quando:** Após o Carlos aplicar o bundle desta branch `dev` no GitHub real (`git push origin dev:main` ou merge via Pull Request) — a partir daí, sessões futuras devem partir de `origin/main` atualizado, não recriar `dev` de novo.
+
+## DEC-076 — Capacidades genéricas (`arquivos`/`comentarios`/`tags`/`favoritos`) continuam sem gate de `pode()` no INSERT
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** As 4 tabelas de capacidade genérica da Fase 0 continuam com policy de INSERT gateada só por `empresa_id = current_empresa_id()` (usuário ativo da empresa) — sem checar `pode(modulo, acao)` como Veículos/Motoristas/Contratos/Financeiro/Operações passaram a exigir a partir da migration 0005.
+**Contexto:** Achado da auditoria da Missão 2: essas 4 tabelas nunca ganharam o padrão `pode()` retroativamente, mesmo sendo anexáveis a qualquer entidade (inclusive Contrato/Financeiro, que são sensíveis). Podia ser dívida técnica não percebida ou podia ser decisão correta — não havia registro de nenhuma das duas.
+**Motivo:** É decisão, não dívida: arquivo/comentário/tag/favorito são capacidades transversais de colaboração (anotar, documentar, marcar) — todo usuário ativo de uma empresa precisa poder comentar ou anexar um documento em qualquer entidade que ele já enxerga via RLS, independente do módulo dono da entidade. Gatear por módulo exigiria a policy inspecionar `entidade_tipo` dinamicamente para decidir qual `pode()` checar — complexidade real sem um problema real por trás (ninguém reportou um operador comentando fora do que devia). Ação destrutiva (editar/apagar o registro de outra pessoa) já é limitada por outro caminho (`pode_excluir_arquivo`/storage, DEC-068).
+**Alternativas consideradas:** Policy dinâmica que resolve o módulo a partir de `entidade_tipo` — rejeitada por complexidade desproporcional ao risco (regra dos 3: não existe ainda nem um caso real de abuso). Criar um módulo de permissão `capacidades` genérico — rejeitada, esvaziaria o sentido de `pode()` ser por módulo de negócio.
+**Riscos aceitos:** Um `operador` pode comentar/anexar em um Contrato ou Lançamento mesmo sem `pode('financeiro','ver')` — aceito porque a leitura desses módulos já é ampla para papéis operacionais, e o SELECT das 4 tabelas continua escopado por empresa.
+**Revisitar quando:** Um caso real de uso indevido for reportado, ou uma entidade realmente sensível (ex. dado de folha de pagamento, se existir no futuro) precisar de comentário/anexo restrito por módulo.
+
+## DEC-077 — DELETE permanece indisponível (não uma lacuna) em `pagamentos`/`contas_bancarias`/`centros_custo`/`acoes_operacionais`/`checklists`/`checklist_itens`
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** As 6 tabelas acima têm RLS habilitada e **nenhuma** policy de DELETE — permanece assim, formalizado por esta DEC, sem UI de exclusão para nenhuma delas.
+**Contexto:** Achado da auditoria da Missão 2: essas 6 tabelas não têm policy de DELETE, ao contrário de `veiculos`/`motoristas`/`contratos`/`lancamentos`, que têm um `pode_excluir_*` explícito e restrito por role. Sem DEC prévia, parecia esquecimento.
+**Motivo:** É rastro de auditoria financeira e operacional — um Pagamento, uma Conta Bancária, um Centro de Custo, uma Ação Operacional, um Checklist e seus itens são registros de evento real (dinheiro que mudou de mão, uma inspeção que aconteceu). Apagar fisicamente destrói prova de que a operação aconteceu; o caminho certo pra "desfazer" já existe via status (`cancelado`/`estornado`/`cancelada`), preservando o registro.
+**Alternativas consideradas:** Adicionar `pode_excluir_*` como as 4 tabelas que já têm — rejeitada: essas 4 (veículo/motorista/contrato/lançamento) são cadastro, corrigir um erro de cadastro é diferente de apagar um evento financeiro já ocorrido. Nenhuma das 6 desta DEC é cadastro.
+**Riscos aceitos:** Um erro de digitação num Pagamento/Manutenção-adjacente não pode ser corrigido apagando, só cancelando/estornando e criando de novo — aceito, é o comportamento mais seguro por padrão.
+**Revisitar quando:** Um caso real de necessidade de expurgo (LGPD, erro grave de importação em massa) aparecer — nesse caso, a exclusão deve ser uma operação administrativa auditada, não uma policy de RLS aberta.
+
+## DEC-078 — Acoplamento entre `fn_propagar_status_contrato` e `pode('veiculos','editar')` — risco documentado, sem correção de código
+
+**Data:** 2026-08-06 · **Status:** ativa (risco aceito e monitorado, não corrigido)
+**Decisão:** Nenhuma mudança de código nesta missão. O risco identificado pela auditoria fica registrado aqui para não ser redescoberto do zero numa sessão futura.
+**Contexto:** `fn_propagar_status_contrato` (ativar um Contrato) faz `UPDATE veiculos` internamente, que dispara `fn_validar_transicao_veiculo` — essa trigger exige `pode('veiculos','editar')` do usuário que originou a ação, mesmo a função de propagação rodando `security definer`. Hoje todo role que pode `contratos.ativar` (super_admin/owner/admin/gestor_frota) também tem `veiculos.editar`, então funciona sem erro. Mas é uma dependência cruzada entre duas matrizes de permissão que evoluem de forma independente.
+**Motivo de não corrigir agora:** Corrigir exigiria decidir se a trigger de veículo deveria aceitar propagação automática sem checar `pode()` do usuário original (abrindo uma exceção pontual e sensível dentro de uma trigger de segurança) — mudança arquitetural real, não um ajuste de uma linha, e sem nenhum role hoje quebrado por isso. Fazer essa mudança sem um caso real quebrado seria o tipo de arquitetura antecipada que esta missão pediu para evitar.
+**Riscos aceitos:** Se um novo role futuro ganhar `contratos.ativar` sem `veiculos.editar`, a ativação do contrato inteiro falha (rollback) sem mensagem óbvia do motivo real.
+**Revisitar quando:** Um novo role for desenhado com `contratos.ativar` mas sem `veiculos.editar` — nesse momento, decidir entre (a) dar `veiculos.editar` a esse role também, ou (b) fazer a trigger de veículo aceitar propagação vinda de `fn_propagar_status_contrato` sem checar `pode()` do usuário original.
+
+## DEC-079 — `manutencoes`: tabela nova, sem módulo de permissão próprio, sem vínculo com Lançamentos
+
+**Data:** 2026-08-06 · **Status:** ativa
+**Decisão:** Nova tabela `manutencoes` (migration 0010), gateada por `pode('veiculos', ...)` — sem módulo de permissão dedicado, sem `lancamento_id` de vínculo com o Financeiro.
+**Contexto:** Achado crítico da auditoria (Fase 3 da Missão 2): não existia nenhum registro estruturado de manutenção de veículo — o único contorno era um Lançamento financeiro genérico com `categoria` de texto livre, sem data de execução, oficina, KM ou tipo.
+**Motivo:** Reaproveitar `pode('veiculos', ...)` em vez de criar um módulo `manutencoes` na tabela `permissoes`: manutenção é, por natureza, dado do veículo (mesmo racional de Checklist reaproveitar `operacoes` — DEC-073). Sem vínculo automático com Lançamentos: ligar os dois exigiria uma tela de seleção de lançamento existente (ou geração automática de um lançamento de despesa), e ainda não há um segundo caso de uso real que confirme o formato certo dessa integração (regra dos 3, DEC-010).
+**Alternativas consideradas:** Módulo de permissão `manutencoes` dedicado — rejeitado por agora, sem um segundo consumidor que justifique. Gerar automaticamente um Lançamento de despesa a cada manutenção com custo — rejeitado por enquanto: decidiria sozinho um comportamento financeiro (categoria, centro de custo) sem o Carlos ter confirmado que é isso que ele quer.
+**Riscos aceitos:** Custo de manutenção registrado em `manutencoes.custo` não aparece automaticamente em nenhum relatório financeiro (Lançamentos, ROI) até alguém also lançar manualmente em Financeiro se quiser que o custo entre no resultado — duplicação manual, não integração automática.
+**Revisitar quando:** O volume de manutenções tornar a duplicação manual (registrar em dois lugares) uma fricção real, ou o Carlos confirmar que quer geração automática de Lançamento a partir de Manutenção.
+
+## DEC-080 — Checklist ganha colunas de preparo para Driver App/Vistoria Inteligente (Fases 4 e 5), sem UI nova
+
+**Data:** 2026-08-06 · **Status:** ativa (preparo, sem consumidor ainda)
+**Decisão:** `checklists` ganha `gps_lat`, `gps_lng`, `assinatura_url`, `score`, `versao`, `checklist_anterior_id` (migration 0010) — todas nullable, nenhuma UI web as preenche.
+**Contexto:** A missão pediu explicitamente preparar (não implementar) Driver App e Vistoria Inteligente, listando estes campos como exemplo. `checklist_itens.observacao` já existia desde a Sprint 9 e ganhou UI nesta missão (motivo de reprovação de item) — não é campo novo.
+**Motivo:** Colunas reais (não `jsonb` genérico) porque são campos concretos e padrão de qualquer vistoria (GPS, assinatura, score, versão, comparação) — baixo risco de o formato estar errado quando o Driver App existir de fato, ao contrário de Telemetria (DEC-081), onde o formato de cada métrica depende de qual integração de hardware for escolhida.
+**Alternativas consideradas:** Não adicionar nada agora, esperar o Driver App existir — rejeitada: o custo de adicionar 6 colunas nullable hoje é quase zero, e evita uma migration extra quando o Driver App chegar. Usar `jsonb` genérico como Telemetria — rejeitada aqui porque, ao contrário de telemetria de veículo, o formato desses campos é conhecido e estável (é a mesma vistoria que humanos já fazem em papel).
+**Riscos aceitos:** Nenhum — colunas nullable sem consumidor não têm efeito em nada que já funciona.
+**Revisitar quando:** O Driver App (Fase 4) ou a Vistoria Inteligente (Fase 5) começarem a ser construídos de verdade.
+
+## DEC-081 — `telemetria_eventos`: tabela vazia por design (Fase 6), modelo genérico em vez de coluna por métrica
+
+**Data:** 2026-08-06 · **Status:** ativa (preparo, zero produtor real)
+**Decisão:** Nova tabela `telemetria_eventos` (migration 0010) com `tipo`/`valor`/`unidade`/`origem`/`metadata jsonb`, não uma coluna por métrica (SOC, SOH, temperatura, tensão, corrente...). Sem UI, sem gerador, sem cron, sem nenhum produtor real — RLS liga, INSERT restrito a `pode('veiculos','editar')` como única proteção até uma integração real existir.
+**Contexto:** A missão pediu explicitamente "criar o modelo correto" para SOC/SOH/temperatura/tensão/corrente/quilometragem/consumo/ciclos/carga AC/carga DC/eventos, mas também "nunca implementar leitura, somente preparar".
+**Motivo:** Nenhuma integração real de OBD2/BMS existe ou foi escolhida ainda — apostar em uma coluna fixa por métrica arriscaria descrever o formato errado (unidade, precisão, frequência de amostragem variam por fabricante/protocolo) e exigir uma migration de correção quando a integração real chegar. O par `tipo` (texto livre) + `valor` (numeric) + `unidade` é o mesmo racional já usado em `acoes_operacionais.tipo` (DEC-055) e seguro por precedente nesta base de código.
+**Alternativas consideradas:** Uma coluna por métrica (`soc numeric`, `soh numeric`, ...) — rejeitada pelo motivo acima. Não criar tabela nenhuma agora — considerada, mas rejeitada: o pedido explícito da missão foi "criar o modelo", e o custo de uma tabela vazia com RLS é baixo; o meio-termo (tabela genérica, sem produtor) atende ao pedido sem apostar no formato errado.
+**Riscos aceitos:** Sem índice/constraint específico por `tipo` (ex. `soc` sempre entre 0 e 100) — aceito, seria uma regra de negócio real cedo demais sem nenhuma leitura real para validar contra.
+**Revisitar quando:** Uma integração real de OBD2/BMS for escolhida — nesse momento, a policy de INSERT troca de `pode('veiculos','editar')` para uma via de service role/Edge Function, e pode fazer sentido adicionar constraints por `tipo`.
+
+## DEC-082 — Fases 7 (Intelligence Ready) e 8 (Agent Ready): plataforma já adequada, nenhuma mudança de código
+
+**Data:** 2026-08-06 · **Status:** ativa (confirmação, não mudança)
+**Decisão:** Nenhuma tabela, coluna ou abstração nova para preparar Intelligence/Agentes nesta missão.
+**Contexto:** Auditoria dedicada (Missão 2) verificou: (1) toda menção a IA no código já é explícita sobre a ausência atual e aponta para `AI_PLATFORM.md`/`SMART_FLEET_PLATFORM.md`, sem comentário solto do tipo "isso vira IA depois" sem estrutura; (2) `timeline_eventos` (migration 0002) já tem `criado_em`, `usuario_id` (nullable p/ sistema), `entidade_tipo/entidade_id`, `tipo`, `metadata jsonb` — suficiente para consumo futuro por IA/Agente sem redesenho; (3) `acoes_operacionais.origem` já aceita `automacao`/`agente`/`ia` desde a Sprint 9 (DEC-058), mesmo sem nenhum gerador produzindo esses valores ainda.
+**Motivo:** Adicionar mais preparo agora (ex. um `agente_id` explícito em `timeline_eventos`, cotado por `AGENT_PLATFORM.md` §9 como gap conhecido e deliberadamente não fechado) seria exatamente a arquitetura antecipada que a missão pediu para evitar — o padrão genérico já existente absorve o caso quando ele for real.
+**Alternativas consideradas:** Adicionar `agente_id`/sub-schema de payload de Agente agora — rejeitada, sem nenhum Agente real para validar o formato.
+**Riscos aceitos:** Nenhum novo — os gaps que existem (ex. `AGENT_PLATFORM.md` §9) já eram conhecidos e deliberadamente adiados antes desta missão.
+**Revisitar quando:** O primeiro Agente real (Fase 7 de uma missão futura) precisar, de fato, desse campo.
+
+## DEC-083 — Moat identificado nesta missão: dado estruturado de manutenção e de devolução de contrato
+
+**Data:** 2026-08-06 · **Status:** ativa (registro estratégico, sem ação de código além do já feito)
+**Decisão:** Registrar como vantagem competitiva de longo prazo, não só correção operacional: `manutencoes` (DEC-079) e os campos de devolução do Contrato (`km_final`/`carga_final_pct`, agora capturáveis pela UI) são as duas fontes de dado proprietário mais valiosas fechadas nesta missão.
+**Contexto:** Pedido explícito da Fase 9 da missão ("isso gera dado único? será impossível de copiar daqui a 5 anos?"). Nenhuma locadora tradicional (não elétrica) tem motivo pra correlacionar quilometragem final + carga final de bateria + histórico estruturado de manutenção por veículo — é dado específico de frota elétrica, e só existe se for capturado desde o primeiro carro.
+**Motivo:** Depreciação real de bateria (SOH) e valor residual de um veículo elétrico usado dependem exatamente deste histórico — quantas vezes foi devolvido com carga baixa, que manutenções teve, com que frequência. Um concorrente que só nasce daqui a 2 anos não consegue reconstruir esse histórico retroativamente; a PrimeCharge, se capturar desde já, acumula uma vantagem que cresce com o tempo (mais forte quanto mais cedo começar a captar).
+**Alternativas consideradas:** Nenhuma — é um registro de observação estratégica, não uma decisão técnica com alternativas.
+**Riscos aceitos:** O valor desse dado só se realiza se a captura for consistente desde a primeira operação real — se `km_final`/`carga_final_pct`/manutenção ficarem em branco por preguiça operacional, o moat não se forma. Risco de processo, não de arquitetura.
+**Revisitar quando:** A PrimeCharge tiver dado real acumulado de múltiplos veículos por tempo suficiente (6-12 meses) para o primeiro modelo de depreciação/valor residual próprio ser viável — aí sim vira caso real de IA (Fase 5/6 de uma missão futura), não antes.

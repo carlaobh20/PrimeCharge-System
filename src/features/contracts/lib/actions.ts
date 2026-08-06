@@ -39,14 +39,13 @@ export const COMMAND_ACTIONS: { key: ActionKey; label: string; icon: LucideIcon;
   { key: 'documento', label: 'Adicionar documento', icon: FileText, real: true },
   { key: 'comentario', label: 'Novo comentário', icon: MessageSquarePlus, real: true },
   { key: 'tag', label: 'Nova tag', icon: Tags, real: true },
-  { key: 'pagamento', label: 'Registrar pagamento', icon: Receipt, real: false },
+  { key: 'pagamento', label: 'Registrar pagamento', icon: Receipt, real: true },
   { key: 'atraso', label: 'Registrar atraso', icon: AlertTriangle, real: false },
   { key: 'compartilhar', label: 'Compartilhar contrato', icon: Copy, real: true },
   { key: 'enviar', label: 'Enviar contrato', icon: Send, real: false },
 ];
 
 export const PLACEHOLDER_DESCRIPTIONS: Partial<Record<ActionKey, string>> = {
-  pagamento: 'Registro de pagamento depende do módulo Financeiro, ainda não construído — vai alimentar os KPIs de Pagamentos recebidos e Inadimplência deste contrato.',
-  atraso: 'Registro de atraso depende do módulo Financeiro, ainda não construído — vai alimentar o Health Score financeiro e os Riscos deste contrato.',
+  atraso: 'Registro de atraso é sempre calculado (pagamento pendente com data prevista vencida), não um botão manual — acompanhe em Pagamentos.',
   enviar: 'Envio automático (e-mail/WhatsApp) depende da estratégia de notificações, planejada para a Fase 8 — hoje o compartilhamento é por link direto.',
 };

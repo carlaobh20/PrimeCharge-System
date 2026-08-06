@@ -1,7 +1,7 @@
 import type { Motorista } from '../types';
 import { calcularSaudeOperacional } from './categories/operacional';
 import { calcularSaudeDocumental } from './categories/documental';
-import { calcularSaudePatrimonial } from './categories/patrimonial';
+import { calcularSaudePatrimonial, type SaudePatrimonialInput } from './categories/patrimonial';
 import { calcularSaudeFinanceira } from './categories/financeira';
 import { calcularSaudeComercial, type SaudeComercialInput } from './categories/comercial';
 import type { HealthScoreResult } from './types';
@@ -14,6 +14,7 @@ export type HealthScoreInput = {
   diasDesdeUltimoEvento: number | null;
   saudeFinanceira: SaudeFinanceiraInput;
   saudeComercial: SaudeComercialInput;
+  saudePatrimonial: SaudePatrimonialInput;
 };
 
 // Agregador do Health Score do Motorista — mesmo padrão de calcularHealthScore (Veículo,
@@ -23,7 +24,7 @@ export function calcularHealthScore(input: HealthScoreInput): HealthScoreResult 
   const categorias = [
     calcularSaudeOperacional({ motorista: input.motorista, diasDesdeUltimoEvento: input.diasDesdeUltimoEvento }),
     calcularSaudeDocumental({ totalDocumentos: input.totalDocumentos, diasAteVencimentoCnh: input.diasAteVencimentoCnh }),
-    calcularSaudePatrimonial(),
+    calcularSaudePatrimonial(input.saudePatrimonial),
     calcularSaudeFinanceira(input.saudeFinanceira),
     calcularSaudeComercial(input.saudeComercial),
   ];

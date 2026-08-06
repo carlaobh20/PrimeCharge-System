@@ -18,6 +18,7 @@ import { ContratoDetailPage } from '@/features/contracts/pages/ContratoDetailPag
 import { ContratoCreatePage } from '@/features/contracts/pages/ContratoCreatePage';
 import { ContratoEditPage } from '@/features/contracts/pages/ContratoEditPage';
 import { LancamentosListPage } from '@/features/financeiro/pages/LancamentosListPage';
+import { PagamentosPage } from '@/features/financeiro/pages/PagamentosPage';
 import { ContasBancariasPage } from '@/features/financeiro/pages/ContasBancariasPage';
 import { CentrosCustoPage } from '@/features/financeiro/pages/CentrosCustoPage';
 import { AcoesListPage } from '@/features/operacoes/pages/AcoesListPage';
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
           { path: 'contratos/:id', element: <ContratoDetailPage /> },
           { path: 'contratos/:id/editar', element: <ContratoEditPage /> },
           { path: 'financeiro/lancamentos', element: <LancamentosListPage /> },
+          { path: 'financeiro/pagamentos', element: <PagamentosPage /> },
           { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },
           { path: 'financeiro/centros-custo', element: <CentrosCustoPage /> },
           { path: 'operacoes/acoes', element: <AcoesListPage /> },

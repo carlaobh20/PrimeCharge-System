@@ -89,6 +89,23 @@ export async function deleteContrato(id: string) {
   if (error) throw error;
 }
 
+// Achado crítico #2 da auditoria da Missão 2 (2026-08-06): "Encerrar contrato" só mudava o
+// status — km_final/carga_final_pct nunca eram capturados pela UI, mesmo já existindo na
+// tabela desde a Sprint 7 e sendo consumidos pelo alerta "devolvido com carga baixa"
+// (contracts/intelligence/alerts.ts). Uma única UPDATE: o trigger de state machine
+// (fn_validar_transicao_contrato) valida a transição normalmente, e data_fim_real é
+// preenchida automaticamente pelo próprio trigger quando fica nula.
+export async function encerrarContrato(id: string, payload: { kmFinal: number; cargaFinalPct: number }) {
+  const { data, error } = await supabase
+    .from('contratos')
+    .update({ status: 'encerrado', km_final: payload.kmFinal, carga_final_pct: payload.cargaFinalPct })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Contrato;
+}
+
 // Variante em lote — mesmo padrão de listArquivosPorEntidades (shared/capabilities), usada
 // pelo Command Center para coletar a inteligência de todos os contratos sem N+1.
 export async function listContratosPorEmpresa() {
