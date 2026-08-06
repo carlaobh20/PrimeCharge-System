@@ -4,7 +4,10 @@ import { useComentarios } from '@/shared/capabilities/hooks/useComentarios';
 import { useTimeline } from '@/shared/capabilities/hooks/useTimeline';
 import { diasDesde, diasAte } from '@/shared/lib/format';
 // Leitura cross-feature de hooks de listagem do Financeiro — DEC-048 (extensão de DEC-039).
-import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
+// Achado da auditoria da Missão 5 (Fase 1, performance, DEC-108): filtra server-side por
+// contratoId em vez de buscar a empresa inteira — mesmo fix aplicado a
+// useVehicleIntelligence/useDriverIntelligence.
+import { useLancamentos } from '@/features/financeiro/hooks/useLancamentos';
 import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { calcularHealthScore } from '../intelligence/healthScore';
 import { gerarInsights } from '../intelligence/insights';
@@ -38,8 +41,8 @@ export function useContractIntelligence(contrato: ContratoComRelacoes | undefine
   const { data: comentarios, isLoading: loadingComentarios } = useComentarios('contrato', contratoId);
   const { data: eventos, isLoading: loadingEventos } = useTimeline('contrato', contratoId);
   const { data: grupo, isLoading: loadingGrupo } = useContratos();
-  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
-  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
+  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentos({ contratoId });
+  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa({ contratoId });
 
   const isLoading =
     loadingDocumentos || loadingComentarios || loadingEventos || loadingGrupo || loadingLancamentos || loadingPagamentos;

@@ -3,12 +3,24 @@ import type { Contrato, ContratoComRelacoes, ContratoStatus } from '../types';
 
 const SELECT_COM_RELACOES = '*, veiculo:veiculos(id, placa, status), motorista:motoristas(id, nome_completo, status)';
 
-export async function listContratos(filters?: { status?: ContratoStatus | 'todos'; busca?: string }) {
+export async function listContratos(filters?: {
+  status?: ContratoStatus | 'todos';
+  busca?: string;
+  veiculoId?: string;
+  motoristaId?: string;
+}) {
   let query = supabase.from('contratos').select(SELECT_COM_RELACOES).order('criado_em', { ascending: false });
 
   if (filters?.status && filters.status !== 'todos') {
     query = query.eq('status', filters.status);
   }
+  // Achado da auditoria da Missão 5 (Fase 1, performance): useVehicleIntelligence/
+  // useDriverIntelligence buscavam TODOS os contratos da empresa e filtravam em memória por
+  // veiculo_id/motorista_id — a cada mil contratos, isso é um fetch cada vez mais desperdiçado
+  // para um resultado de 0-3 linhas. Filtro server-side, mesmo padrão já usado por veiculoId em
+  // listLancamentos.
+  if (filters?.veiculoId) query = query.eq('veiculo_id', filters.veiculoId);
+  if (filters?.motoristaId) query = query.eq('motorista_id', filters.motoristaId);
 
   const { data, error } = await query;
   if (error) throw error;

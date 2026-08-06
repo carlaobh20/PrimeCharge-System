@@ -13,7 +13,12 @@ import {
 } from '../api/contratos';
 import type { ContratoStatus } from '../types';
 
-export function useContratos(filters?: { status?: ContratoStatus | 'todos'; busca?: string }) {
+export function useContratos(filters?: {
+  status?: ContratoStatus | 'todos';
+  busca?: string;
+  veiculoId?: string;
+  motoristaId?: string;
+}) {
   return useQuery({
     queryKey: ['contratos', filters ?? {}],
     queryFn: () => listContratos(filters),

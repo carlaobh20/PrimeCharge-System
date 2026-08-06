@@ -4,6 +4,17 @@ import type { Pagamento, PagamentoComRelacoes, PagamentoStatus } from '../types'
 const SELECT_COM_RELACOES =
   '*, lancamento:lancamentos(id, tipo, descricao, contrato_id, veiculo_id, motorista_id), conta_bancaria:contas_bancarias(id, nome)';
 
+// Mesmo SELECT, mas com `!inner` no relacionamento — necessário só quando filtramos por uma
+// coluna de `lancamentos` (veiculo_id/motorista_id/contrato_id), porque o PostgREST só aceita
+// `.eq('lancamento.coluna', ...)` sobre um embed marcado `!inner` (embed normal — left join —
+// ignora o filtro). Mantido separado do SELECT_COM_RELACOES "solto" para não forçar inner join
+// (que excluiria pagamento sem lançamento, hoje impossível pela FK `not null`, mas não vale
+// arriscar mudar o comportamento das consultas sem filtro).
+const SELECT_COM_RELACOES_INNER =
+  '*, lancamento:lancamentos!inner(id, tipo, descricao, contrato_id, veiculo_id, motorista_id), conta_bancaria:contas_bancarias(id, nome)';
+
+type FiltroEntidade = { veiculoId?: string; motoristaId?: string; contratoId?: string };
+
 export async function listPagamentos(filters?: { status?: PagamentoStatus | 'todos'; lancamentoId?: string }) {
   let query = supabase.from('pagamentos').select(SELECT_COM_RELACOES).order('data_prevista', { ascending: false });
 
@@ -37,17 +48,43 @@ export async function updatePagamentoStatus(id: string, status: PagamentoStatus)
 
 // Usada pela Financial Intelligence para calcular inadimplência/atraso — sem "atrasado"
 // persistido (ver types.ts), o filtro de atraso é sempre feito em memória sobre isto.
-export async function listPagamentosPendentesPorEmpresa() {
-  const { data, error } = await supabase.from('pagamentos').select(SELECT_COM_RELACOES).eq('status', 'pendente');
+//
+// Achado da auditoria da Missão 5 (Fase 1, performance): useVehicleIntelligence/
+// useDriverIntelligence/useContractIntelligence chamavam esta função sem filtro (todos os
+// pagamentos pendentes da empresa) e filtravam em memória por veiculo_id/motorista_id/
+// contrato_id — a cada mil veículos com anos de histórico financeiro, isso é buscar a tabela
+// inteira pra usar 1-3 linhas. `filtro` opcional preserva o comportamento antigo (Command
+// Center continua chamando sem filtro, precisa mesmo de tudo) e usa `!inner` só quando um
+// filtro é passado, exatamente pela razão documentada em SELECT_COM_RELACOES_INNER acima.
+export async function listPagamentosPendentesPorEmpresa(filtro?: FiltroEntidade) {
+  const temFiltro = !!(filtro?.veiculoId || filtro?.motoristaId || filtro?.contratoId);
+  let query = supabase
+    .from('pagamentos')
+    .select(temFiltro ? SELECT_COM_RELACOES_INNER : SELECT_COM_RELACOES)
+    .eq('status', 'pendente');
+
+  if (filtro?.veiculoId) query = query.eq('lancamento.veiculo_id', filtro.veiculoId);
+  if (filtro?.motoristaId) query = query.eq('lancamento.motorista_id', filtro.motoristaId);
+  if (filtro?.contratoId) query = query.eq('lancamento.contrato_id', filtro.contratoId);
+
+  const { data, error } = await query;
   if (error) throw error;
   return data as unknown as PagamentoComRelacoes[];
 }
 
 // Todos os pagamentos da empresa, qualquer status — usado pelo Driver Score (Missão 3) para
 // calcular pontualidade real (proporção pago no prazo), sinal que não existia antes da
-// Missão 2 criar a tela de Pagamentos. Mesmo padrão de listLancamentosPorEmpresa.
-export async function listPagamentosPorEmpresa() {
-  const { data, error } = await supabase.from('pagamentos').select(SELECT_COM_RELACOES);
+// Missão 2 criar a tela de Pagamentos. Mesmo padrão de listLancamentosPorEmpresa. `filtro`
+// opcional, mesmo motivo/mesmo padrão de listPagamentosPendentesPorEmpresa acima.
+export async function listPagamentosPorEmpresa(filtro?: FiltroEntidade) {
+  const temFiltro = !!(filtro?.veiculoId || filtro?.motoristaId || filtro?.contratoId);
+  let query = supabase.from('pagamentos').select(temFiltro ? SELECT_COM_RELACOES_INNER : SELECT_COM_RELACOES);
+
+  if (filtro?.veiculoId) query = query.eq('lancamento.veiculo_id', filtro.veiculoId);
+  if (filtro?.motoristaId) query = query.eq('lancamento.motorista_id', filtro.motoristaId);
+  if (filtro?.contratoId) query = query.eq('lancamento.contrato_id', filtro.contratoId);
+
+  const { data, error } = await query;
   if (error) throw error;
   return data as unknown as PagamentoComRelacoes[];
 }

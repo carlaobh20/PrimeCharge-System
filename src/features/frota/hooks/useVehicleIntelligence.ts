@@ -4,11 +4,18 @@ import { useComentarios } from '@/shared/capabilities/hooks/useComentarios';
 import { useTags } from '@/shared/capabilities/hooks/useTags';
 import { useTimeline } from '@/shared/capabilities/hooks/useTimeline';
 // Leitura cross-feature de hooks de listagem do Financeiro — DEC-048 (extensão de DEC-039)
-// para alimentar a categoria financeira do Health Score com dado real. `useContratos()` sem
-// filtro entra pelo mesmo motivo (fecha o `score: null` hardcoded da categoria Comercial —
-// ver DECISION_LOG.md, auditoria de CTO 2026-08-06) — mesmo padrão "PorEmpresa" já em uso,
-// registrado como consumidor adicional na mesma auditoria.
-import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
+// para alimentar a categoria financeira do Health Score com dado real. `useContratos()` entra
+// pelo mesmo motivo (fecha o `score: null` hardcoded da categoria Comercial — ver
+// DECISION_LOG.md, auditoria de CTO 2026-08-06).
+//
+// Achado da auditoria da Missão 5 (Fase 1, performance): as três chamadas abaixo buscavam a
+// empresa INTEIRA (todos os lançamentos, todos os pagamentos pendentes, todos os contratos) só
+// para filtrar por `veiculo.id` em memória logo em seguida — a cada mil veículos com anos de
+// histórico financeiro, isso vira o gargalo #1 de toda a plataforma (DEC-108). Agora filtram
+// server-side, mesmo suporte que `useLancamentos({veiculoId})` já tinha desde a Missão 4.
+// `useVeiculos()` (linha abaixo) continua sem filtro de propósito — `gerarComparativos`
+// precisa mesmo da frota inteira para comparar este veículo contra os demais.
+import { useLancamentos } from '@/features/financeiro/hooks/useLancamentos';
 import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { calcularHealthScore } from '../intelligence/healthScore';
@@ -43,9 +50,9 @@ export function useVehicleIntelligence(veiculo: VeiculoComRelacoes | undefined):
   const { data: tags, isLoading: loadingTags } = useTags('veiculo', veiculoId);
   const { data: eventos, isLoading: loadingEventos } = useTimeline('veiculo', veiculoId);
   const { data: frota, isLoading: loadingFrota } = useVeiculos();
-  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
-  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
-  const { data: contratos, isLoading: loadingContratos } = useContratos();
+  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentos({ veiculoId });
+  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa({ veiculoId });
+  const { data: contratos, isLoading: loadingContratos } = useContratos({ veiculoId });
 
   const isLoading =
     loadingDocumentos ||

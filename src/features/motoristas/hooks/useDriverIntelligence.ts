@@ -7,9 +7,16 @@ import { diasDesde, diasAte } from '@/shared/lib/format';
 // Leitura cross-feature (DEC-039/DEC-048): Contratos alimenta a categoria comercial (dado já
 // existia desde a Sprint 7, só não estava conectado ao Health Score do Motorista — DEC-047);
 // Financeiro alimenta a categoria financeira.
+//
+// Achado da auditoria da Missão 5 (Fase 1, performance, DEC-108): as 4 chamadas de
+// contratos/lançamentos/pagamentos abaixo eram o pior caso da plataforma — buscavam a empresa
+// INTEIRA (todo o histórico de lançamentos E pagamentos, qualquer status) só pra filtrar por
+// `motorista.id` em memória. Agora filtram server-side. `useMotoristas()`/`useVeiculos()`
+// continuam sem filtro — `comparativos` precisa do grupo inteiro, e `veiculoDoMotorista`
+// resolve contra a frota já carregada por outra tela na mesma navegação (React Query dedupe).
 import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { useVeiculos } from '@/features/frota/hooks/useVeiculos';
-import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancamentos';
+import { useLancamentos } from '@/features/financeiro/hooks/useLancamentos';
 import { usePagamentosPendentesPorEmpresa, usePagamentosPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { calcularHealthScore } from '../intelligence/healthScore';
 import { gerarInsights } from '../intelligence/insights';
@@ -45,11 +52,11 @@ export function useDriverIntelligence(motorista: Motorista | undefined): UseDriv
   const { data: tags, isLoading: loadingTags } = useTags('motorista', motoristaId);
   const { data: eventos, isLoading: loadingEventos } = useTimeline('motorista', motoristaId);
   const { data: grupo, isLoading: loadingGrupo } = useMotoristas();
-  const { data: contratos, isLoading: loadingContratos } = useContratos();
+  const { data: contratos, isLoading: loadingContratos } = useContratos({ motoristaId });
   const { data: veiculos, isLoading: loadingVeiculos } = useVeiculos();
-  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
-  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
-  const { data: pagamentosTodos, isLoading: loadingPagamentosTodos } = usePagamentosPorEmpresa();
+  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentos({ motoristaId });
+  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa({ motoristaId });
+  const { data: pagamentosTodos, isLoading: loadingPagamentosTodos } = usePagamentosPorEmpresa({ motoristaId });
 
   const isLoading =
     loadingDocumentos ||
