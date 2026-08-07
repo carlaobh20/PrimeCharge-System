@@ -5,6 +5,7 @@ import { cn } from '@/shared/lib/utils';
 import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { GlobalSearchPalette } from '@/features/search/components/GlobalSearchPalette';
+import { SimulationBadge, SimulationToggleButton } from '@/simulation/SimulationToggle';
 
 // Central de Comando é a Home desde a Sprint 5 (DEC-024) — Dashboard virou uma rota
 // analítica separada, não mais o índice. "Contratos" entra na Sprint 7, entre Motoristas e
@@ -50,10 +51,16 @@ export function AppLayout() {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950">
+    <div className="flex min-h-screen flex-col bg-neutral-50 dark:bg-neutral-950">
+      <SimulationBadge />
+      <div className="flex flex-1">
       <aside className="flex w-60 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
         <div className="px-4 py-5">
           <span className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">PrimeCharge</span>
+        </div>
+
+        <div className="px-2 pb-2">
+          <SimulationToggleButton />
         </div>
 
         <div className="px-2 pb-2">
@@ -112,6 +119,7 @@ export function AppLayout() {
           a Fase 1 (DEC-108) corrigiu em outro lugar. Montagem condicional evita o fetch até o
           primeiro Ctrl/Cmd+K real. */}
       {buscaAberta && <GlobalSearchPalette open onOpenChange={setBuscaAberta} />}
+      </div>
     </div>
   );
 }
