@@ -210,7 +210,7 @@ create policy "checklist_itens: update via checklist" on checklist_itens
 -- ============================================================
 
 insert into permissoes (role, modulo, acao, permitido)
-select role, 'operacoes', acao, true
+select role::user_role, 'operacoes', acao, true
 from (values ('super_admin'), ('owner'), ('admin')) as r(role)
 cross join (values ('ver'),('criar'),('editar'),('concluir'),('cancelar')) as a(acao)
 on conflict (role, modulo, acao) do nothing;

@@ -126,7 +126,7 @@ create policy "contratos: update por empresa" on contratos
 -- transição de status de Veículo — só "ver/criar/editar" (a exclusão já tinha seu próprio
 -- mecanismo, pode_excluir_veiculo, mantido como está).
 insert into permissoes (role, modulo, acao, permitido)
-select role, 'veiculos', acao, true
+select role::user_role, 'veiculos', acao, true
 from (values ('super_admin'), ('owner'), ('admin')) as r(role)
 cross join (values ('ver'), ('criar'), ('editar'), ('excluir')) as a(acao)
 on conflict (role, modulo, acao) do nothing;
@@ -223,7 +223,7 @@ create trigger trg_veiculos_valida_transicao before update on veiculos
 -- distintas de uma edição comum de cadastro — mesmo raciocínio que separa `cancelar` de
 -- `editar` em Contratos.
 insert into permissoes (role, modulo, acao, permitido)
-select role, 'motoristas', acao, true
+select role::user_role, 'motoristas', acao, true
 from (values ('super_admin'), ('owner'), ('admin')) as r(role)
 cross join (values ('ver'), ('criar'), ('editar'), ('excluir'), ('bloquear'), ('desbloquear')) as a(acao)
 on conflict (role, modulo, acao) do nothing;

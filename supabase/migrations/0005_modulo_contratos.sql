@@ -149,7 +149,7 @@ $$;
 -- e manda para análise, não aprova/assina/ativa/encerra/cancela; motorista não tem acesso
 -- (sem portal do motorista ainda — ARQUITETURA.md, Fase 8).
 insert into permissoes (role, modulo, acao, permitido)
-select role, 'contratos', acao, true
+select role::user_role, 'contratos', acao, true
 from (values
   ('super_admin'), ('owner'), ('admin')
 ) as r(role)
