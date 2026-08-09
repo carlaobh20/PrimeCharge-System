@@ -37,7 +37,7 @@ export function DashboardPage() {
         <p className="mt-2 text-sm text-neutral-500">
           Placar agregado da operação — para a fila de trabalho do dia (o que fazer agora, item por item), use a{' '}
           <Link to="/" className="underline underline-offset-2 hover:text-neutral-700 dark:hover:text-neutral-300">
-            Central de Comando
+            Centro de Operações
           </Link>
           .
         </p>

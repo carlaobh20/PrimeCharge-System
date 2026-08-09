@@ -3,7 +3,7 @@ import { AppLayout } from '@/app/layout/AppLayout';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { AceitarConvitePage } from '@/features/auth/pages/AceitarConvitePage';
 import { UsuariosPage } from '@/features/auth/pages/UsuariosPage';
-import { CommandCenterPage } from '@/features/command-center/pages/CommandCenterPage';
+import { CentroDeOperacoesPage } from '@/features/command-center/pages/CentroDeOperacoesPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { VeiculosListPage } from '@/features/frota/pages/VeiculosListPage';
 import { VeiculoDetailPage } from '@/features/frota/pages/VeiculoDetailPage';
@@ -24,8 +24,10 @@ import { CentrosCustoPage } from '@/features/financeiro/pages/CentrosCustoPage';
 import { AcoesListPage } from '@/features/operacoes/pages/AcoesListPage';
 import { ProtectedRoute } from './ProtectedRoute';
 
-// Command Center é a Home desde a Sprint 5 — Dashboard sai do índice e vira uma rota
-// analítica separada (ver DEC-024).
+// Command Center foi a Home da Sprint 5 até o Épico 1 (Operação Perfeita) — Dashboard
+// continua fora do índice, rota analítica separada (DEC-024, ainda válida). Centro de
+// Operações ABSORVE a Central de Comando (mesmo useCommandCenter por baixo, ver
+// CentroDeOperacoesPage.tsx) em vez de virar rota nova ao lado — só troca o que é a Home.
 export const router = createBrowserRouter([
   {
     path: '/login',
@@ -42,7 +44,7 @@ export const router = createBrowserRouter([
         path: '/',
         element: <AppLayout />,
         children: [
-          { index: true, element: <CommandCenterPage /> },
+          { index: true, element: <CentroDeOperacoesPage /> },
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'veiculos', element: <VeiculosListPage /> },
           { path: 'veiculos/novo', element: <VeiculoCreatePage /> },

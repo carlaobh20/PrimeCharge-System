@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import { buttonVariants } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -8,9 +8,12 @@ import { useMotoristas } from '../hooks/useMotoristas';
 import { StatusBadge } from '../components/StatusBadge';
 import { MOTORISTA_STATUS_LABEL, type MotoristaStatus } from '../types';
 
+// `?status=` opcional (Épico 1, Centro de Operações) — mesmo raciocínio de VeiculosListPage.
 export function MotoristasListPage() {
+  const [searchParams] = useSearchParams();
+  const statusInicial = (searchParams.get('status') as MotoristaStatus | null) ?? 'todos';
   const [busca, setBusca] = useState('');
-  const [status, setStatus] = useState<MotoristaStatus | 'todos'>('todos');
+  const [status, setStatus] = useState<MotoristaStatus | 'todos'>(statusInicial);
   const { data: motoristas, isLoading, isError } = useMotoristas({ status, busca });
 
   return (

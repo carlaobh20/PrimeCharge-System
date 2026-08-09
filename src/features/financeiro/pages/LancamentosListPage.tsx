@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Select } from '@/shared/components/ui/select';
@@ -19,9 +20,12 @@ import {
 // sprint. Mudança de status acontece direto na linha, via Select, mesma lógica de
 // fn_validar_transicao_lancamento (banco rejeita transição inválida, aqui só restringimos a
 // lista de opções pra não oferecer algo que o banco recusaria).
+// `?status=` opcional (Épico 1, Centro de Operações) — mesmo raciocínio de VeiculosListPage.
 export function LancamentosListPage() {
+  const [searchParams] = useSearchParams();
+  const statusInicial = (searchParams.get('status') as LancamentoStatus | null) ?? 'todos';
   const [tipo, setTipo] = useState<LancamentoTipo | 'todos'>('todos');
-  const [status, setStatus] = useState<LancamentoStatus | 'todos'>('todos');
+  const [status, setStatus] = useState<LancamentoStatus | 'todos'>(statusInicial);
   const [dialogAberto, setDialogAberto] = useState(false);
   const [excluirId, setExcluirId] = useState<string | null>(null);
   const { data: lancamentos, isLoading, isError } = useLancamentos({ tipo, status });

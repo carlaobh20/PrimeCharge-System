@@ -8,7 +8,8 @@ import { gerarAcoesPagamentoAtrasado, gerarAcoesParcelaAVencer } from './gerador
 import { gerarAcoesChecklistAbertoDemorado } from './geradores/checklistGeradores';
 import { gerarAcoesManutencaoAgendadaVencendo } from './geradores/manutencaoGeradores';
 import { gerarAcoesDocumentoVencendo } from './geradores/documentoGeradores';
-import type { AcaoCandidata, Checklist, Manutencao } from '../types';
+import { gerarAcoesMultaVencendo } from './geradores/multaGeradores';
+import type { AcaoCandidata, Checklist, Manutencao, MultaComRelacoes } from '../types';
 
 export type MontarCandidatasInput = {
   motoristas: Motorista[];
@@ -17,14 +18,17 @@ export type MontarCandidatasInput = {
   checklistsAbertos: Checklist[];
   manutencoesAgendadas: Manutencao[];
   arquivosComValidade: Arquivo[];
+  multas: MultaComRelacoes[];
 };
 
 // Função pura (DEC-055) — junta o resultado dos geradores. Missão 4 (Fase 3) estendeu de 3
 // pra 7: os 4 novos fecham achados da auditoria de jornada operacional (checklist/vistoria
 // pendente, manutenção agendada vencendo, documento de veículo vencendo, parcela a vencer —
-// antes só existia "já atrasada"). Cada gerador novo só precisou ser adicionado aqui, sem
-// mexer em nada mais — confirma que este continua sendo o ponto de extensão certo, sem
-// precisar de um "Automation Engine" genérico (DEC-055 segue válida).
+// antes só existia "já atrasada"). Épico 1 (Operação Perfeita) estendeu de 7 pra 8 — Multas
+// era a única fila do mapeamento de 12 filas do Centro de Operações sem gerador nenhum e sem
+// dado faltando (listMultasPorEmpresa já existia). Cada gerador novo só precisou ser
+// adicionado aqui, sem mexer em nada mais — confirma que este continua sendo o ponto de
+// extensão certo, sem precisar de um "Automation Engine" genérico (DEC-055 segue válida).
 export function montarCandidatas(input: MontarCandidatasInput): AcaoCandidata[] {
   return [
     ...gerarAcoesCnhVencendo(input.motoristas),
@@ -34,5 +38,6 @@ export function montarCandidatas(input: MontarCandidatasInput): AcaoCandidata[] 
     ...gerarAcoesChecklistAbertoDemorado(input.checklistsAbertos),
     ...gerarAcoesManutencaoAgendadaVencendo(input.manutencoesAgendadas),
     ...gerarAcoesDocumentoVencendo(input.arquivosComValidade),
+    ...gerarAcoesMultaVencendo(input.multas),
   ];
 }

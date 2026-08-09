@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import { buttonVariants } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -8,9 +8,15 @@ import { useVeiculos } from '../hooks/useVeiculos';
 import { StatusBadge } from '../components/StatusBadge';
 import { VEICULO_STATUS_LABEL, type VeiculoStatus } from '../types';
 
+// `?status=` opcional (Épico 1, Centro de Operações): permite que a fila "Veículos Parados"
+// chegue aqui já filtrada, em vez de cair numa lista genérica que o operador teria que
+// filtrar de novo manualmente — mesmo raciocínio de qualquer card clicável do Command Center
+// (leva direto pro filtro certo, não só pra tela certa).
 export function VeiculosListPage() {
+  const [searchParams] = useSearchParams();
+  const statusInicial = (searchParams.get('status') as VeiculoStatus | null) ?? 'todos';
   const [busca, setBusca] = useState('');
-  const [status, setStatus] = useState<VeiculoStatus | 'todos'>('todos');
+  const [status, setStatus] = useState<VeiculoStatus | 'todos'>(statusInicial);
   const { data: veiculos, isLoading, isError } = useVeiculos({ status, busca });
 
   return (

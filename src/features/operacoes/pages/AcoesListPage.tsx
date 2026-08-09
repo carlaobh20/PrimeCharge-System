@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Select } from '@/shared/components/ui/select';
@@ -12,17 +13,27 @@ import { toast } from '@/shared/components/ui/toast';
 import { useAcoes, useSincronizarAcoes, useUpdateAcaoStatus } from '../hooks/useAcoes';
 import { useChecklistsAbertosPorEmpresa } from '../hooks/useChecklists';
 import { useManutencoesAgendadasPorEmpresa } from '../hooks/useManutencoes';
+import { useMultasPorEmpresa } from '../hooks/useMultas';
 import { AcaoFormDialog } from '../components/AcaoFormDialog';
 import { ACAO_PRIORIDADE_LABEL, ACAO_STATUS_LABEL, ACAO_STATUS_TRANSITIONS, type AcaoStatus } from '../types';
 
 // Fila de trabalho, não Cockpit (mesmo raciocínio de DEC-052 para Financeiro) — lista +
 // Dialog de criação manual + botão de sincronização é a interação completa desta sprint.
+//
+// `?tipo=` opcional (Épico 1, Centro de Operações): cada card de fila (Manutenções,
+// Documentos, Renovações, Cobranças, Multas...) linka pra cá já filtrado pelo `tipo` que o
+// gerador correspondente produz (ex.: 'multa_vencendo'), em vez de despejar o operador numa
+// lista genérica de tudo. Filtro é em memória (não vai pro Supabase) porque `tipo` é string
+// livre por decisão (DEC-055) — client-side é suficiente pro volume desta tabela.
 export function AcoesListPage() {
   const { data: usuario } = useCurrentUsuario();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tipoFiltro = searchParams.get('tipo');
   const [status, setStatus] = useState<AcaoStatus | 'todos'>('pendente');
   const [dialogAberto, setDialogAberto] = useState(false);
 
-  const { data: acoes, isLoading, isError } = useAcoes({ status });
+  const { data: acoesBrutas, isLoading, isError } = useAcoes({ status });
+  const acoes = tipoFiltro ? acoesBrutas?.filter((a) => a.tipo === tipoFiltro) : acoesBrutas;
   const updateStatus = useUpdateAcaoStatus();
   const sincronizar = useSincronizarAcoes();
 
@@ -31,6 +42,8 @@ export function AcoesListPage() {
   const { data: pagamentosPendentes } = usePagamentosPendentesPorEmpresa();
   const { data: checklistsAbertos } = useChecklistsAbertosPorEmpresa();
   const { data: manutencoesAgendadas } = useManutencoesAgendadasPorEmpresa();
+  // Épico 1 (Operação Perfeita) — alimenta o novo gerarAcoesMultaVencendo (multaGeradores.ts).
+  const { data: multas } = useMultasPorEmpresa();
   // Missão 5, Fase 4 (DEC-112): antes só buscava Veículo — o gerador (documentoGeradores.ts)
   // já era agnóstico de entidade, só ninguém alimentava Motorista/Contrato. As 3 chamadas
   // batem cache dedicado por entidade_tipo (mesmo padrão de `useArquivosPorEntidades` do
@@ -51,6 +64,7 @@ export function AcoesListPage() {
         checklistsAbertos: checklistsAbertos ?? [],
         manutencoesAgendadas: manutencoesAgendadas ?? [],
         arquivosComValidade,
+        multas: multas ?? [],
       },
       {
         onSuccess: (resultado) =>
@@ -86,7 +100,7 @@ export function AcoesListPage() {
         </p>
       )}
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <Select value={status} onChange={(e) => setStatus(e.target.value as AcaoStatus | 'todos')} className="max-w-xs">
           <option value="todos">Todos os status</option>
           {Object.entries(ACAO_STATUS_LABEL).map(([value, label]) => (
@@ -95,6 +109,19 @@ export function AcoesListPage() {
             </option>
           ))}
         </Select>
+
+        {tipoFiltro && (
+          <span className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+            Filtrando por: {tipoFiltro}
+            <button
+              type="button"
+              className="text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-200"
+              onClick={() => setSearchParams((prev) => { prev.delete('tipo'); return prev; })}
+            >
+              ×
+            </button>
+          </span>
+        )}
       </div>
 
       <div className="mt-6 overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800">

@@ -6,15 +6,18 @@ import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { GlobalSearchPalette } from '@/features/search/components/GlobalSearchPalette';
 
-// Central de Comando é a Home desde a Sprint 5 (DEC-024) — Dashboard virou uma rota
-// analítica separada, não mais o índice. "Contratos" entra na Sprint 7, entre Motoristas e
-// Dashboard — segue a ordem do funil (Veículo → Motorista → Contrato) em vez de ordem
-// alfabética. Financeiro (Sprint 8) entra em 3 itens planos, não 1 só — não existe um
-// "Cockpit Financeiro" único a linkar (DEC-052), então a navegação reflete isso com
+// Central de Comando foi a Home da Sprint 5 até o Épico 1 (Operação Perfeita, DEC-024 ainda
+// válida pro resto) — renomeada pra Centro de Operações porque a página deixou de ser só
+// leitura (Alertas/Riscos/Oportunidades) e passou a ser a fila de trabalho principal (12
+// filas clicáveis, ver CentroDeOperacoesPage.tsx) — "Central de Comando" media bem uma tela
+// de monitoramento, não uma tela onde se trabalha o dia inteiro. "Contratos" entra na Sprint 7,
+// entre Motoristas e Dashboard — segue a ordem do funil (Veículo → Motorista → Contrato) em
+// vez de ordem alfabética. Financeiro (Sprint 8) entra em 3 itens planos, não 1 só — não
+// existe um "Cockpit Financeiro" único a linkar (DEC-052), então a navegação reflete isso com
 // honestidade em vez de forçar uma rota-índice artificial. Ações Operacionais (Sprint 9)
 // segue o mesmo raciocínio (DEC-054/055) — é fila de trabalho, não Cockpit.
 const NAV_ITEMS = [
-  { to: '/', label: 'Central de Comando', icon: Radar, end: true },
+  { to: '/', label: 'Centro de Operações', icon: Radar, end: true },
   { to: '/veiculos', label: 'Veículos', icon: Car, end: false },
   { to: '/motoristas', label: 'Motoristas', icon: Users, end: false },
   { to: '/contratos', label: 'Contratos', icon: FileSignature, end: false },
