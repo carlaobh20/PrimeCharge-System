@@ -35,7 +35,9 @@ export function EvolucaoDoCaixaChart({ meses }: { meses: MesSimulado[] }) {
             <XAxis dataKey="mes" tickFormatter={(v) => `M${v}`} fontSize={11} />
             <YAxis tickFormatter={(v) => formatMoeda(v)} fontSize={10} width={90} />
             <Tooltip formatter={(v) => formatMoeda(Number(v))} labelFormatter={(v) => `Mês ${v}`} />
-            {menorSaldo < 0 && <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 4" />}
+            {/* Sempre montado (nunca {cond && <.../>}) — ver comentário equivalente no
+                SaldoDevedorPatrimonioChart sobre o erro de reconciliação do Recharts. */}
+            <ReferenceLine y={0} stroke="#ef4444" strokeOpacity={menorSaldo < 0 ? 1 : 0} strokeDasharray="4 4" />
             <Area type="monotone" dataKey="Caixa" stroke="#3b82f6" strokeWidth={2.5} fill="url(#corCaixa)" />
           </AreaChart>
         </ResponsiveContainer>

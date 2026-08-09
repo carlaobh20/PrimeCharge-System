@@ -18,8 +18,10 @@ export function SaldoDevedorPatrimonioChart({ meses }: { meses: MesSimulado[] })
   }));
 
   // Mês exato (não reamostrado) em que o patrimônio líquido vira positivo — honestidade de dado:
-  // se nunca cruza dentro do horizonte simulado, não inventa um ponto, só não desenha o marcador.
+  // se nunca cruza dentro do horizonte simulado, não inventa um ponto, só não desenha o marcador
+  // (ver comentário no ReferenceDot abaixo sobre por que ele fica sempre montado mesmo assim).
   const mesDoCruzamento = meses.find((m, i) => i > 0 && m.patrimonioLiquido >= 0 && meses[i - 1].patrimonioLiquido < 0);
+  const dadosUltimoMes = dados.length > 0 ? dados[dados.length - 1].mes : 0;
 
   return (
     <Card>
@@ -37,15 +39,16 @@ export function SaldoDevedorPatrimonioChart({ meses }: { meses: MesSimulado[] })
             <Line type="monotone" dataKey="Valor do veículo" stroke="#8b5cf6" dot={false} strokeWidth={2} />
             <Line type="monotone" dataKey="Saldo devedor" stroke="#ef4444" dot={false} strokeWidth={2} />
             <Line type="monotone" dataKey="Patrimônio líquido" stroke="#10b981" dot={false} strokeWidth={2.5} />
-            {mesDoCruzamento && (
-              <ReferenceDot
-                x={mesDoCruzamento.mes}
-                y={Math.round(mesDoCruzamento.valorTotalFrota)}
-                r={5}
-                fill="#10b981"
-                stroke="white"
-              />
-            )}
+            {/* Sempre montado (nunca {cond && <.../>}) — incluir/remover filho do LineChart entre
+                renders é o gatilho clássico do Recharts pro erro "insertBefore" no React quando o
+                cenário recalcula em tempo real. Sem cruzamento, só fica com raio 0 (invisível). */}
+            <ReferenceDot
+              x={mesDoCruzamento ? mesDoCruzamento.mes : dadosUltimoMes}
+              y={mesDoCruzamento ? Math.round(mesDoCruzamento.valorTotalFrota) : 0}
+              r={mesDoCruzamento ? 5 : 0}
+              fill="#10b981"
+              stroke="white"
+            />
           </LineChart>
         </ResponsiveContainer>
         {mesDoCruzamento ? (
