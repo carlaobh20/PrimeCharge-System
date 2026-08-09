@@ -3,6 +3,7 @@ import { CapitalAllocationCenter } from '../components/CapitalAllocationCenter';
 import { PoliticasForm } from '../components/PoliticasForm';
 import { MasterPlanForm } from '../components/MasterPlanForm';
 import { GrowthTimeline } from '../components/GrowthTimeline';
+import { RoadmapAutomatico } from '../components/RoadmapAutomatico';
 
 // Épico 2 — Centro de Estratégia, Fase 2 ("Capital Allocation Center", ajuste de escopo
 // pedido pelo Carlos em cima da Fase 1/Foundation). Duas abas nesta fase: o painel principal
@@ -31,6 +32,7 @@ export function CentroDeEstrategiaPage() {
             content: (
               <div className="space-y-6">
                 <MasterPlanForm />
+                <RoadmapAutomatico />
                 <GrowthTimeline />
               </div>
             ),
