@@ -12,9 +12,16 @@ import { SimulacaoEmpresarial } from '../components/SimulacaoEmpresarial';
 // de dado real). As abas com dado real (Planejamento Mestre, Capital Allocation Center,
 // Políticas) continuam existindo, só vêm depois — nada foi apagado, só reordenado. Ver relatório
 // da sessão pra racional completo.
+// max-w-[1680px] mx-auto: sem isso, em monitor ultrawide o conteúdo estica até a borda da tela —
+// os grids de 3 colunas (premissas) e 2 colunas (gráficos) criam colunas enormes com pouco
+// conteúdo dentro, rótulo bem à esquerda e campo bem à direita, parecendo "distorcido" (foi
+// exatamente isso que o Carlos viu, 2026-08-09 — não era bug de overflow, era falta de teto de
+// largura). Só essa página tem esse teto por enquanto — se outras telas também ficarem
+// espalhadas demais em monitor largo, isso deveria subir pro layout compartilhado (AppShell),
+// não ser repetido página por página.
 export function CentroDeEstrategiaPage() {
   return (
-    <div className="space-y-6 p-6">
+    <div className="mx-auto max-w-[1680px] space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Centro de Estratégia</h1>
         <p className="mt-1 text-sm text-neutral-500">
