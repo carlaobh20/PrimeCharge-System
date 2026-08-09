@@ -55,6 +55,11 @@ const GRUPOS: Grupo[] = [
 // "não em formulário vertical"). Cada alteração dispara onChange imediatamente — quem chama
 // decide o que fazer com isso (recalcular na hora + autosave debounced), não existe conceito de
 // "submit" aqui.
+//
+// Layout mudou de coluna estreita (30% à esquerda) pra faixa larga no topo (pedido do Carlos,
+// 2026-08-09: "premissas primeiro pra preencher, gráficos abaixo") — por isso os grupos viraram
+// um grid responsivo (2-3 colunas em telas largas) em vez de empilhados verticalmente, senão a
+// faixa larga ficaria com bastante espaço vazio à direita de cada card.
 export function PainelDePremissas({
   valor,
   onChange,
@@ -63,7 +68,7 @@ export function PainelDePremissas({
   onChange: (patch: Partial<CenarioSimulacaoInput>) => void;
 }) {
   return (
-    <div className="min-w-0 space-y-3">
+    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {GRUPOS.map((grupo) => (
         <Card key={grupo.titulo}>
           <CardContent className="py-3">

@@ -10,6 +10,7 @@ import { LinhaDoTempo } from './LinhaDoTempo';
 import { EvolucaoDoCaixaChart } from './EvolucaoDoCaixaChart';
 import { EvolucaoPatrimonioCard } from './EvolucaoPatrimonioCard';
 import { MomentoIdealDeCompraCard } from './MomentoIdealDeCompraCard';
+import { FluxoDetalhadoTable } from './FluxoDetalhadoTable';
 import { useCenarios, useCriarCenario, useAtualizarCenario } from '../hooks/useSimulacao';
 import { usePoliticasEstrategicas } from '../hooks/usePoliticas';
 import { useSimulacaoResultado } from '../hooks/useSimulacaoResultado';
@@ -112,15 +113,15 @@ export function SimulacaoEmpresarial() {
 
   if (!inicializado || carregandoCenarios) {
     return (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_7fr]">
-        <div className="h-96 cockpit-shimmer rounded-2xl" />
+      <div className="space-y-4">
+        <div className="h-64 cockpit-shimmer rounded-2xl" />
         <div className="h-96 cockpit-shimmer rounded-2xl" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-end gap-1.5 text-xs text-neutral-400">
         {status === 'salvando' ? (
           <>
@@ -133,27 +134,28 @@ export function SimulacaoEmpresarial() {
         ) : null}
       </div>
 
-      {/* min-w-0 nos dois filhos do grid: sem isso, um filho com conteúdo intrínseco largo
-          (gráfico Recharts, linha do tempo horizontal) estoura a coluna e empurra a PÁGINA
-          inteira pro lado — o item de grid tem min-width:auto por padrão, não respeita o `fr`
-          sozinho. Foi isso que causou o "gráfico distorcido / rolando pro lado". */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_7fr]">
-        <PainelDePremissas valor={input} onChange={atualizarCampo} />
+      {/* Layout mudou de "30% premissas à esquerda / 70% resultado à direita" pra "premissas em
+          faixa larga no topo, resultado embaixo" (pedido do Carlos, 2026-08-09) — preenche as
+          premissas primeiro, os gráficos vêm depois, sem coluna estreita competindo por espaço. */}
+      <PainelDePremissas valor={input} onChange={atualizarCampo} />
 
-        <div className="min-w-0 space-y-4">
-          {mesAtual && <VisaoExecutivaCard mesAtual={mesAtual} alavancagemMaximaPct={politicas?.alavancagem_maxima_pct ?? null} />}
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {resultado && <FluxoDeCaixaChart meses={resultado.meses} />}
-            {resultado && <SaldoDevedorPatrimonioChart meses={resultado.meses} />}
-          </div>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <AmortizacaoCard valor={input} onChange={atualizarCampo} mesAtual={mesAtual} />
-            {resultado && <EvolucaoDoCaixaChart meses={resultado.meses} />}
-          </div>
-          {resultado && <EvolucaoPatrimonioCard meses={resultado.meses} />}
-          {momentoDeCompra && <MomentoIdealDeCompraCard comparacao={momentoDeCompra} />}
-          {resultado && <LinhaDoTempo meses={resultado.meses} />}
+      <div className="min-w-0 space-y-4">
+        {mesAtual && <VisaoExecutivaCard mesAtual={mesAtual} alavancagemMaximaPct={politicas?.alavancagem_maxima_pct ?? null} />}
+        {/* Fluxo Detalhado (tabela ano a ano) vem antes do gráfico de Fluxo de Caixa — pedido
+            explícito do Carlos: quem quer o número exato lê a tabela, quem quer a tendência olha
+            o gráfico logo abaixo. */}
+        {resultado && <FluxoDetalhadoTable meses={resultado.meses} />}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {resultado && <FluxoDeCaixaChart meses={resultado.meses} />}
+          {resultado && <SaldoDevedorPatrimonioChart meses={resultado.meses} />}
         </div>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <AmortizacaoCard valor={input} onChange={atualizarCampo} mesAtual={mesAtual} />
+          {resultado && <EvolucaoDoCaixaChart meses={resultado.meses} />}
+        </div>
+        {resultado && <EvolucaoPatrimonioCard meses={resultado.meses} />}
+        {momentoDeCompra && <MomentoIdealDeCompraCard comparacao={momentoDeCompra} />}
+        {resultado && <LinhaDoTempo meses={resultado.meses} />}
       </div>
     </div>
   );

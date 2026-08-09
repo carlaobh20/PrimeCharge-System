@@ -44,6 +44,8 @@ export type MesSimulado = {
   amortizacaoExtraMensal: number;
   /** Soma de toda amortização extraordinária desde o mês 0 — o que a estratégia escolhida já tirou de dívida além do cronograma padrão. */
   amortizacaoExtraAcumulada: number;
+  /** Parte da parcela normal (Price) que é amortização de principal, não juros — soma de todos os veículos financiados neste mês. Usado no Fluxo Detalhado (Card "ano a ano"). */
+  amortizacaoProgramadaMensal: number;
   valorDaEmpresa: number;
   roiAcumuladoPct: number | null;
 };
@@ -156,6 +158,7 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
 
   for (let mes = 0; mes <= cenario.prazo_desejado_meses; mes++) {
     let parcelasDoMes = 0;
+    let amortizacaoProgramadaDoMes = 0;
     for (const v of veiculos) {
       if (v.saldoDevedor <= 0) continue;
       const juros = v.saldoDevedor * (cenario.taxa_juros_am_pct / 100);
@@ -163,6 +166,7 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       const parcelaCobrada = Math.min(v.parcela, v.saldoDevedor + juros);
       v.saldoDevedor = Math.max(0, v.saldoDevedor - amortizacaoDaParcela);
       parcelasDoMes += parcelaCobrada;
+      amortizacaoProgramadaDoMes += amortizacaoDaParcela;
     }
 
     const frota = veiculos.length;
@@ -236,6 +240,7 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       fluxoLivreMensal,
       amortizacaoExtraMensal,
       amortizacaoExtraAcumulada,
+      amortizacaoProgramadaMensal: amortizacaoProgramadaDoMes,
       valorDaEmpresa: caixaDisponivel + patrimonioLiquido,
       roiAcumuladoPct,
     });
