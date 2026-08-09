@@ -9,7 +9,7 @@ import { calcularPrioridade } from './priorityEngine';
 // alerta crítico é sempre impacto alto + urgência alta (crítica); os demais (hoje só
 // "atencao") são impacto/urgência médios.
 export function consolidarAlertas(entidades: EntityIntelligenceSnapshot[]): PrioritizedAlerta[] {
-  return entidades.flatMap(({ origemTipo, origemId, origemLabel, alertas }) =>
+  return entidades.flatMap(({ origemTipo, origemId, origemLabel, hrefBase, alertas }) =>
     alertas.map((alerta) => {
       const impacto = alerta.severidade === 'critico' ? 'alto' : 'medio';
       const urgencia = alerta.severidade === 'critico' ? 'alta' : 'media';
@@ -22,6 +22,7 @@ export function consolidarAlertas(entidades: EntityIntelligenceSnapshot[]): Prio
         origem: origemTipo,
         origemId,
         origemLabel,
+        href: hrefBase,
       } satisfies PrioritizedAlerta;
     })
   );

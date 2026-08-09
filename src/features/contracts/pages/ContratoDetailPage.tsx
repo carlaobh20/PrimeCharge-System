@@ -17,7 +17,6 @@ import { ContratoCommandActions } from '../components/ContratoCommandActions';
 import { DadosGeraisTab } from '../components/tabs/DadosGeraisTab';
 import { ArquivosTab } from '../components/tabs/ArquivosTab';
 import { IndicadoresTab } from '../components/tabs/IndicadoresTab';
-import { EventosTab } from '../components/tabs/EventosTab';
 import { ConfiguracoesTab } from '../components/tabs/ConfiguracoesTab';
 
 import { AlterarStatusDialog } from '../components/dialogs/AlterarStatusDialog';
@@ -272,7 +271,6 @@ export function ContratoDetailPage() {
                 label: 'Indicadores',
                 content: <IndicadoresTab resultado={intelligence} contratoId={contrato.id} onAction={handleAction} />,
               },
-              { value: 'eventos', label: 'Eventos', content: <EventosTab onAction={handleAction} /> },
               {
                 value: 'historico',
                 label: 'Histórico',

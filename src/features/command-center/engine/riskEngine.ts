@@ -5,7 +5,7 @@ import { calcularPrioridade } from './priorityEngine';
 // 100% genérica, mora em shared/intelligence/risks.ts). Só consolida e prioriza. Desde a
 // Sprint 7 (DEC-038), formato genérico — ver alertEngine.ts.
 export function consolidarRiscos(entidades: EntityIntelligenceSnapshot[]): PrioritizedRisk[] {
-  return entidades.flatMap(({ origemTipo, origemId, origemLabel, riscos }) =>
+  return entidades.flatMap(({ origemTipo, origemId, origemLabel, hrefBase, riscos }) =>
     riscos.map((risco) => {
       const impacto = 'alto';
       const urgencia = 'alta';
@@ -18,6 +18,7 @@ export function consolidarRiscos(entidades: EntityIntelligenceSnapshot[]): Prior
         origem: origemTipo,
         origemId,
         origemLabel,
+        href: hrefBase,
       } satisfies PrioritizedRisk;
     })
   );

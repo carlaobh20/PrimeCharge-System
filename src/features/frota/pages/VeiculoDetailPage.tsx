@@ -20,7 +20,6 @@ import { DadosGeraisTab } from '../components/tabs/DadosGeraisTab';
 import { ArquivosTab } from '../components/tabs/ArquivosTab';
 import { FinanceiroTab } from '../components/tabs/FinanceiroTab';
 import { IndicadoresTab } from '../components/tabs/IndicadoresTab';
-import { EventosTab } from '../components/tabs/EventosTab';
 import { ConfiguracoesTab } from '../components/tabs/ConfiguracoesTab';
 
 import { AdicionarDocumentoDialog } from '../components/dialogs/AdicionarDocumentoDialog';
@@ -233,7 +232,6 @@ export function VeiculoDetailPage() {
                 label: 'Indicadores',
                 content: <IndicadoresTab resultado={intelligence} veiculoId={veiculo.id} onAction={handleAction} />,
               },
-              { value: 'eventos', label: 'Eventos', content: <EventosTab onAction={handleAction} /> },
               {
                 value: 'historico',
                 label: 'Histórico',

@@ -21,7 +21,7 @@ export function InsightsWidget({ insights }: { insights: PrioritizedInsight[] })
         <ul className="mt-3 space-y-2">
           {insights.map((insight) => (
             <li key={insight.id}>
-              <InsightCard insight={insight} />
+              <InsightCard insight={insight} href={insight.href} />
               <span className="mt-0.5 block text-[11px] text-neutral-400">{insight.origemLabel}</span>
             </li>
           ))}

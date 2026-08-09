@@ -18,7 +18,7 @@ export function AlertasWidget({ alertas }: { alertas: PrioritizedAlerta[] }) {
         <ul className="mt-3 space-y-1.5">
           {alertas.map((alerta) => (
             <li key={alerta.id}>
-              <AlertCard alerta={alerta} />
+              <AlertCard alerta={alerta} href={alerta.href} />
               <span className="mt-0.5 block text-[11px] text-neutral-400">{alerta.origemLabel}</span>
             </li>
           ))}

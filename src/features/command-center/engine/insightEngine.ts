@@ -6,7 +6,7 @@ import { calcularPrioridade } from './priorityEngine';
 // urgência baixos — exceto quando a própria severidade já é "atencao" (ex.: desvalorização),
 // que sobe um degrau. Desde a Sprint 7 (DEC-038), formato genérico — ver alertEngine.ts.
 export function consolidarInsights(entidades: EntityIntelligenceSnapshot[]): PrioritizedInsight[] {
-  return entidades.flatMap(({ origemTipo, origemId, origemLabel, insights }) =>
+  return entidades.flatMap(({ origemTipo, origemId, origemLabel, hrefBase, insights }) =>
     insights.map((insight) => {
       const impacto = insight.severidade === 'atencao' ? 'medio' : 'baixo';
       const urgencia = 'baixa';
@@ -19,6 +19,7 @@ export function consolidarInsights(entidades: EntityIntelligenceSnapshot[]): Pri
         origem: origemTipo,
         origemId,
         origemLabel,
+        href: hrefBase,
       } satisfies PrioritizedInsight;
     })
   );
