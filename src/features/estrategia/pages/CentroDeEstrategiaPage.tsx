@@ -2,6 +2,7 @@ import { Tabs } from '@/shared/components/ui/tabs';
 import { CapitalAllocationCenter } from '../components/CapitalAllocationCenter';
 import { PoliticasForm } from '../components/PoliticasForm';
 import { MasterPlanForm } from '../components/MasterPlanForm';
+import { GrowthTimeline } from '../components/GrowthTimeline';
 
 // Épico 2 — Centro de Estratégia, Fase 2 ("Capital Allocation Center", ajuste de escopo
 // pedido pelo Carlos em cima da Fase 1/Foundation). Duas abas nesta fase: o painel principal
@@ -24,7 +25,16 @@ export function CentroDeEstrategiaPage() {
       <Tabs
         defaultValue="master-plan"
         items={[
-          { value: 'master-plan', label: 'Planejamento Mestre', content: <MasterPlanForm /> },
+          {
+            value: 'master-plan',
+            label: 'Planejamento Mestre',
+            content: (
+              <div className="space-y-6">
+                <MasterPlanForm />
+                <GrowthTimeline />
+              </div>
+            ),
+          },
           { value: 'capital', label: 'Capital Allocation Center', content: <CapitalAllocationCenter /> },
           { value: 'politicas', label: 'Políticas', content: <PoliticasForm /> },
         ]}

@@ -11,11 +11,17 @@ export type RankingVeiculo = {
   lucroConfirmado: number;
   roiPercentual: number;
   paybackMeses: number | null;
+  /** Meses de operação desde a data de compra (mínimo 1). Base para as taxas mensais abaixo — usada pela Timeline de Crescimento (Épico 3, Missão 1) para não recalcular a mesma conta em outro lugar. */
+  mesesDeOperacao: number;
+  receitaConfirmada: number;
+  despesaConfirmada: number;
 };
 
 export type ResumoCapitalAlocado = {
   capitalInvestidoContabilizado: number;
   veiculosSemValorCompra: number;
+  /** Quantos veículos entraram na soma de `capitalInvestidoContabilizado` (valor_compra conhecido) — denominador correto pra tirar uma média por veículo. */
+  veiculosComValorCompra: number;
   lucroConfirmadoFrota: number;
   roiFrotaPercentual: number | null;
   /** Ordenado do maior ROI pro menor — só entram veículos com valor_compra conhecido (ROI real, não estimado). */
@@ -37,6 +43,7 @@ export function calcularCapitalAlocado(
 ): ResumoCapitalAlocado {
   let capitalInvestidoContabilizado = 0;
   let veiculosSemValorCompra = 0;
+  let veiculosComValorCompra = 0;
   let lucroConfirmadoFrota = 0;
   const rankingPorRoi: RankingVeiculo[] = [];
 
@@ -61,6 +68,7 @@ export function calcularCapitalAlocado(
       continue;
     }
     capitalInvestidoContabilizado += valorInvestido;
+    veiculosComValorCompra += 1;
 
     const roi = calcularRoi(resumo.lucroConfirmado, valorInvestido);
     if (roi.roiPercentual === null) continue;
@@ -75,6 +83,9 @@ export function calcularCapitalAlocado(
       lucroConfirmado: resumo.lucroConfirmado,
       roiPercentual: roi.roiPercentual,
       paybackMeses: payback.meses,
+      mesesDeOperacao,
+      receitaConfirmada: resumo.receitaConfirmada,
+      despesaConfirmada: resumo.despesaConfirmada,
     });
   }
 
@@ -85,6 +96,7 @@ export function calcularCapitalAlocado(
   return {
     capitalInvestidoContabilizado,
     veiculosSemValorCompra,
+    veiculosComValorCompra,
     lucroConfirmadoFrota,
     roiFrotaPercentual: roiFrota.roiPercentual,
     rankingPorRoi,
