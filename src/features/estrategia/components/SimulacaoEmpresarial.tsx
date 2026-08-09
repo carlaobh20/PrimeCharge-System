@@ -5,12 +5,15 @@ import { PainelDePremissas } from './PainelDePremissas';
 import { VisaoExecutivaCard } from './VisaoExecutivaCard';
 import { FluxoDeCaixaChart } from './FluxoDeCaixaChart';
 import { SaldoDevedorPatrimonioChart } from './SaldoDevedorPatrimonioChart';
+import { AmortizacaoCard } from './AmortizacaoCard';
 import { LinhaDoTempo } from './LinhaDoTempo';
 import { EvolucaoDoCaixaChart } from './EvolucaoDoCaixaChart';
 import { EvolucaoPatrimonioCard } from './EvolucaoPatrimonioCard';
+import { MomentoIdealDeCompraCard } from './MomentoIdealDeCompraCard';
 import { useCenarios, useCriarCenario, useAtualizarCenario } from '../hooks/useSimulacao';
 import { usePoliticasEstrategicas } from '../hooks/usePoliticas';
 import { useSimulacaoResultado } from '../hooks/useSimulacaoResultado';
+import { useMomentoDeCompra } from '../hooks/useMomentoDeCompra';
 import type { CenarioSimulacaoInput } from '../types';
 
 const CENARIO_PADRAO: CenarioSimulacaoInput = {
@@ -45,11 +48,14 @@ function extrairInput(c: Record<string, unknown>): CenarioSimulacaoInput {
 
 // Épico 3 — Central de Decisão Empresarial (reconstrução completa, 2026-08-09). Fase 1: motor v2
 // (saldo devedor/depreciação/patrimônio por veículo) + premissas em cards + Card 1 (Visão
-// Executiva) + Card 2 (Fluxo de Caixa). Fase 2 (mesmo dia): Card 3 (Saldo Devedor×Patrimônio),
-// Card 5 (Linha do Tempo), Card 6 (Evolução do Caixa), Card 7 (Evolução do Patrimônio) — todos
-// consumindo o mesmo `resultado.meses`, sem tocar no motor. Sem botão "Simular" — cada alteração
-// recalcula na hora (useSimulacaoResultado é só matemática local) e salva sozinha no banco alguns
-// segundos depois de parar de digitar (autosave debounced, não a cada tecla).
+// Executiva) + Card 2 (Fluxo de Caixa). Fase 2: Card 3 (Saldo Devedor×Patrimônio), Card 5 (Linha
+// do Tempo), Card 6 (Evolução do Caixa), Card 7 (Evolução do Patrimônio). Fase 3 (mesmo dia):
+// Card 4 (Amortização — motor passou a agir sobre amortizacao_estrategia) e Card 10 (Momento
+// Ideal de Compra — motor isolado em intelligence/momentoDeCompra.ts, não reaproveita o motor
+// principal porque a pergunta é outra: "comprar o próximo agora ou esperar", não "crescer até o
+// objetivo"). Sem botão "Simular" — cada alteração recalcula na hora (tudo useMemo local) e salva
+// sozinha no banco alguns segundos depois de parar de digitar (autosave debounced, não a cada
+// tecla).
 export function SimulacaoEmpresarial() {
   const { data: usuario } = useCurrentUsuario();
   const { data: cenarios, isLoading: carregandoCenarios } = useCenarios();
@@ -97,6 +103,7 @@ export function SimulacaoEmpresarial() {
   }, [input, inicializado]);
 
   const resultado = useSimulacaoResultado(inicializado ? input : null);
+  const momentoDeCompra = useMomentoDeCompra(inicializado ? input : null);
   const mesAtual = resultado?.meses[0];
 
   function atualizarCampo(patch: Partial<CenarioSimulacaoInput>) {
@@ -133,8 +140,10 @@ export function SimulacaoEmpresarial() {
           {mesAtual && <VisaoExecutivaCard mesAtual={mesAtual} alavancagemMaximaPct={politicas?.alavancagem_maxima_pct ?? null} />}
           {resultado && <FluxoDeCaixaChart meses={resultado.meses} />}
           {resultado && <SaldoDevedorPatrimonioChart meses={resultado.meses} />}
+          <AmortizacaoCard valor={input} onChange={atualizarCampo} mesAtual={mesAtual} />
           {resultado && <EvolucaoDoCaixaChart meses={resultado.meses} />}
           {resultado && <EvolucaoPatrimonioCard meses={resultado.meses} />}
+          {momentoDeCompra && <MomentoIdealDeCompraCard comparacao={momentoDeCompra} />}
           {resultado && <LinhaDoTempo meses={resultado.meses} />}
         </div>
       </div>
