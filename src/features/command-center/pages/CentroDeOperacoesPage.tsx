@@ -1,3 +1,4 @@
+import { extrairMensagemDeErro } from '@/shared/lib/errors';
 import { useCommandCenter } from '../hooks/useCommandCenter';
 import { useFilasDeTrabalho, type FilaDeTrabalho } from '../hooks/useFilasDeTrabalho';
 import { FilasDeTrabalhoWidget } from '../widgets/FilasDeTrabalhoWidget';
@@ -51,7 +52,7 @@ export function CentroDeOperacoesPage() {
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           Não consegui carregar o Centro de Operações.
           <br />
-          Detalhe técnico: {erro instanceof Error ? erro.message : String(erro)}
+          Detalhe técnico: {extrairMensagemDeErro(erro)}
         </div>
       </div>
     );
