@@ -36,3 +36,10 @@ export { calcularSaudePatrimonial } from './categories/patrimonial';
 // risco através deste barril.
 export { gerarRiscos } from '@/shared/intelligence/risks';
 export type { RisksInput } from '@/shared/intelligence/risks';
+
+// calcularCustoPorKm/calcularPaybackMeses (Missão 3, investmentSimulator.ts) só tinham
+// consumidor dentro da própria feature (FinanceiroTab do Cockpit de Veículo) até o Épico 2 —
+// reexportados aqui agora que o Centro de Estratégia (outra feature) precisa deles em loop
+// por veículo, mesma exceção DEC-024 de sempre: through the barril, nunca direto no arquivo.
+export { calcularCustoPorKm, calcularPaybackMeses } from './investmentSimulator';
+export type { CustoPorKmResult, PaybackResult } from './investmentSimulator';

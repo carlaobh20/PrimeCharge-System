@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { extrairMensagemDeErro } from './errors';
+import { extrairMensagemTecnicaDeErro } from './errors';
 
 export type ErroContexto = Record<string, unknown>;
 
@@ -15,7 +15,7 @@ export type ErroContexto = Record<string, unknown>;
 // migration 0005) e o erro cai no console como última linha de defesa.
 export async function capturarErro(erro: unknown, contexto?: ErroContexto): Promise<void> {
   try {
-    const mensagem = extrairMensagemDeErro(erro);
+    const mensagem = extrairMensagemTecnicaDeErro(erro);
     const stack = erro instanceof Error ? (erro.stack ?? null) : null;
 
     const { data: authData } = await supabase.auth.getUser();
