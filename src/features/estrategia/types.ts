@@ -5,9 +5,42 @@
 // para Centro de Operações/Motor de Recomendações/Automações lerem no futuro, sem precisar de
 // uma segunda tabela. `outras_politicas` é a válvula de escape — qualquer política que ainda
 // não tem coluna própria mora ali, `chave -> number`.
+export const LINHAS_DE_NEGOCIO_FUTURAS = [
+  'lojinha',
+  'wallbox',
+  'acessorios',
+  'seguros',
+  'software',
+  'marketplace',
+  'franquia',
+  'investidores',
+  'novas_cidades',
+] as const;
+
+export type LinhaDeNegocioFutura = (typeof LINHAS_DE_NEGOCIO_FUTURAS)[number];
+
+export const LABEL_LINHA_DE_NEGOCIO: Record<LinhaDeNegocioFutura, string> = {
+  lojinha: 'Lojinha',
+  wallbox: 'Vender Wallbox',
+  acessorios: 'Vender acessórios',
+  seguros: 'Vender seguros',
+  software: 'Vender software',
+  marketplace: 'Marketplace',
+  franquia: 'Franquear a operação',
+  investidores: 'Captar investidores',
+  novas_cidades: 'Abrir em novas cidades',
+};
+
 export type PoliticasEmpresa = {
   id: string;
   empresa_id: string;
+
+  // Épico 3, Missão 1 (Master Plan) — Missão/Visão em texto livre e as frentes de negócio
+  // futuras que o proprietário está considerando (checklist, vocabulário fechado — ver
+  // migration 0015). Nenhum campo obrigatório: "ainda não defini" é um estado real (DEC-022).
+  missao: string | null;
+  visao: string | null;
+  linhas_de_negocio_futuras: LinhaDeNegocioFutura[];
 
   roi_minimo_pct: number | null;
   payback_maximo_meses: number | null;
@@ -69,4 +102,8 @@ export const LABEL_POLITICA: Record<CampoPoliticaTipado, string> = {
   meta_crescimento_anual_pct: 'Meta de crescimento anual (%)',
 };
 
-export type PoliticasEmpresaInput = Partial<Record<CampoPoliticaTipado, number | null>>;
+export type PoliticasEmpresaInput = Partial<Record<CampoPoliticaTipado, number | null>> & {
+  missao?: string | null;
+  visao?: string | null;
+  linhas_de_negocio_futuras?: LinhaDeNegocioFutura[];
+};
