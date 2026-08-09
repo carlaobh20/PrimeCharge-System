@@ -58,8 +58,19 @@ const GRUPOS: Grupo[] = [
 //
 // Layout mudou de coluna estreita (30% à esquerda) pra faixa larga no topo (pedido do Carlos,
 // 2026-08-09: "premissas primeiro pra preencher, gráficos abaixo") — por isso os grupos viraram
-// um grid responsivo (2-3 colunas em telas largas) em vez de empilhados verticalmente, senão a
-// faixa larga ficaria com bastante espaço vazio à direita de cada card.
+// vários cards lado a lado em vez de empilhados verticalmente, senão a faixa larga ficaria com
+// bastante espaço vazio à direita de cada card.
+//
+// grid-cols-3 + items-start (tentativa anterior, mesmo dia) resolvia o card esticar, mas criava
+// um problema novo que o Carlos chamou de "buracos": em CSS Grid a ALTURA DA LINHA é sempre a do
+// maior card daquela linha, então um card curto ("Capital", 1 campo) ficava numa célula alta
+// (porque "Compra", vizinho de linha, tem 5 campos) e, mesmo sem esticar, deixava um vão vazio
+// embaixo dele até o fim da célula — não tem como resolver isso com grid comum, é inerente ao
+// jeito que grid distribui altura por linha.
+// Troquei pra CSS multi-column (`columns-*`, o mesmo mecanismo de "jornal em colunas") — aqui
+// cada card ocupa só a própria altura e o PRÓXIMO card da mesma coluna começa logo em seguida,
+// sem esperar a linha toda "fechar". `break-inside-avoid` evita que o conteúdo de um card seja
+// cortado ao meio entre duas colunas.
 export function PainelDePremissas({
   valor,
   onChange,
@@ -68,12 +79,9 @@ export function PainelDePremissas({
   onChange: (patch: Partial<CenarioSimulacaoInput>) => void;
 }) {
   return (
-    // items-start: sem isso, o CSS Grid estica todo card da mesma linha pro tamanho do maior
-    // vizinho — "Capital" (1 campo) ficava do tamanho de "Custos" (7 campos), um card gigante
-    // com espaço vazio. Com items-start cada card só ocupa a própria altura natural.
-    <div className="grid min-w-0 items-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="min-w-0 columns-1 gap-3 sm:columns-2 lg:columns-3">
       {GRUPOS.map((grupo) => (
-        <Card key={grupo.titulo}>
+        <Card key={grupo.titulo} className="mb-3 break-inside-avoid">
           <CardContent className="py-2.5">
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{grupo.titulo}</p>
             <div className="space-y-1.5">
@@ -101,7 +109,7 @@ export function PainelDePremissas({
         </Card>
       ))}
 
-      <Card>
+      <Card className="mb-3 break-inside-avoid">
         <CardContent className="py-2.5">
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Reinvestimento</p>
           <div className="flex items-center justify-between">
