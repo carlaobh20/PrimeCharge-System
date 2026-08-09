@@ -81,33 +81,62 @@ const JANELA_MULTA_DIAS = 15;
 const JANELA_COBRANCA_A_VENCER_DIAS = 5;
 
 export function useFilasDeTrabalho() {
-  const { data: motoristas } = useMotoristas();
-  const { data: contratos } = useContratos();
-  const { data: veiculos } = useVeiculos();
-  const { data: pagamentosPendentes } = usePagamentosPendentesPorEmpresa();
-  const { data: lancamentos } = useLancamentosPorEmpresa();
-  const { data: checklistsAbertos } = useChecklistsAbertosPorEmpresa();
-  const { data: manutencoesAgendadas } = useManutencoesAgendadasPorEmpresa();
-  const { data: multas } = useMultasPorEmpresa();
-  const { data: arquivosVeiculo } = useArquivosComValidadePorEntidadeTipo('veiculo');
-  const { data: arquivosMotorista } = useArquivosComValidadePorEntidadeTipo('motorista');
-  const { data: arquivosContrato } = useArquivosComValidadePorEntidadeTipo('contrato');
+  const qMotoristas = useMotoristas();
+  const qContratos = useContratos();
+  const qVeiculos = useVeiculos();
+  const qPagamentosPendentes = usePagamentosPendentesPorEmpresa();
+  const qLancamentos = useLancamentosPorEmpresa();
+  const qChecklistsAbertos = useChecklistsAbertosPorEmpresa();
+  const qManutencoesAgendadas = useManutencoesAgendadasPorEmpresa();
+  const qMultas = useMultasPorEmpresa();
+  const qArquivosVeiculo = useArquivosComValidadePorEntidadeTipo('veiculo');
+  const qArquivosMotorista = useArquivosComValidadePorEntidadeTipo('motorista');
+  const qArquivosContrato = useArquivosComValidadePorEntidadeTipo('contrato');
 
-  const isLoading =
-    !motoristas ||
-    !contratos ||
-    !veiculos ||
-    !pagamentosPendentes ||
-    !lancamentos ||
-    !checklistsAbertos ||
-    !manutencoesAgendadas ||
-    !multas ||
-    !arquivosVeiculo ||
-    !arquivosMotorista ||
-    !arquivosContrato;
+  const queries = [
+    qMotoristas,
+    qContratos,
+    qVeiculos,
+    qPagamentosPendentes,
+    qLancamentos,
+    qChecklistsAbertos,
+    qManutencoesAgendadas,
+    qMultas,
+    qArquivosVeiculo,
+    qArquivosMotorista,
+    qArquivosContrato,
+  ];
 
-  return useMemo((): { isLoading: true } | { isLoading: false; filas: FilaDeTrabalho[] } => {
-    if (isLoading) return { isLoading: true };
+  // Achado (2026-08-09, primeira validação real no navegador): a versão anterior usava
+  // `!data` como proxy de "carregando" — funciona enquanto tudo dá certo, mas se QUALQUER
+  // uma das 11 consultas falhar (RLS, coluna faltando, rede), `data` fica `undefined` PRA
+  // SEMPRE e a Home trava no esqueleto de carregamento sem nenhum aviso, igual ao que o
+  // Carlos viu. Corrigido pra usar o estado real do React Query (`isLoading`/`isError`) — se
+  // alguma consulta falhar, a página mostra erro em vez de ficar girando pra sempre.
+  const isLoading = queries.some((q) => q.isLoading);
+  const queryComErro = queries.find((q) => q.isError);
+
+  const motoristas = qMotoristas.data;
+  const contratos = qContratos.data;
+  const veiculos = qVeiculos.data;
+  const pagamentosPendentes = qPagamentosPendentes.data;
+  const lancamentos = qLancamentos.data;
+  const checklistsAbertos = qChecklistsAbertos.data;
+  const manutencoesAgendadas = qManutencoesAgendadas.data;
+  const multas = qMultas.data;
+  const arquivosVeiculo = qArquivosVeiculo.data;
+  const arquivosMotorista = qArquivosMotorista.data;
+  const arquivosContrato = qArquivosContrato.data;
+
+  return useMemo((): (
+    | { isLoading: true; isError: false }
+    | { isLoading: false; isError: true; error: unknown }
+    | { isLoading: false; isError: false; filas: FilaDeTrabalho[] }
+  ) => {
+    if (isLoading) return { isLoading: true, isError: false };
+    if (queryComErro || !motoristas || !contratos || !veiculos || !pagamentosPendentes || !lancamentos || !checklistsAbertos || !manutencoesAgendadas || !multas || !arquivosVeiculo || !arquivosMotorista || !arquivosContrato) {
+      return { isLoading: false, isError: true, error: queryComErro?.error };
+    }
 
     const arquivosComValidade = [...arquivosVeiculo, ...arquivosMotorista, ...arquivosContrato];
 
@@ -268,9 +297,10 @@ export function useFilasDeTrabalho() {
       },
     ];
 
-    return { isLoading: false, filas };
+    return { isLoading: false, isError: false, filas };
   }, [
     isLoading,
+    queryComErro,
     motoristas,
     contratos,
     veiculos,

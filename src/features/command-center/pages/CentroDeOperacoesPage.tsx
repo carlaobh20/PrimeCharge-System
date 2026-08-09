@@ -40,6 +40,23 @@ export function CentroDeOperacoesPage() {
 
   if (resultado.isLoading || filasResultado.isLoading) return <CentroDeOperacoesSkeleton />;
 
+  // Achado de campo (2026-08-09): antes desta checagem, um erro em qualquer uma das
+  // consultas de useFilasDeTrabalho deixava a Home travada no esqueleto de carregamento pra
+  // sempre, sem nenhum aviso — ver comentário em useFilasDeTrabalho.ts. Mostrar o erro é
+  // melhor que uma tela em branco, mesmo sem um design bonito pra isso ainda.
+  if (filasResultado.isError || resultado.isError) {
+    const erro = filasResultado.isError ? filasResultado.error : resultado.isError ? resultado.error : null;
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+          Não consegui carregar o Centro de Operações.
+          <br />
+          Detalhe técnico: {erro instanceof Error ? erro.message : String(erro)}
+        </div>
+      </div>
+    );
+  }
+
   const { alertas, insights, acoes, oportunidades, riscos, resumoFrota, prioridadesDoDia } = resultado;
 
   const prioridadeAlertas: FilaDeTrabalho['prioridade'] =

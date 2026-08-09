@@ -116,9 +116,12 @@ export function useEmpresaHealth(): EmpresaHealthResult {
       valorPendenteAtrasado: pendentesAtrasados.reduce((soma, p) => soma + p.valor, 0),
     },
     frota: {
-      total: commandCenter.isLoading ? 0 : commandCenter.resumoFrota.totalVeiculos,
-      healthMedio: commandCenter.isLoading ? null : commandCenter.resumoFrota.healthMedio,
-      criticos: commandCenter.isLoading ? 0 : commandCenter.resumoFrota.veiculosCriticos.length,
+      // Épico 1: useCommandCenter agora também pode devolver isError (ver comentário lá) —
+      // mesmo fallback "sem dado" que já existia pra isLoading, dado que aqui é só o placar
+      // da empresa (Dashboard), não vale travar a tela inteira por causa disso.
+      total: commandCenter.isLoading || commandCenter.isError ? 0 : commandCenter.resumoFrota.totalVeiculos,
+      healthMedio: commandCenter.isLoading || commandCenter.isError ? null : commandCenter.resumoFrota.healthMedio,
+      criticos: commandCenter.isLoading || commandCenter.isError ? 0 : commandCenter.resumoFrota.veiculosCriticos.length,
       porStatus: contarPorStatus(veiculos ?? []),
     },
     contratos: {
