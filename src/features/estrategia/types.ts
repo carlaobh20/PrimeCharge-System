@@ -145,23 +145,53 @@ export type MarcoCrescimentoInput = {
   ordem?: number;
 };
 
+// Central de Decisão Empresarial v2 (2026-08-09) — reconstrução completa a pedido do Carlos.
+// Espelha supabase/migrations/0017_epico3_central_de_decisao_v2.sql. Deixou de ser singleton —
+// N cenários por empresa, cada um com `nome` (Comparador de Cenários).
+export const ESTRATEGIAS_AMORTIZACAO = ['nunca', 'quando_sobrar_caixa', 'todo_mes', 'a_cada_6_meses', 'manual'] as const;
+export type EstrategiaAmortizacao = (typeof ESTRATEGIAS_AMORTIZACAO)[number];
+
+export const LABEL_ESTRATEGIA_AMORTIZACAO: Record<EstrategiaAmortizacao, string> = {
+  nunca: 'Nunca amortizar',
+  quando_sobrar_caixa: 'Amortizar quando sobrar caixa',
+  todo_mes: 'Amortizar todo mês',
+  a_cada_6_meses: 'Amortizar a cada 6 meses',
+  manual: 'Amortização manual',
+};
+
 export type CenarioSimulacao = {
   id: string;
   empresa_id: string;
+  nome: string;
+
   capital_disponivel: number;
   veiculos_iniciais: number;
+
   valor_entrada_por_veiculo: number;
   valor_financiado_por_veiculo: number;
   taxa_juros_am_pct: number;
   prazo_financiamento_meses: number;
-  seguro_mensal_por_veiculo: number;
-  ipva_anual_por_veiculo: number;
-  aluguel_esperado_mensal_por_veiculo: number;
+
+  aluguel_esperado_semanal_por_veiculo: number;
   ocupacao_esperada_pct: number;
   inadimplencia_esperada_pct: number;
+
+  seguro_mensal_por_veiculo: number;
+  ipva_anual_por_veiculo: number;
+  rastreador_mensal_por_veiculo: number;
+  lavagem_mensal_por_veiculo: number;
+  manutencao_mensal_por_veiculo: number;
+  depreciacao_am_pct: number;
+  licenciamento_anual_por_veiculo: number;
+
   reinvestir_lucro: boolean;
   objetivo_veiculos: number;
   prazo_desejado_meses: number;
+
+  /** Existe desde já no schema; o motor só passa a agir sobre isto na Fase 3 (Card 4). */
+  amortizacao_estrategia: EstrategiaAmortizacao;
+  amortizacao_valor_manual: number | null;
+
   criado_em: string;
   atualizado_em: string;
 };

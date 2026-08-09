@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  getCenarioSimulacao,
-  salvarCenarioSimulacao,
+  listCenarios,
+  criarCenario,
+  atualizarCenario,
+  excluirCenario,
   listMarcosCrescimento,
   createMarcoCrescimento,
   updateMarcoCrescimento,
@@ -9,21 +11,38 @@ import {
 } from '../api/simulacao';
 import type { CenarioSimulacaoInput, MarcoCrescimentoInput } from '../types';
 
-const CENARIO_KEY = ['estrategia', 'cenario-simulacao'];
+const CENARIOS_KEY = ['estrategia', 'cenarios-simulacao'];
 const MARCOS_KEY = ['estrategia', 'marcos-crescimento'];
 
-export function useCenarioSimulacao() {
-  return useQuery({ queryKey: CENARIO_KEY, queryFn: getCenarioSimulacao });
+// N cenários por empresa desde a v2 (Central de Decisão) — ver migration 0017.
+export function useCenarios() {
+  return useQuery({ queryKey: CENARIOS_KEY, queryFn: listCenarios });
 }
 
-export function useSalvarCenarioSimulacao(empresaId: string | undefined, usuarioId: string | undefined) {
+export function useCriarCenario(empresaId: string | undefined, usuarioId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CenarioSimulacaoInput) => {
       if (!empresaId) throw new Error('Empresa não identificada — recarregue a página e tente novamente.');
-      return salvarCenarioSimulacao(empresaId, usuarioId, payload);
+      return criarCenario(empresaId, usuarioId, payload);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CENARIO_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CENARIOS_KEY }),
+  });
+}
+
+export function useAtualizarCenario() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<CenarioSimulacaoInput> }) => atualizarCenario(id, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CENARIOS_KEY }),
+  });
+}
+
+export function useExcluirCenario() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => excluirCenario(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CENARIOS_KEY }),
   });
 }
 

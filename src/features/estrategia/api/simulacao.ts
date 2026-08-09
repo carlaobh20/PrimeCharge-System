@@ -1,25 +1,39 @@
 import { supabase, assertLinhaAfetada } from '@/shared/lib/supabase';
 import type { CenarioSimulacao, CenarioSimulacaoInput, MarcoCrescimento, MarcoCrescimentoInput } from '../types';
 
-// Cenário — singleton por empresa, mesmo padrão de politicas_empresa/api/politicas.ts.
-export async function getCenarioSimulacao(): Promise<CenarioSimulacao | null> {
-  const { data, error } = await supabase.from('cenario_simulacao').select('*').maybeSingle();
+// Central de Decisão v2 — cenário deixou de ser singleton (Comparador de Cenários precisa de
+// N por empresa, ver migration 0017). `listCenarios` ordena pelo mais recentemente editado
+// primeiro — a Central de Decisão abre sempre no último cenário que o dono estava mexendo.
+export async function listCenarios(): Promise<CenarioSimulacao[]> {
+  const { data, error } = await supabase.from('cenario_simulacao').select('*').order('atualizado_em', { ascending: false });
   if (error) throw error;
-  return data as CenarioSimulacao | null;
+  return data as CenarioSimulacao[];
 }
 
-export async function salvarCenarioSimulacao(
+export async function criarCenario(
   empresaId: string,
   criadoPor: string | undefined,
   payload: CenarioSimulacaoInput
 ): Promise<CenarioSimulacao> {
   const { data, error } = await supabase
     .from('cenario_simulacao')
-    .upsert({ empresa_id: empresaId, criado_por: criadoPor ?? null, ...payload }, { onConflict: 'empresa_id' })
+    .insert({ empresa_id: empresaId, criado_por: criadoPor ?? null, ...payload })
     .select()
     .single();
   if (error) throw error;
   return data as CenarioSimulacao;
+}
+
+export async function atualizarCenario(id: string, payload: Partial<CenarioSimulacaoInput>): Promise<CenarioSimulacao> {
+  const { data, error } = await supabase.from('cenario_simulacao').update(payload).eq('id', id).select().single();
+  if (error) throw error;
+  return data as CenarioSimulacao;
+}
+
+export async function excluirCenario(id: string): Promise<void> {
+  const { data, error } = await supabase.from('cenario_simulacao').delete().eq('id', id).select('id');
+  if (error) throw error;
+  assertLinhaAfetada(data);
 }
 
 // Marcos — N por empresa. "Excluir" é soft-delete (ativo=false), não deleta a linha — mantém
