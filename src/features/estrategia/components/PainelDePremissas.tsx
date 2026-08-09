@@ -68,28 +68,31 @@ export function PainelDePremissas({
   onChange: (patch: Partial<CenarioSimulacaoInput>) => void;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    // items-start: sem isso, o CSS Grid estica todo card da mesma linha pro tamanho do maior
+    // vizinho — "Capital" (1 campo) ficava do tamanho de "Custos" (7 campos), um card gigante
+    // com espaço vazio. Com items-start cada card só ocupa a própria altura natural.
+    <div className="grid min-w-0 items-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {GRUPOS.map((grupo) => (
         <Card key={grupo.titulo}>
-          <CardContent className="py-3">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{grupo.titulo}</p>
-            <div className="space-y-2">
+          <CardContent className="py-2.5">
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{grupo.titulo}</p>
+            <div className="space-y-1.5">
               {grupo.campos.map(({ chave, label, sufixo }) => (
                 <div key={chave} className="flex items-center justify-between gap-2">
                   <Label htmlFor={chave} className="text-xs font-normal text-neutral-500">
                     {label}
                   </Label>
-                  <div className="flex w-32 items-center gap-1">
+                  <div className="flex w-36 shrink-0 items-center gap-1">
                     <Input
                       id={chave}
                       type="number"
                       step="0.01"
                       inputMode="decimal"
-                      className="h-7 px-2 text-right text-xs"
+                      className="h-7 min-w-0 px-1.5 text-right text-xs"
                       value={valor[chave] ?? ''}
                       onChange={(e) => onChange({ [chave]: e.target.value === '' ? 0 : Number(e.target.value) } as Partial<CenarioSimulacaoInput>)}
                     />
-                    {sufixo && <span className="w-12 shrink-0 text-[10px] text-neutral-400">{sufixo}</span>}
+                    {sufixo && <span className="w-10 shrink-0 text-[10px] text-neutral-400">{sufixo}</span>}
                   </div>
                 </div>
               ))}
@@ -99,8 +102,8 @@ export function PainelDePremissas({
       ))}
 
       <Card>
-        <CardContent className="py-3">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Reinvestimento</p>
+        <CardContent className="py-2.5">
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Reinvestimento</p>
           <div className="flex items-center justify-between">
             <Label className="text-xs font-normal text-neutral-500">Reinvestir lucro?</Label>
             <div className="flex gap-1.5">
