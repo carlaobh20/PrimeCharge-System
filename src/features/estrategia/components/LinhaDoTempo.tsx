@@ -31,9 +31,21 @@ export function LinhaDoTempo({ meses }: { meses: MesSimulado[] }) {
           {meses.map((m) => (
             <div
               key={m.mes}
-              className="flex w-[168px] flex-shrink-0 flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-white/10 dark:bg-white/[0.03]"
+              className={cn(
+                'flex w-[168px] flex-shrink-0 flex-col gap-2 rounded-xl border p-3',
+                m.comprasNoMes > 0
+                  ? 'border-sky-300 bg-sky-50 dark:border-sky-500/40 dark:bg-sky-500/[0.08]'
+                  : 'border-neutral-200 bg-neutral-50 dark:border-white/10 dark:bg-white/[0.03]'
+              )}
             >
-              <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{rotuloMes(m.mes)}</span>
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{rotuloMes(m.mes)}</span>
+                {m.comprasNoMes > 0 && (
+                  <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                    +{m.comprasNoMes} veíc.
+                  </span>
+                )}
+              </div>
               <div className="space-y-1 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-neutral-400">Recebeu</span>

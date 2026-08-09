@@ -46,6 +46,8 @@ export type MesSimulado = {
   amortizacaoExtraAcumulada: number;
   /** Parte da parcela normal (Price) que é amortização de principal, não juros — soma de todos os veículos financiados neste mês. Usado no Fluxo Detalhado (Card "ano a ano"). */
   amortizacaoProgramadaMensal: number;
+  /** Quantos veículos foram comprados NESTE mês especificamente (mesCompra === mes) — iniciais contam no mês 0. Não confundir com `frota`: `frota` é capturado ANTES da compra deste mês rodar (proposital — um veículo comprado agora ainda não gera receita neste mês), então `frota` só reflete essa compra a partir do mês seguinte. `comprasNoMes` existe pra marcar o momento exato da compra (gráfico/tabela), sem depender desse deslocamento de um mês do `frota`. */
+  comprasNoMes: number;
   valorDaEmpresa: number;
   roiAcumuladoPct: number | null;
 };
@@ -131,6 +133,11 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
   let lucroAcumulado = 0;
   let capitalInvestidoAcumulado = 0;
   let amortizacaoExtraAcumulada = 0;
+  // Conta compras por mês (mesCompra → quantidade), independente do array `veiculos` — usado só
+  // pra alimentar `comprasNoMes` em cada MesSimulado (marcador de "aqui comprei" no gráfico/tabela,
+  // pedido do Carlos 2026-08-09). Cobre tanto a compra inicial (mês 0) quanto as compras de
+  // crescimento (mes > 0, dentro do loop principal).
+  const comprasPorMes = new Map<number, number>();
 
   function comprarVeiculo(mes: number) {
     veiculos.push({
@@ -141,6 +148,7 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
     });
     caixaDisponivel -= cenario.valor_entrada_por_veiculo;
     capitalInvestidoAcumulado += custoTotalPorVeiculo;
+    comprasPorMes.set(mes, (comprasPorMes.get(mes) ?? 0) + 1);
   }
 
   const veiculosIniciaisDesejados = Math.min(cenario.veiculos_iniciais, cenario.objetivo_veiculos);
@@ -241,6 +249,7 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       amortizacaoExtraMensal,
       amortizacaoExtraAcumulada,
       amortizacaoProgramadaMensal: amortizacaoProgramadaDoMes,
+      comprasNoMes: comprasPorMes.get(mes) ?? 0,
       valorDaEmpresa: caixaDisponivel + patrimonioLiquido,
       roiAcumuladoPct,
     });

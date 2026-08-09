@@ -23,6 +23,8 @@ export type FluxoAnual = {
   amortizacaoDaDivida: number;
   saldoDaDivida: number;
   lucroLiquido: number;
+  /** Quantos veículos foram comprados dentro desse ano — soma de comprasNoMes dos meses do período. Pedido do Carlos (2026-08-09): "quero ver o momento de compra dos carros no fluxo". */
+  veiculosComprados: number;
 };
 
 export function agruparFluxoPorAno(meses: MesSimulado[]): FluxoAnual[] {
@@ -45,6 +47,7 @@ export function agruparFluxoPorAno(meses: MesSimulado[]): FluxoAnual[] {
     const lucroLiquido = mesesDoAno.reduce((acc, m) => acc + m.lucroMensal, 0);
     const saldoDaDivida = mesesDoAno[mesesDoAno.length - 1].saldoDevedorTotal;
     const anoIncompleto = mesesDoAno.length < 12;
+    const veiculosComprados = mesesDoAno.reduce((acc, m) => acc + m.comprasNoMes, 0);
 
     anos.push({
       rotulo: anoIncompleto ? `Ano ${ano} (${mesesDoAno.length} meses)` : `Ano ${ano}`,
@@ -57,6 +60,7 @@ export function agruparFluxoPorAno(meses: MesSimulado[]): FluxoAnual[] {
       amortizacaoDaDivida,
       saldoDaDivida,
       lucroLiquido,
+      veiculosComprados,
     });
   }
 
