@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Label } from '@/shared/components/ui/label';
@@ -5,14 +6,28 @@ import { Input } from '@/shared/components/ui/input';
 import { Select } from '@/shared/components/ui/select';
 import { Button } from '@/shared/components/ui/button';
 import { toast } from '@/shared/components/ui/toast';
+import { formatMoeda } from '@/shared/lib/format';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { useContasBancarias, useCreateContaBancaria } from '../hooks/useContasBancarias';
+import { usePagamentosPorEmpresa } from '../hooks/usePagamentos';
+import { calcularSaldoPorConta } from '../intelligence/resumoFinanceiro';
 import { contaBancariaSchema, type ContaBancariaFormInput, type ContaBancariaFormValues } from '../schemas/contaBancaria.schema';
 
 export function ContasBancariasPage() {
   const { data: usuario } = useCurrentUsuario();
   const { data: contas, isLoading } = useContasBancarias();
+  // Achado da auditoria do Épico 1 (Operação Perfeita, achado #2): a tela só mostrava
+  // "Saldo inicial", nunca o saldo real após os pagamentos — ver calcularSaldoPorConta em
+  // intelligence/resumoFinanceiro.ts pro porquê de ser sempre derivado, nunca persistido.
+  const { data: todosPagamentos } = usePagamentosPorEmpresa();
   const createConta = useCreateContaBancaria();
+
+  const saldosPorConta = useMemo(() => {
+    const pagamentosPagos = (todosPagamentos ?? [])
+      .filter((p) => p.status === 'pago')
+      .map((p) => ({ conta_bancaria_id: p.conta_bancaria_id, valor: p.valor, tipo: p.lancamento?.tipo ?? 'despesa' }));
+    return calcularSaldoPorConta(contas ?? [], pagamentosPagos);
+  }, [contas, todosPagamentos]);
 
   const {
     register,
@@ -85,20 +100,21 @@ export function ContasBancariasPage() {
               <th className="px-4 py-3">Banco</th>
               <th className="px-4 py-3">Tipo</th>
               <th className="px-4 py-3">Saldo inicial</th>
+              <th className="px-4 py-3">Saldo atual</th>
               <th className="px-4 py-3">Ativa</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
             {isLoading && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">
                   Carregando…
                 </td>
               </tr>
             )}
             {!isLoading && contas?.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">
                   Nenhuma conta cadastrada ainda.
                 </td>
               </tr>
@@ -108,8 +124,9 @@ export function ContasBancariasPage() {
                 <td className="px-4 py-3 font-medium text-neutral-900 dark:text-neutral-100">{c.nome}</td>
                 <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{c.banco ?? '—'}</td>
                 <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300 capitalize">{c.tipo}</td>
-                <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">
-                  {c.saldo_inicial.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{formatMoeda(c.saldo_inicial)}</td>
+                <td className="px-4 py-3 font-medium text-neutral-900 dark:text-neutral-100">
+                  {formatMoeda(saldosPorConta[c.id] ?? c.saldo_inicial)}
                 </td>
                 <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{c.ativa ? 'Sim' : 'Não'}</td>
               </tr>

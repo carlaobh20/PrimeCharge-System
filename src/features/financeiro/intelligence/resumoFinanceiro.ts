@@ -1,4 +1,4 @@
-import type { Lancamento, Pagamento } from '../types';
+import type { ContaBancaria, Lancamento, Pagamento } from '../types';
 
 export type ResumoFinanceiroInput = {
   lancamentos: Pick<Lancamento, 'tipo' | 'status' | 'valor'>[];
@@ -50,4 +50,28 @@ export function calcularResumoFinanceiro(input: ResumoFinanceiroInput): ResumoFi
     receitaPerdida,
     receitaRecuperada,
   };
+}
+
+// Achado da auditoria do Épico 1 (Operação Perfeita, achado #2): ContasBancariasPage só
+// mostrava "Saldo inicial" — o valor cadastrado na criação da conta, nunca atualizado. Não
+// existe (e não deveria existir) uma coluna `saldo_atual` persistida: assim como
+// calcularResumoFinanceiro acima, o saldo de verdade é sempre derivado, nunca guardado
+// (evita o saldo "dessincronizar" do histórico real de pagamentos). Mesmo raciocínio de
+// separação de dimensão de calcularResumoFinanceiro, mas por `conta_bancaria_id` em vez de
+// por tipo/status de lançamento — e sobre `pagamentos` (o que realmente entrou/saiu da
+// conta), não sobre `lancamentos` (o que era esperado).
+export function calcularSaldoPorConta(
+  contas: Pick<ContaBancaria, 'id' | 'saldo_inicial'>[],
+  pagamentosPagos: (Pick<Pagamento, 'conta_bancaria_id' | 'valor'> & { tipo: 'receita' | 'despesa' })[]
+): Record<string, number> {
+  const saldos: Record<string, number> = {};
+  for (const conta of contas) saldos[conta.id] = conta.saldo_inicial;
+
+  for (const pagamento of pagamentosPagos) {
+    if (!(pagamento.conta_bancaria_id in saldos)) continue; // pagamento de conta já excluída/inativa — ignora, não quebra o cálculo
+    const delta = pagamento.tipo === 'receita' ? pagamento.valor : -pagamento.valor;
+    saldos[pagamento.conta_bancaria_id] += delta;
+  }
+
+  return saldos;
 }

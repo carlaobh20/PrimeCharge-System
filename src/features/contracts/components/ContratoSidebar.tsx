@@ -84,9 +84,12 @@ export function ContratoSidebar({
           <Sparkles className="h-4 w-4" />
           Nova ação
         </Button>
+        {/* Épico 1 (Operação Perfeita): rótulo alinhado com ContratoCommandActions, que já
+            renderia "Gerar relatório" pra este mesmo `relatorio` — eram dois rótulos pro
+            mesmo dead-click, agora é um só. */}
         <Button type="button" variant="outline" size="sm" className="w-full justify-start" onClick={() => onAction('relatorio')}>
           <FileDown className="h-4 w-4" />
-          Exportar PDF
+          Gerar relatório
         </Button>
         <Button type="button" variant="outline" size="sm" className="w-full justify-start" onClick={copiar}>
           {copiado ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
