@@ -1,17 +1,12 @@
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
 import { formatMoeda } from '@/shared/lib/format';
+import { reamostrar } from '../lib/chartUtils';
 import type { MesSimulado } from '../intelligence/simulacaoEmpresarial';
 
 // Épico 3 — Central de Decisão Empresarial, Card 2 (Fluxo de Caixa). Linha mês a mês —
-// Receita/Custos/Parcela/Lucro/Saldo, exatamente as 5 séries pedidas. Reamostra pra no máximo
-// ~60 pontos em simulações mais longas (o gráfico fica ilegível com 100+ pontos e o objetivo é
-// "enxergar imediatamente quando o caixa cresce", não densidade de dado).
-function reamostrar(meses: MesSimulado[], maxPontos: number): MesSimulado[] {
-  if (meses.length <= maxPontos) return meses;
-  const passo = Math.ceil(meses.length / maxPontos);
-  return meses.filter((_, i) => i % passo === 0 || i === meses.length - 1);
-}
+// Receita/Custos/Parcela/Lucro/Saldo, exatamente as 5 séries pedidas. `reamostrar` mora em
+// lib/chartUtils.ts (Fase 2 extraiu daqui pra reusar nos Cards 3/6/7 sem duplicar).
 
 export function FluxoDeCaixaChart({ meses }: { meses: MesSimulado[] }) {
   const dados = reamostrar(meses, 60).map((m) => ({

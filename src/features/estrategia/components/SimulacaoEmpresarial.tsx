@@ -4,6 +4,10 @@ import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { PainelDePremissas } from './PainelDePremissas';
 import { VisaoExecutivaCard } from './VisaoExecutivaCard';
 import { FluxoDeCaixaChart } from './FluxoDeCaixaChart';
+import { SaldoDevedorPatrimonioChart } from './SaldoDevedorPatrimonioChart';
+import { LinhaDoTempo } from './LinhaDoTempo';
+import { EvolucaoDoCaixaChart } from './EvolucaoDoCaixaChart';
+import { EvolucaoPatrimonioCard } from './EvolucaoPatrimonioCard';
 import { useCenarios, useCriarCenario, useAtualizarCenario } from '../hooks/useSimulacao';
 import { usePoliticasEstrategicas } from '../hooks/usePoliticas';
 import { useSimulacaoResultado } from '../hooks/useSimulacaoResultado';
@@ -39,11 +43,13 @@ function extrairInput(c: Record<string, unknown>): CenarioSimulacaoInput {
   return resto as CenarioSimulacaoInput;
 }
 
-// Épico 3 — Central de Decisão Empresarial (reconstrução completa, 2026-08-09). Fase 1 do plano
-// combinado com o Carlos: motor v2 (saldo devedor/depreciação/patrimônio por veículo) + premissas
-// em cards + Card 1 (Visão Executiva) + Card 2 (Fluxo de Caixa). Sem botão "Simular" — cada
-// alteração recalcula na hora (useSimulacaoResultado é só matemática local) e salva sozinha no
-// banco alguns segundos depois de parar de digitar (autosave debounced, não a cada tecla).
+// Épico 3 — Central de Decisão Empresarial (reconstrução completa, 2026-08-09). Fase 1: motor v2
+// (saldo devedor/depreciação/patrimônio por veículo) + premissas em cards + Card 1 (Visão
+// Executiva) + Card 2 (Fluxo de Caixa). Fase 2 (mesmo dia): Card 3 (Saldo Devedor×Patrimônio),
+// Card 5 (Linha do Tempo), Card 6 (Evolução do Caixa), Card 7 (Evolução do Patrimônio) — todos
+// consumindo o mesmo `resultado.meses`, sem tocar no motor. Sem botão "Simular" — cada alteração
+// recalcula na hora (useSimulacaoResultado é só matemática local) e salva sozinha no banco alguns
+// segundos depois de parar de digitar (autosave debounced, não a cada tecla).
 export function SimulacaoEmpresarial() {
   const { data: usuario } = useCurrentUsuario();
   const { data: cenarios, isLoading: carregandoCenarios } = useCenarios();
@@ -126,6 +132,10 @@ export function SimulacaoEmpresarial() {
         <div className="space-y-4">
           {mesAtual && <VisaoExecutivaCard mesAtual={mesAtual} alavancagemMaximaPct={politicas?.alavancagem_maxima_pct ?? null} />}
           {resultado && <FluxoDeCaixaChart meses={resultado.meses} />}
+          {resultado && <SaldoDevedorPatrimonioChart meses={resultado.meses} />}
+          {resultado && <EvolucaoDoCaixaChart meses={resultado.meses} />}
+          {resultado && <EvolucaoPatrimonioCard meses={resultado.meses} />}
+          {resultado && <LinhaDoTempo meses={resultado.meses} />}
         </div>
       </div>
     </div>
