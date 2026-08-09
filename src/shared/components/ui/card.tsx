@@ -5,7 +5,11 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900',
+        // min-w-0: Card é sempre item de grid/flex em algum lugar (Central de Decisão empilha
+        // vários lado a lado) — sem isso, um filho largo (gráfico Recharts, linha do tempo
+        // horizontal) estoura o card e empurra a página inteira pro lado (DEC: Central de
+        // Decisão Empresarial, Fase 2/3, 2026-08-09).
+        'min-w-0 rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900',
         className
       )}
       {...props}

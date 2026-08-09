@@ -133,15 +133,23 @@ export function SimulacaoEmpresarial() {
         ) : null}
       </div>
 
+      {/* min-w-0 nos dois filhos do grid: sem isso, um filho com conteúdo intrínseco largo
+          (gráfico Recharts, linha do tempo horizontal) estoura a coluna e empurra a PÁGINA
+          inteira pro lado — o item de grid tem min-width:auto por padrão, não respeita o `fr`
+          sozinho. Foi isso que causou o "gráfico distorcido / rolando pro lado". */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_7fr]">
         <PainelDePremissas valor={input} onChange={atualizarCampo} />
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           {mesAtual && <VisaoExecutivaCard mesAtual={mesAtual} alavancagemMaximaPct={politicas?.alavancagem_maxima_pct ?? null} />}
-          {resultado && <FluxoDeCaixaChart meses={resultado.meses} />}
-          {resultado && <SaldoDevedorPatrimonioChart meses={resultado.meses} />}
-          <AmortizacaoCard valor={input} onChange={atualizarCampo} mesAtual={mesAtual} />
-          {resultado && <EvolucaoDoCaixaChart meses={resultado.meses} />}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {resultado && <FluxoDeCaixaChart meses={resultado.meses} />}
+            {resultado && <SaldoDevedorPatrimonioChart meses={resultado.meses} />}
+          </div>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <AmortizacaoCard valor={input} onChange={atualizarCampo} mesAtual={mesAtual} />
+            {resultado && <EvolucaoDoCaixaChart meses={resultado.meses} />}
+          </div>
           {resultado && <EvolucaoPatrimonioCard meses={resultado.meses} />}
           {momentoDeCompra && <MomentoIdealDeCompraCard comparacao={momentoDeCompra} />}
           {resultado && <LinhaDoTempo meses={resultado.meses} />}

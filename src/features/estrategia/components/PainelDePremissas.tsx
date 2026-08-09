@@ -63,7 +63,7 @@ export function PainelDePremissas({
   onChange: (patch: Partial<CenarioSimulacaoInput>) => void;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
       {GRUPOS.map((grupo) => (
         <Card key={grupo.titulo}>
           <CardContent className="py-3">
