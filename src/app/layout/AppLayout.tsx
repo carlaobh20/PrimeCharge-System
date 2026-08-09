@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { BarChart3, Car, ClipboardList, FileSignature, Landmark, PieChart, Radar, LogOut, Receipt, Search, Users, UserCog, Wallet } from 'lucide-react';
+import { BarChart3, Car, ClipboardList, Compass, FileSignature, Landmark, PieChart, Radar, LogOut, Receipt, Search, Users, UserCog, Wallet } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
@@ -26,6 +26,10 @@ const NAV_ITEMS = [
   { to: '/financeiro/pagamentos', label: 'Pagamentos', icon: Receipt, end: false },
   { to: '/financeiro/contas-bancarias', label: 'Contas Bancárias', icon: Landmark, end: false },
   { to: '/financeiro/centros-custo', label: 'Centros de Custo', icon: PieChart, end: false },
+  // Épico 2 — só aparece pra quem o RequireOwner (router.tsx) deixaria entrar mesmo (ver
+  // `ownerOnly` abaixo). Não é a barreira de segurança em si (isso é o RequireOwner /
+  // useCurrentUsuario) — é só não anunciar no menu uma porta que a pessoa não pode abrir.
+  { to: '/estrategia', label: 'Centro de Estratégia', icon: Compass, end: true, ownerOnly: true },
   { to: '/dashboard', label: 'Dashboard', icon: BarChart3, end: true },
   { to: '/usuarios', label: 'Usuários', icon: UserCog, end: true },
 ];
@@ -72,7 +76,9 @@ export function AppLayout() {
         </div>
 
         <nav className="flex-1 space-y-1 px-2">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter(
+            (item) => !item.ownerOnly || usuario?.role === 'owner' || usuario?.role === 'super_admin'
+          ).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

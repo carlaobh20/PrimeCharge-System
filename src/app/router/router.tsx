@@ -22,7 +22,9 @@ import { PagamentosPage } from '@/features/financeiro/pages/PagamentosPage';
 import { ContasBancariasPage } from '@/features/financeiro/pages/ContasBancariasPage';
 import { CentrosCustoPage } from '@/features/financeiro/pages/CentrosCustoPage';
 import { AcoesListPage } from '@/features/operacoes/pages/AcoesListPage';
+import { CentroDeEstrategiaPage } from '@/features/estrategia/pages/CentroDeEstrategiaPage';
 import { ProtectedRoute } from './ProtectedRoute';
+import { RequireOwner } from './RequireOwner';
 
 // Command Center foi a Home da Sprint 5 até o Épico 1 (Operação Perfeita) — Dashboard
 // continua fora do índice, rota analítica separada (DEC-024, ainda válida). Centro de
@@ -63,6 +65,11 @@ export const router = createBrowserRouter([
           { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },
           { path: 'financeiro/centros-custo', element: <CentrosCustoPage /> },
           { path: 'operacoes/acoes', element: <AcoesListPage /> },
+          {
+            path: 'estrategia',
+            element: <RequireOwner />,
+            children: [{ index: true, element: <CentroDeEstrategiaPage /> }],
+          },
           { path: 'usuarios', element: <UsuariosPage /> },
         ],
       },
