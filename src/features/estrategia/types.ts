@@ -107,3 +107,63 @@ export type PoliticasEmpresaInput = Partial<Record<CampoPoliticaTipado, number |
   visao?: string | null;
   linhas_de_negocio_futuras?: LinhaDeNegocioFutura[];
 };
+
+// Épico 3 — Simulação Empresarial (evolução pedida em cima da Timeline de Crescimento).
+// Espelha supabase/migrations/0016_epico3_simulacao_empresarial.sql.
+export const TIPOS_GATILHO = ['veiculos', 'capital_disponivel', 'caixa', 'lucro', 'roi', 'receita', 'tempo', 'manual'] as const;
+export type TipoGatilho = (typeof TIPOS_GATILHO)[number];
+
+export const LABEL_TIPO_GATILHO: Record<TipoGatilho, string> = {
+  veiculos: 'Quantidade de veículos',
+  capital_disponivel: 'Capital disponível (R$)',
+  caixa: 'Caixa acumulado (R$)',
+  lucro: 'Lucro mensal (R$)',
+  roi: 'ROI acumulado da frota (%)',
+  receita: 'Receita mensal (R$)',
+  tempo: 'Tempo (meses a partir de hoje)',
+  manual: 'Marcação manual (você marca quando acontecer)',
+};
+
+export type MarcoCrescimento = {
+  id: string;
+  empresa_id: string;
+  nome: string;
+  tipo_gatilho: TipoGatilho;
+  /** Obrigatório para todo tipo, exceto 'manual' (que não tem número — o dono marca à mão). */
+  valor_gatilho: number | null;
+  concluido_manualmente: boolean;
+  ativo: boolean;
+  ordem: number;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type MarcoCrescimentoInput = {
+  nome: string;
+  tipo_gatilho: TipoGatilho;
+  valor_gatilho: number | null;
+  ordem?: number;
+};
+
+export type CenarioSimulacao = {
+  id: string;
+  empresa_id: string;
+  capital_disponivel: number;
+  veiculos_iniciais: number;
+  valor_entrada_por_veiculo: number;
+  valor_financiado_por_veiculo: number;
+  taxa_juros_am_pct: number;
+  prazo_financiamento_meses: number;
+  seguro_mensal_por_veiculo: number;
+  ipva_anual_por_veiculo: number;
+  aluguel_esperado_mensal_por_veiculo: number;
+  ocupacao_esperada_pct: number;
+  inadimplencia_esperada_pct: number;
+  reinvestir_lucro: boolean;
+  objetivo_veiculos: number;
+  prazo_desejado_meses: number;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type CenarioSimulacaoInput = Omit<CenarioSimulacao, 'id' | 'empresa_id' | 'criado_em' | 'atualizado_em'>;
