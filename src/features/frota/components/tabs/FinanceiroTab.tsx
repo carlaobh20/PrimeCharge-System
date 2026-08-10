@@ -19,12 +19,14 @@ import {
 import { calcularResumoFinanciamentoReal } from '../../intelligence/financiamentoReal';
 import { calcularResultadoEsperado } from '../../intelligence/resultadoEsperado';
 import { calcularPercentuaisTempoPorStatus, calcularTempoPorStatus } from '../../intelligence/tempoPorStatus';
+import { calcularReceitaPerdida } from '../../intelligence/receitaPerdida';
 import { YieldAtivoCard } from '../YieldAtivoCard';
 import { CicloDeVidaTimeline } from '../CicloDeVidaTimeline';
 import { CapitalRecuperadoCard } from '../CapitalRecuperadoCard';
 import { ResultadoEsperadoCard } from '../ResultadoEsperadoCard';
 import { TempoPorStatusCard } from '../TempoPorStatusCard';
 import { IndicadoresDoAtivoCard } from '../IndicadoresDoAtivoCard';
+import { ReceitaPerdidaCard } from '../ReceitaPerdidaCard';
 import { ExtratoFinanceiroVeiculo } from '../ExtratoFinanceiroVeiculo';
 import type { Veiculo } from '../../types';
 
@@ -92,6 +94,7 @@ export function FinanceiroTab({ veiculo }: { veiculo: Veiculo }) {
   const resultadoEsperado = calcularResultadoEsperado(veiculo, resumoFinanciamento, resumo.lucroConfirmado, lucroMedioMensal);
   const tempoPorStatus = calcularTempoPorStatus(veiculo, eventosTimeline ?? []);
   const percentuaisTempoPorStatus = calcularPercentuaisTempoPorStatus(tempoPorStatus);
+  const receitaPerdida = calcularReceitaPerdida(contratosDoVeiculo, tempoPorStatus);
 
   if (isLoading || loadingContratos || loadingTimeline) {
     return <div className="h-32 cockpit-shimmer rounded-2xl" />;
@@ -123,6 +126,8 @@ export function FinanceiroTab({ veiculo }: { veiculo: Veiculo }) {
       />
 
       <ResultadoEsperadoCard resultado={resultadoEsperado} />
+
+      <ReceitaPerdidaCard receitaPerdida={receitaPerdida} />
 
       {semLancamentos ? (
         <EmptyState
