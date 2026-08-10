@@ -8,9 +8,10 @@ import { useLancamentos } from '@/features/financeiro/hooks/useLancamentos';
 import { LANCAMENTO_STATUS_LABEL, LANCAMENTO_TIPO_LABEL, type LancamentoStatus } from '@/features/financeiro/types';
 import { calcularResumoFinanceiro, calcularRoi } from '@/features/financeiro/intelligence';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
-import { calcularCustoPorKm, calcularPaybackMeses } from '../../intelligence/investmentSimulator';
+import { calcularCapitalRecuperado, calcularCustoPorKm, calcularPaybackMeses } from '../../intelligence/investmentSimulator';
 import { YieldAtivoCard } from '../YieldAtivoCard';
 import { CicloDeVidaTimeline } from '../CicloDeVidaTimeline';
+import { CapitalRecuperadoCard } from '../CapitalRecuperadoCard';
 import type { Veiculo } from '../../types';
 
 const STATUS_BADGE: Record<LancamentoStatus, 'warning' | 'success' | 'secondary'> = {
@@ -28,11 +29,12 @@ const STATUS_BADGE: Record<LancamentoStatus, 'warning' | 'success' | 'secondary'
 // (financeiro/intelligence/, existentes desde a Sprint 8, sem nenhum consumidor até esta
 // missão) pela primeira vez, mais custo-por-KM e payback estimado (novos, investmentSimulator.ts).
 //
-// Yield do Ativo + Ciclo de Vida (Épico 4, Partes 4 e 6): entram nesta mesma aba em vez de uma
-// aba nova — a missão pede pra reaproveitar estrutura existente, e esta já é "a aba financeira
-// do veículo". Por isso o `return` antecipado do EmptyState (linha ~90) foi movido pra só
-// esconder a lista de Lançamentos, não a aba inteira: Yield/Ciclo de Vida não dependem de
-// nenhum lançamento existir, só de status + (opcionalmente) um contrato ativo.
+// Yield do Ativo + Capital Recuperado + Ciclo de Vida (Épico 4, Partes 3, 4 e 6): entram nesta
+// mesma aba em vez de uma aba nova — a missão pede pra reaproveitar estrutura existente, e esta
+// já é "a aba financeira do veículo". Por isso o `return` antecipado do EmptyState (linha ~90)
+// foi movido pra só esconder a lista de Lançamentos, não a aba inteira: nenhum dos três depende
+// de lançamento existir — Capital Recuperado usa o mesmo `resumo.lucroConfirmado` que já
+// alimentava ROI/Payback (fica em 0%/— sem lançamento nenhum, não trava a tela).
 export function FinanceiroTab({
   veiculo,
 }: {
@@ -69,6 +71,7 @@ export function FinanceiroTab({
     ? Math.max(1, Math.floor((Date.now() - new Date(veiculo.data_compra).getTime()) / (30 * 86_400_000)))
     : 0;
   const payback = calcularPaybackMeses(veiculo.valor_compra, resumo.lucroConfirmado, mesesDeOperacao);
+  const capitalRecuperado = calcularCapitalRecuperado(veiculo.valor_compra, resumo.lucroConfirmado);
 
   if (isLoading || loadingContratos) {
     return <div className="h-32 cockpit-shimmer rounded-2xl" />;
@@ -78,10 +81,12 @@ export function FinanceiroTab({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <YieldAtivoCard veiculo={veiculo} contratoAtivo={contratoAtivo} />
-        <CicloDeVidaTimeline status={veiculo.status} />
+        <CapitalRecuperadoCard resultado={capitalRecuperado} />
       </div>
+
+      <CicloDeVidaTimeline status={veiculo.status} />
 
       {semLancamentos ? (
         <EmptyState

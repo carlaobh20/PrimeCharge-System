@@ -47,3 +47,25 @@ export function calcularPaybackMeses(valorInvestido: number | null, lucroConfirm
   const lucroMedioMensal = lucroConfirmadoAcumulado / mesesDeOperacao;
   return { meses: Math.round(valorInvestido / lucroMedioMensal), motivo: `Lucro médio mensal de ${lucroMedioMensal.toFixed(2)}, em ${mesesDeOperacao} mês(es) de operação.` };
 }
+
+export type CapitalRecuperadoResult = {
+  capitalInvestido: number | null;
+  capitalRecuperado: number;
+  capitalRestante: number | null;
+  percentualRecuperado: number | null;
+};
+
+// Épico 4 — "Ativo Financeiro", Parte 3. Mesmo par (valorInvestido = valor_compra,
+// lucroConfirmadoAcumulado) que já alimenta ROI e Payback acima — "capital recuperado" é só
+// outra leitura do mesmo lucro confirmado: quanto dele já cobriu o que foi gasto pra comprar o
+// veículo. Usa LUCRO (receita − despesa), não receita bruta — despesa de operação também é
+// dinheiro saindo, não fica disponível pra "recuperar" o capital investido.
+export function calcularCapitalRecuperado(valorInvestido: number | null, lucroConfirmadoAcumulado: number): CapitalRecuperadoResult {
+  if (valorInvestido === null || valorInvestido <= 0) {
+    return { capitalInvestido: valorInvestido, capitalRecuperado: 0, capitalRestante: null, percentualRecuperado: null };
+  }
+  const capitalRecuperado = Math.max(0, Math.min(lucroConfirmadoAcumulado, valorInvestido));
+  const capitalRestante = Math.max(0, valorInvestido - capitalRecuperado);
+  const percentualRecuperado = Math.round((capitalRecuperado / valorInvestido) * 1000) / 10;
+  return { capitalInvestido: valorInvestido, capitalRecuperado, capitalRestante, percentualRecuperado };
+}
