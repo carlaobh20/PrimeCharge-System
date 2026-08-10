@@ -1,6 +1,12 @@
 import { supabase } from '@/shared/lib/supabase';
 import type { AcaoCandidata, AcaoOperacional, AcaoOperacionalComRelacoes, AcaoStatus } from '../types';
 
+// 2026-08-10 — bug real reportado pelo Carlos: Centro de Operações inteiro em branco com
+// "Could not embed because more than one relationship was found for 'acoes_operacionais' and
+// 'usuarios'". Causa: a tabela tem DUAS FKs pra usuarios (responsavel_id e concluida_por, ver
+// migration 0007) — o PostgREST não consegue adivinhar qual delas usar num embed genérico
+// `usuarios(...)`, então rejeita a query inteira. Precisa apontar a FK explicitamente com
+// `usuarios!coluna(...)`.
 const SELECT_COM_RELACOES = '*, responsavel:usuarios!responsavel_id(id, nome_completo)';
 
 export type AcaoFilters = {
