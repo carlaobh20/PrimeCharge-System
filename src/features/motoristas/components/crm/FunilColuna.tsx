@@ -16,7 +16,7 @@ export function FunilColuna({
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-72 shrink-0 flex-col rounded-xl border p-2.5 transition-colors ${
+      className={`flex w-48 shrink-0 flex-col rounded-xl border p-2 transition-colors ${
         isOver ? 'border-emerald-400 bg-emerald-50/60 dark:border-emerald-500/50 dark:bg-emerald-950/20' : 'border-neutral-200 bg-neutral-50/60 dark:border-white/10 dark:bg-white/[0.02]'
       }`}
     >

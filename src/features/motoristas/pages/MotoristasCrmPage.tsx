@@ -57,23 +57,28 @@ export function MotoristasCrmPage() {
     <div className="space-y-4">
       <MetricasFunilPanel metricas={metricas} />
 
-      {naoClassificados.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-500/30 dark:bg-amber-950/20">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-            Não classificados ({naoClassificados.length}) — cadastrados antes do Kanban, arraste pra uma coluna
-          </p>
-          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-            {naoClassificados.map((m) => (
-              <div key={m.id} className="w-64 shrink-0">
-                <MotoristaCrmCard motorista={m} onClick={() => setMotoristaAbertoId(m.id)} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {/* Achado ao validar em produção com Carlos: os cartões de "Não classificados" tinham
+          ficado FORA do DndContext (só as 14 colunas estavam dentro) — useDraggable sem um
+          DndContext ancestral simplesmente não responde a nada. Como praticamente todo motorista
+          real (cadastrado antes da migration 0025) cai nessa faixa, na prática NENHUM cartão
+          arrastava. Corrigido: DndContext agora envolve a faixa inteira, não só as colunas. */}
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-3 overflow-x-auto pb-4">
+        {naoClassificados.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-500/30 dark:bg-amber-950/20">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+              Não classificados ({naoClassificados.length}) — cadastrados antes do Kanban, arraste pra uma coluna
+            </p>
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+              {naoClassificados.map((m) => (
+                <div key={m.id} className="w-48 shrink-0">
+                  <MotoristaCrmCard motorista={m} onClick={() => setMotoristaAbertoId(m.id)} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 flex gap-3 overflow-x-auto pb-4">
           {colunas.map((coluna) => (
             <FunilColuna key={coluna.etapa} etapa={coluna.etapa} motoristas={coluna.motoristas} onAbrirMotorista={setMotoristaAbertoId} />
           ))}
