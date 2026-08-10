@@ -18,6 +18,8 @@ import { VeiculoSidebar } from '../components/VeiculoSidebar';
 import { VeiculoCommandActions } from '../components/VeiculoCommandActions';
 import { DadosGeraisTab } from '../components/tabs/DadosGeraisTab';
 import { AquisicaoTab } from '../components/tabs/AquisicaoTab';
+import { ContratosHistoricoTab } from '../components/ContratosHistoricoTab';
+import { MotoristasHistoricoTab } from '../components/MotoristasHistoricoTab';
 import { ArquivosTab } from '../components/tabs/ArquivosTab';
 import { FinanceiroTab } from '../components/tabs/FinanceiroTab';
 import { IndicadoresTab } from '../components/tabs/IndicadoresTab';
@@ -207,6 +209,8 @@ export function VeiculoDetailPage() {
             items={[
               { value: 'dados', label: 'Dados Gerais', content: <DadosGeraisTab veiculo={veiculo} /> },
               { value: 'aquisicao', label: 'Aquisição', content: <AquisicaoTab veiculo={veiculo} /> },
+              { value: 'contratos', label: 'Contratos', content: <ContratosHistoricoTab veiculoId={veiculo.id} /> },
+              { value: 'motoristas-historico', label: 'Motoristas', content: <MotoristasHistoricoTab veiculoId={veiculo.id} /> },
               {
                 value: 'timeline',
                 label: 'Timeline',
