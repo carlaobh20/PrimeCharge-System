@@ -8,7 +8,7 @@ import {
   updateMotoristaStatus,
   type MotoristaInput,
 } from '../api/motoristas';
-import type { Motorista, MotoristaEtapaFunil, MotoristaStatus } from '../types';
+import type { Motorista, MotoristaStatus } from '../types';
 
 export function useMotoristas(filters?: { status?: MotoristaStatus | 'todos'; busca?: string }) {
   return useQuery({
@@ -67,9 +67,9 @@ export function useUpdateMotoristaStatus() {
 export function useMoverEtapaFunil() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, etapaFunil }: { id: string; etapaFunil: MotoristaEtapaFunil }) =>
-      updateMotorista(id, { etapa_funil: etapaFunil }),
-    onMutate: async ({ id, etapaFunil }) => {
+    mutationFn: ({ id, etapaFunilId }: { id: string; etapaFunilId: string }) =>
+      updateMotorista(id, { etapa_funil_id: etapaFunilId }),
+    onMutate: async ({ id, etapaFunilId }) => {
       await queryClient.cancelQueries({ queryKey: ['motoristas'] });
       const agoraIso = new Date().toISOString();
       const previas = queryClient.getQueriesData<Motorista[]>({ queryKey: ['motoristas'] });
@@ -77,7 +77,7 @@ export function useMoverEtapaFunil() {
         if (!data) continue;
         queryClient.setQueryData<Motorista[]>(
           queryKey,
-          data.map((m) => (m.id === id ? { ...m, etapa_funil: etapaFunil, etapa_funil_desde: agoraIso } : m))
+          data.map((m) => (m.id === id ? { ...m, etapa_funil_id: etapaFunilId, etapa_funil_desde: agoraIso } : m))
         );
       }
       return { previas };

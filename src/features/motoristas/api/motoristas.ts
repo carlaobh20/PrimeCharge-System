@@ -52,6 +52,9 @@ export async function updateMotoristaStatus(id: string, status: MotoristaStatus)
   return data as Motorista;
 }
 
+// Exclusão física — já existia desde a migration 0004 (pode_excluir_motorista, gated a
+// super_admin/owner/admin via RLS). `contratos.motorista_id` é `on delete restrict`: motorista
+// com qualquer contrato já não pode ser excluído, o Postgres barra antes de chegar aqui.
 export async function deleteMotorista(id: string) {
   const { data, error } = await supabase.from('motoristas').delete().eq('id', id).select('id');
   if (error) throw error;

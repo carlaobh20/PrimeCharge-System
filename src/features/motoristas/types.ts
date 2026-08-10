@@ -4,25 +4,34 @@
 
 export type MotoristaStatus = 'lead' | 'em_analise' | 'ativo' | 'inativo' | 'bloqueado' | 'encerrado';
 
-// Épico 6 — CRM PrimeCharge / Jornada do Motorista, Fase 1 (migration 0025). Campo
-// DELIBERADAMENTE separado de `status` acima — ver comentário no topo da migration 0025 pra
-// entender por que não viraram um enum só. `status` continua governando bloqueio/desbloqueio
-// e a propagação automática com Contrato; `etapa_funil` só governa o Kanban de CRM.
-export type MotoristaEtapaFunil =
-  | 'novo_lead'
-  | 'primeiro_contato'
-  | 'interessado'
-  | 'documentacao'
-  | 'analise_financeira'
-  | 'analise_juridica'
-  | 'entrevista'
-  | 'aprovado'
-  | 'aguardando_veiculo'
-  | 'contrato_assinado'
-  | 'entrega_veiculo'
-  | 'motorista_ativo'
-  | 'fidelizacao'
-  | 'encerrado';
+// Épico 6 — CRM PrimeCharge / Jornada do Motorista, Fase 1.1 (migration 0026). As etapas do
+// funil DEIXARAM de ser um enum fixo (motorista_etapa_funil, migration 0025) e viraram dado —
+// tabela `funil_etapas`, editável por empresa (Carlos pediu pra poder adicionar/excluir fase
+// direto pela tela). `grupo` é o que permite o painel de métricas continuar funcionando mesmo
+// com etapas renomeadas/criadas/removidas: a métrica agrega por GRUPO, nunca pelo nome literal
+// da etapa. `status` (acima) continua intocado — mesma separação da migration 0025.
+export type FunilEtapaGrupo = 'lead' | 'em_analise' | 'aprovado' | 'fila' | 'ativo' | 'encerrado' | 'nenhum';
+
+export type FunilEtapa = {
+  id: string;
+  empresa_id: string;
+  nome: string;
+  grupo: FunilEtapaGrupo;
+  ordem: number;
+  ativa: boolean;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export const FUNIL_ETAPA_GRUPO_LABEL: Record<FunilEtapaGrupo, string> = {
+  lead: 'Lead',
+  em_analise: 'Em análise',
+  aprovado: 'Aprovado',
+  fila: 'Fila (sem veículo)',
+  ativo: 'Ativo',
+  encerrado: 'Encerrado',
+  nenhum: 'Nenhum (não entra em métrica agregada)',
+};
 
 export type MotoristaPrioridade = 'baixa' | 'media' | 'alta' | 'critica';
 
@@ -42,48 +51,15 @@ export type Motorista = {
   cidade: string | null;
   estado: string | null;
   observacoes: string | null;
-  // Épico 6, Fase 1 (migration 0025) — null em motoristas cadastrados antes da migration
-  // (nunca reclassificado artificialmente, ver comentário da coluna no SQL).
-  etapa_funil: MotoristaEtapaFunil | null;
+  // Épico 6, Fase 1.1 (migration 0026) — substitui `etapa_funil` (enum, migration 0025, agora
+  // histórico morto no banco, não lido/escrito pelo app). Null em motoristas ainda não
+  // classificados (nunca reclassificado artificialmente, DEC-022).
+  etapa_funil_id: string | null;
   etapa_funil_desde: string | null;
   responsavel_id: string | null;
   prioridade: MotoristaPrioridade;
   criado_em: string;
   atualizado_em: string;
-};
-
-export const MOTORISTA_ETAPA_FUNIL_ORDEM: MotoristaEtapaFunil[] = [
-  'novo_lead',
-  'primeiro_contato',
-  'interessado',
-  'documentacao',
-  'analise_financeira',
-  'analise_juridica',
-  'entrevista',
-  'aprovado',
-  'aguardando_veiculo',
-  'contrato_assinado',
-  'entrega_veiculo',
-  'motorista_ativo',
-  'fidelizacao',
-  'encerrado',
-];
-
-export const MOTORISTA_ETAPA_FUNIL_LABEL: Record<MotoristaEtapaFunil, string> = {
-  novo_lead: 'Novo Lead',
-  primeiro_contato: 'Primeiro Contato',
-  interessado: 'Interessado',
-  documentacao: 'Documentação',
-  analise_financeira: 'Análise Financeira',
-  analise_juridica: 'Análise Jurídica',
-  entrevista: 'Entrevista',
-  aprovado: 'Aprovado',
-  aguardando_veiculo: 'Aguardando Veículo',
-  contrato_assinado: 'Contrato Assinado',
-  entrega_veiculo: 'Entrega do Veículo',
-  motorista_ativo: 'Motorista Ativo',
-  fidelizacao: 'Fidelização',
-  encerrado: 'Encerrado',
 };
 
 export const MOTORISTA_PRIORIDADE_LABEL: Record<MotoristaPrioridade, string> = {

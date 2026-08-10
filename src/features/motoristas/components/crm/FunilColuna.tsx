@@ -1,17 +1,19 @@
 import { useDroppable } from '@dnd-kit/core';
-import { MOTORISTA_ETAPA_FUNIL_LABEL, type Motorista, type MotoristaEtapaFunil } from '../../types';
+import type { FunilEtapa, Motorista } from '../../types';
 import { MotoristaCrmCard } from './MotoristaCrmCard';
 
+// Épico 6, Fase 1.1 — `etapa` agora é o objeto FunilEtapa inteiro (dado editável, migration
+// 0026), não mais um valor de enum. O id droppable do dnd-kit passa a ser o uuid da etapa.
 export function FunilColuna({
   etapa,
   motoristas,
   onAbrirMotorista,
 }: {
-  etapa: MotoristaEtapaFunil;
+  etapa: FunilEtapa;
   motoristas: Motorista[];
   onAbrirMotorista: (id: string) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: etapa });
+  const { setNodeRef, isOver } = useDroppable({ id: etapa.id });
 
   return (
     <div
@@ -21,8 +23,8 @@ export function FunilColuna({
       }`}
     >
       <div className="flex items-center justify-between px-1 py-1">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{MOTORISTA_ETAPA_FUNIL_LABEL[etapa]}</h3>
-        <span className="rounded-full bg-neutral-200 px-1.5 py-0.5 text-[11px] font-medium text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
+        <h3 className="truncate text-xs font-semibold uppercase tracking-wide text-neutral-500">{etapa.nome}</h3>
+        <span className="shrink-0 rounded-full bg-neutral-200 px-1.5 py-0.5 text-[11px] font-medium text-neutral-600 dark:bg-white/10 dark:text-neutral-300">
           {motoristas.length}
         </span>
       </div>

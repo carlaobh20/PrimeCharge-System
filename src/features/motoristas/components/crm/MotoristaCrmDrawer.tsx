@@ -1,15 +1,21 @@
+import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { Drawer } from '@/shared/components/ui/drawer';
 import { Tabs } from '@/shared/components/ui/tabs';
 import { Badge } from '@/shared/components/ui/badge';
+import { Button } from '@/shared/components/ui/button';
+import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
+import { toast } from '@/shared/components/ui/toast';
 import { TimelinePanel } from '@/shared/capabilities/components/TimelinePanel';
 import { diasDesde } from '@/shared/lib/format';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
-import { useMotorista } from '../../hooks/useMotoristas';
+import { useDeleteMotorista, useMotorista } from '../../hooks/useMotoristas';
+import { useFunilEtapas } from '../../hooks/useFunilEtapas';
 import { useDriverIntelligence } from '../../hooks/useDriverIntelligence';
 import { diasNaEtapa } from '../../intelligence/funilMetrics';
 import { ArquivosTab } from '../tabs/ArquivosTab';
 import { StatusBadge } from '../StatusBadge';
-import { MOTORISTA_ETAPA_FUNIL_LABEL, MOTORISTA_PRIORIDADE_COLOR, MOTORISTA_PRIORIDADE_LABEL } from '../../types';
+import { MOTORISTA_PRIORIDADE_COLOR, MOTORISTA_PRIORIDADE_LABEL } from '../../types';
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -28,6 +34,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 // "básico" no sentido que a Fase 1 pediu.
 function ResumoTab({ motoristaId }: { motoristaId: string }) {
   const { data: motorista, isLoading } = useMotorista(motoristaId);
+  const { data: etapas } = useFunilEtapas(motorista?.empresa_id);
   const intelligence = useDriverIntelligence(motorista);
 
   if (isLoading || !motorista) return <div className="h-32 cockpit-shimmer rounded-2xl" />;
@@ -35,6 +42,7 @@ function ResumoTab({ motoristaId }: { motoristaId: string }) {
   const dias = diasNaEtapa(motorista);
   const diasComoCliente = diasDesde(motorista.criado_em);
   const score = !intelligence.isLoading ? intelligence.driverScore.overall : null;
+  const nomeEtapa = motorista.etapa_funil_id ? etapas?.find((e) => e.id === motorista.etapa_funil_id)?.nome : null;
 
   return (
     <div className="space-y-4">
@@ -45,7 +53,7 @@ function ResumoTab({ motoristaId }: { motoristaId: string }) {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={motorista.status} />
-        <Badge variant="secondary">{motorista.etapa_funil ? MOTORISTA_ETAPA_FUNIL_LABEL[motorista.etapa_funil] : 'Não classificado'}</Badge>
+        <Badge variant="secondary">{nomeEtapa ?? 'Não classificado'}</Badge>
         <Badge variant={MOTORISTA_PRIORIDADE_COLOR[motorista.prioridade]}>{MOTORISTA_PRIORIDADE_LABEL[motorista.prioridade]}</Badge>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -64,21 +72,62 @@ function ResumoTab({ motoristaId }: { motoristaId: string }) {
 export function MotoristaCrmDrawer({ motoristaId, onOpenChange }: { motoristaId: string | null; onOpenChange: (open: boolean) => void }) {
   const { data: motorista } = useMotorista(motoristaId ?? undefined);
   const { data: usuario } = useCurrentUsuario();
+  const deleteMotorista = useDeleteMotorista();
+  const [confirmExcluirAberto, setConfirmExcluirAberto] = useState(false);
+
+  function handleExcluir() {
+    if (!motoristaId) return;
+    deleteMotorista.mutate(motoristaId, {
+      onSuccess: () => {
+        toast.success('Motorista excluído');
+        setConfirmExcluirAberto(false);
+        onOpenChange(false);
+      },
+    });
+  }
 
   return (
     <Drawer open={motoristaId !== null} onOpenChange={onOpenChange} title={motorista?.nome_completo ?? 'Motorista'} description="Jornada do motorista">
       {motoristaId && (
-        <Tabs
-          items={[
-            { value: 'resumo', label: 'Resumo', content: <ResumoTab motoristaId={motoristaId} /> },
-            { value: 'timeline', label: 'Timeline', content: <TimelinePanel entidadeTipo="motorista" entidadeId={motoristaId} /> },
-            {
-              value: 'documentos',
-              label: 'Documentos',
-              content: <ArquivosTab motoristaId={motoristaId} empresaId={usuario?.empresa_id ?? undefined} usuarioId={usuario?.id ?? undefined} />,
-            },
-          ]}
-        />
+        <>
+          {/* Exclusão reaproveita o MESMO fluxo já existente em MotoristaDetailPage (migration
+              0004: pode_excluir_motorista, gated a super_admin/owner/admin; contrato vinculado
+              já bloqueia via FK "on delete restrict") — só ganhou um segundo ponto de entrada,
+              aqui no painel do Kanban, em vez de só na página cheia /motoristas/:id. */}
+          <div className="mb-3 flex justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => setConfirmExcluirAberto(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Excluir motorista
+            </Button>
+          </div>
+          <Tabs
+            items={[
+              { value: 'resumo', label: 'Resumo', content: <ResumoTab motoristaId={motoristaId} /> },
+              { value: 'timeline', label: 'Timeline', content: <TimelinePanel entidadeTipo="motorista" entidadeId={motoristaId} /> },
+              {
+                value: 'documentos',
+                label: 'Documentos',
+                content: <ArquivosTab motoristaId={motoristaId} empresaId={usuario?.empresa_id ?? undefined} usuarioId={usuario?.id ?? undefined} />,
+              },
+            ]}
+          />
+          <ConfirmDialog
+            open={confirmExcluirAberto}
+            onOpenChange={setConfirmExcluirAberto}
+            title="Excluir este motorista?"
+            description="Esta ação não pode ser desfeita. Motoristas com contrato vinculado não podem ser excluídos."
+            confirmLabel="Excluir"
+            destructive
+            onConfirm={handleExcluir}
+            isPending={deleteMotorista.isPending}
+          />
+        </>
       )}
     </Drawer>
   );
