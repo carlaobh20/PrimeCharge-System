@@ -3,6 +3,8 @@ import type { VeiculoIntelligenceSnapshot } from '@/features/command-center/serv
 import { resolverValorAtualVeiculo } from '@/shared/lib/valorAtivo';
 import { diasDesde } from '@/shared/lib/format';
 import { calcularRoi } from '@/features/financeiro/intelligence/roi';
+import { calcularResumoFinanceiro } from '@/features/financeiro/intelligence/resumoFinanceiro';
+import type { LancamentoStatus } from '@/features/financeiro/types';
 import { calcularCustoPorKm, calcularLucroPorDia, calcularLucroPorKm, calcularRoa } from './investmentSimulator';
 
 export type ComparativoFrotaItem = {
@@ -20,7 +22,7 @@ export type ComparativoFrotaItem = {
   lucroPorDia: number | null;
 };
 
-type LancamentoParaComparativo = { veiculo_id: string | null; tipo: 'receita' | 'despesa'; status: string; valor: number };
+type LancamentoParaComparativo = { veiculo_id: string | null; tipo: 'receita' | 'despesa'; status: LancamentoStatus; valor: number };
 
 // Épico 4 — "FROTA", seção 12 (Comparativo). Reaproveita healthScore já calculado pelo mesmo
 // snapshot do Dashboard da Frota (useFleetIntelligenceSnapshots) e calcularRoi/calcularCustoPorKm
@@ -37,6 +39,12 @@ type LancamentoParaComparativo = { veiculo_id: string | null; tipo: 'receita' | 
 // Épico 5 — lucroPorKm/lucroPorDia adicionados (Fase E.3): calcularLucroPorKm/calcularLucroPorDia
 // já existiam desde a Fase A.5 (usados no Cockpit individual, FinanceiroTab.tsx) — não
 // recalculados de outro jeito aqui, só plugados no ranking que faltava.
+//
+// Achado da auditoria de consolidação (Épico 5): receita/despesa/lucro confirmados eram
+// recalculados aqui na mão (mesma fórmula de calcularResumoFinanceiro, só reimplementada) —
+// risco real de divergir se a regra de "o que conta como confirmado" mudar num lugar só.
+// `pagamentos: []` porque este comparativo não usa `receitaRecuperada` (a única saída que
+// depende de pagamentos) — mesmo padrão já usado em FinanceiroTab.tsx.
 export function calcularItensComparativo(
   frota: VeiculoComRelacoes[],
   snapshots: VeiculoIntelligenceSnapshot[],
@@ -45,10 +53,11 @@ export function calcularItensComparativo(
   const healthPorVeiculo = new Map(snapshots.map((s) => [s.veiculo.id, s.healthScore.overall]));
 
   return frota.map((veiculo) => {
-    const lancamentosDoVeiculo = lancamentos.filter((l) => l.veiculo_id === veiculo.id && l.status === 'confirmada');
-    const receitaConfirmada = lancamentosDoVeiculo.filter((l) => l.tipo === 'receita').reduce((s, l) => s + l.valor, 0);
-    const despesaConfirmada = lancamentosDoVeiculo.filter((l) => l.tipo === 'despesa').reduce((s, l) => s + l.valor, 0);
-    const lucroConfirmado = receitaConfirmada - despesaConfirmada;
+    const lancamentosDoVeiculo = lancamentos.filter((l) => l.veiculo_id === veiculo.id);
+    const { receitaConfirmada, despesaConfirmada, lucroConfirmado } = calcularResumoFinanceiro({
+      lancamentos: lancamentosDoVeiculo,
+      pagamentos: [],
+    });
 
     const valorAtual = resolverValorAtualVeiculo(veiculo);
     const { roiPercentual } = calcularRoi(lucroConfirmado, veiculo.valor_compra);

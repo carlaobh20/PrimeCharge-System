@@ -18,12 +18,13 @@ import {
 } from '../../intelligence/investmentSimulator';
 import { calcularResumoFinanciamentoReal } from '../../intelligence/financiamentoReal';
 import { calcularResultadoEsperado } from '../../intelligence/resultadoEsperado';
-import { calcularTempoPorStatus } from '../../intelligence/tempoPorStatus';
+import { calcularPercentuaisTempoPorStatus, calcularTempoPorStatus } from '../../intelligence/tempoPorStatus';
 import { YieldAtivoCard } from '../YieldAtivoCard';
 import { CicloDeVidaTimeline } from '../CicloDeVidaTimeline';
 import { CapitalRecuperadoCard } from '../CapitalRecuperadoCard';
 import { ResultadoEsperadoCard } from '../ResultadoEsperadoCard';
 import { TempoPorStatusCard } from '../TempoPorStatusCard';
+import { IndicadoresDoAtivoCard } from '../IndicadoresDoAtivoCard';
 import { ExtratoFinanceiroVeiculo } from '../ExtratoFinanceiroVeiculo';
 import type { Veiculo } from '../../types';
 
@@ -90,6 +91,7 @@ export function FinanceiroTab({ veiculo }: { veiculo: Veiculo }) {
   const lucroMedioMensal = mesesDeOperacao >= 1 ? resumo.lucroConfirmado / mesesDeOperacao : null;
   const resultadoEsperado = calcularResultadoEsperado(veiculo, resumoFinanciamento, resumo.lucroConfirmado, lucroMedioMensal);
   const tempoPorStatus = calcularTempoPorStatus(veiculo, eventosTimeline ?? []);
+  const percentuaisTempoPorStatus = calcularPercentuaisTempoPorStatus(tempoPorStatus);
 
   if (isLoading || loadingContratos || loadingTimeline) {
     return <div className="h-32 cockpit-shimmer rounded-2xl" />;
@@ -107,6 +109,18 @@ export function FinanceiroTab({ veiculo }: { veiculo: Veiculo }) {
       <CicloDeVidaTimeline status={veiculo.status} />
 
       <TempoPorStatusCard resultado={tempoPorStatus} />
+
+      <IndicadoresDoAtivoCard
+        indicadores={{
+          roiPercentual: roi.roiPercentual,
+          disponibilidadePct: percentuaisTempoPorStatus.disponibilidadePct,
+          vacanciaPct: percentuaisTempoPorStatus.vacanciaPct,
+          oficinaDias: tempoPorStatus.oficinaDias,
+          tempoParadoDias: tempoPorStatus.paradoDias,
+          lucroPorKm: lucroPorKm.valor,
+          lucroPorDia: lucroPorDia.valor,
+        }}
+      />
 
       <ResultadoEsperadoCard resultado={resultadoEsperado} />
 

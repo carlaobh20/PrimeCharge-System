@@ -95,3 +95,21 @@ export function calcularTempoPorStatus(
     aproximado: false,
   };
 }
+
+export type PercentuaisTempoPorStatus = {
+  disponibilidadePct: number | null; // % do tempo de vida gerando receita (alugado)
+  vacanciaPct: number | null; // % do tempo de vida ocioso (parado + oficina, sem gerar receita)
+};
+
+// Épico 5 — "Consolidação da Arquitetura", item 8 (painel de indicadores do ativo). Derivação
+// pura sobre TempoPorStatus, sem buscar nada novo — "disponibilidade" e "vacância" pedidas
+// como INDICADOR (percentual), diferente de "tempo parado"/"oficina" (dias absolutos, já
+// existentes em TempoPorStatus). null quando não há histórico nenhum (totalDias = 0), nunca 0%
+// fabricado.
+export function calcularPercentuaisTempoPorStatus(t: TempoPorStatus): PercentuaisTempoPorStatus {
+  if (t.totalDias === 0) return { disponibilidadePct: null, vacanciaPct: null };
+  return {
+    disponibilidadePct: Math.round((t.alugadoDias / t.totalDias) * 1000) / 10,
+    vacanciaPct: Math.round(((t.paradoDias + t.oficinaDias) / t.totalDias) * 1000) / 10,
+  };
+}

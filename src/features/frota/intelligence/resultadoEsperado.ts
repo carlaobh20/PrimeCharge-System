@@ -10,6 +10,18 @@ export type ResultadoEsperadoAtivo = {
   lucroProjetadoAteVenda: number | null;
   valorEsperadoVenda: number | null;
   resultadoTotalEsperado: number | null;
+  // Épico 5 — "Consolidação", item 7 (Patrimônio do Ativo). Deliberadamente ENTRA neste
+  // mesmo resultado em vez de virar um card novo: valor de compra/FIPE/mercado e a
+  // depreciação já são só uma decomposição de `valorAtual`/`patrimonioLiquido` acima (mesmo
+  // cálculo, resolverValorAtualVeiculo), e um segundo card financeiro do veículo do lado
+  // deste correria o risco real de duplicação que a auditoria pediu pra evitar.
+  valorCompra: number | null;
+  valorFipe: number | null;
+  valorMercado: number | null;
+  depreciacao: number | null;
+  // "Lucro potencial de venda" pedido — ganho de capital puro (venda − compra), diferente de
+  // `resultadoTotalEsperado` (que já soma lucro operacional realizado + projetado).
+  ganhoDeCapitalEsperado: number | null;
 };
 
 // Épico 4 — "Ativo Financeiro", Parte 7. As primeiras 4 linhas (valor atual, saldo devedor,
@@ -47,6 +59,10 @@ export function calcularResultadoEsperado(
   const resultadoTotalEsperado =
     valorEsperadoVenda !== null ? lucroRealizado + (lucroProjetadoAteVenda ?? 0) + (valorEsperadoVenda - saldoDevedor) : null;
 
+  const depreciacao = veiculo.valor_compra !== null && valorAtual !== null ? veiculo.valor_compra - valorAtual : null;
+  const ganhoDeCapitalEsperado =
+    veiculo.valor_compra !== null && valorEsperadoVenda !== null ? valorEsperadoVenda - veiculo.valor_compra : null;
+
   return {
     valorAtual,
     saldoDevedor,
@@ -55,5 +71,10 @@ export function calcularResultadoEsperado(
     lucroProjetadoAteVenda,
     valorEsperadoVenda,
     resultadoTotalEsperado,
+    valorCompra: veiculo.valor_compra,
+    valorFipe: veiculo.valor_fipe,
+    valorMercado: veiculo.valor_mercado,
+    depreciacao,
+    ganhoDeCapitalEsperado,
   };
 }

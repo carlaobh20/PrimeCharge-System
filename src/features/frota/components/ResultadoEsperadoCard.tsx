@@ -29,7 +29,20 @@ export function ResultadoEsperadoCard({ resultado }: { resultado: ResultadoEsper
         <Stat label="Valor esperado da venda" value={v(resultado.valorEsperadoVenda)} />
       </div>
       <div className="mt-4 border-t border-neutral-100 pt-3 dark:border-white/5">
-        <Stat label="Resultado total esperado" value={v(resultado.resultadoTotalEsperado)} destaque />
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Composição do Patrimônio</p>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Stat label="Valor de compra" value={v(resultado.valorCompra)} />
+          <Stat label="Depreciação" value={v(resultado.depreciacao)} cor={resultado.depreciacao !== null && resultado.depreciacao > 0 ? 'text-red-600 dark:text-red-400' : undefined} />
+          <Stat label="Valor FIPE" value={v(resultado.valorFipe)} />
+          <Stat label="Valor de mercado" value={v(resultado.valorMercado)} />
+        </div>
+      </div>
+
+      <div className="mt-4 border-t border-neutral-100 pt-3 dark:border-white/5">
+        <div className="grid grid-cols-2 gap-4">
+          <Stat label="Lucro potencial de venda" value={v(resultado.ganhoDeCapitalEsperado)} cor={resultado.ganhoDeCapitalEsperado !== null && resultado.ganhoDeCapitalEsperado < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'} />
+          <Stat label="Resultado total esperado" value={v(resultado.resultadoTotalEsperado)} destaque />
+        </div>
       </div>
     </div>
   );
