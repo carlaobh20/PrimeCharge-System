@@ -111,7 +111,13 @@ export function AppLayout() {
         </div>
       </aside>
 
-      <main className="flex-1">
+      {/* min-w-0 é essencial aqui: sem ele, um item de flex row (este <main>, ao lado do
+          <aside>) usa min-width:auto por padrão, e qualquer conteúdo interno com rolagem
+          horizontal própria (overflow-x-auto — Kanban do CRM, Épico 6) força esse item a
+          crescer pra caber tudo em vez de rolar, esticando a página inteira. Achado ao
+          verificar a Fase 1 do Kanban em produção — corrigido na raiz (aqui) em vez de em cada
+          componente que algum dia tiver uma faixa de rolagem própria. */}
+      <main className="min-w-0 flex-1">
         <Outlet />
       </main>
 
