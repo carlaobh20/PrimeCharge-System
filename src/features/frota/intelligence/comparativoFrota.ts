@@ -2,7 +2,7 @@ import type { VeiculoComRelacoes } from '../types';
 import type { VeiculoIntelligenceSnapshot } from '@/features/command-center/services/fleetIntelligenceCollector';
 import { resolverValorAtualVeiculo } from '@/shared/lib/valorAtivo';
 import { calcularRoi } from '@/features/financeiro/intelligence/roi';
-import { calcularCustoPorKm } from './investmentSimulator';
+import { calcularCustoPorKm, calcularRoa } from './investmentSimulator';
 
 export type ComparativoFrotaItem = {
   veiculo: VeiculoComRelacoes;
@@ -13,6 +13,7 @@ export type ComparativoFrotaItem = {
   despesaConfirmada: number;
   lucroConfirmado: number;
   roiPercentual: number | null;
+  roaPercentual: number | null;
   custoPorKm: number | null;
 };
 
@@ -42,24 +43,27 @@ export function calcularItensComparativo(
     const despesaConfirmada = lancamentosDoVeiculo.filter((l) => l.tipo === 'despesa').reduce((s, l) => s + l.valor, 0);
     const lucroConfirmado = receitaConfirmada - despesaConfirmada;
 
+    const valorAtual = resolverValorAtualVeiculo(veiculo);
     const { roiPercentual } = calcularRoi(lucroConfirmado, veiculo.valor_compra);
+    const { percentual: roaPercentual } = calcularRoa(lucroConfirmado, valorAtual);
     const { valor: custoPorKm } = calcularCustoPorKm(despesaConfirmada, veiculo.quilometragem);
 
     return {
       veiculo,
       healthScore: healthPorVeiculo.get(veiculo.id) ?? null,
       km: veiculo.quilometragem,
-      valorAtual: resolverValorAtualVeiculo(veiculo),
+      valorAtual,
       receitaConfirmada,
       despesaConfirmada,
       lucroConfirmado,
       roiPercentual,
+      roaPercentual,
       custoPorKm,
     };
   });
 }
 
-export type MetricaOrdenacao = 'lucro' | 'roi' | 'health' | 'km' | 'valor';
+export type MetricaOrdenacao = 'lucro' | 'roi' | 'roa' | 'health' | 'km' | 'valor';
 
 export function ordenarComparativo(itens: ComparativoFrotaItem[], metrica: MetricaOrdenacao): ComparativoFrotaItem[] {
   const valor = (item: ComparativoFrotaItem): number => {
@@ -68,6 +72,8 @@ export function ordenarComparativo(itens: ComparativoFrotaItem[], metrica: Metri
         return item.lucroConfirmado;
       case 'roi':
         return item.roiPercentual ?? -Infinity;
+      case 'roa':
+        return item.roaPercentual ?? -Infinity;
       case 'health':
         return item.healthScore ?? -Infinity;
       case 'km':

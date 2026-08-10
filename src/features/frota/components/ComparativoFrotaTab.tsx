@@ -10,6 +10,7 @@ import { ordenarComparativo, type ComparativoFrotaItem, type MetricaOrdenacao } 
 const METRICAS: Array<{ value: MetricaOrdenacao; label: string }> = [
   { value: 'lucro', label: 'Lucro confirmado' },
   { value: 'roi', label: 'ROI' },
+  { value: 'roa', label: 'ROA' },
   { value: 'health', label: 'Health Score' },
   { value: 'km', label: 'Km rodados' },
   { value: 'valor', label: 'Valor atual' },
@@ -92,6 +93,7 @@ export function ComparativoFrotaTab() {
                   <th className="px-4 py-3">Valor atual</th>
                   <th className="px-4 py-3">Lucro confirmado</th>
                   <th className="px-4 py-3">ROI</th>
+                  <th className="px-4 py-3">ROA</th>
                   <th className="px-4 py-3">Custo/km</th>
                 </tr>
               </thead>
@@ -120,6 +122,9 @@ export function ComparativoFrotaTab() {
                     </td>
                     <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">
                       {item.roiPercentual !== null ? `${item.roiPercentual}%` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">
+                      {item.roaPercentual !== null ? `${item.roaPercentual}%` : '—'}
                     </td>
                     <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">
                       {item.custoPorKm !== null ? formatMoeda(item.custoPorKm) : '—'}

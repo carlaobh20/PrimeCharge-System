@@ -3,12 +3,20 @@ import { Link } from 'react-router-dom';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
-import { formatDataSimples, formatMoeda } from '@/shared/lib/format';
+import { diasDesde, formatDataSimples, formatMoeda } from '@/shared/lib/format';
 import { useLancamentos } from '@/features/financeiro/hooks/useLancamentos';
 import { LANCAMENTO_STATUS_LABEL, LANCAMENTO_TIPO_LABEL, type LancamentoStatus } from '@/features/financeiro/types';
 import { calcularResumoFinanceiro, calcularRoi } from '@/features/financeiro/intelligence';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
-import { calcularCapitalRecuperado, calcularCustoPorKm, calcularPaybackMeses } from '../../intelligence/investmentSimulator';
+import { resolverValorAtualVeiculo } from '@/shared/lib/valorAtivo';
+import {
+  calcularCapitalRecuperado,
+  calcularCustoPorKm,
+  calcularLucroPorDia,
+  calcularLucroPorKm,
+  calcularPaybackMeses,
+  calcularRoa,
+} from '../../intelligence/investmentSimulator';
 import { calcularResumoFinanciamentoReal } from '../../intelligence/financiamentoReal';
 import { calcularResultadoEsperado } from '../../intelligence/resultadoEsperado';
 import { YieldAtivoCard } from '../YieldAtivoCard';
@@ -75,6 +83,10 @@ export function FinanceiroTab({ veiculo }: { veiculo: Veiculo }) {
     : 0;
   const payback = calcularPaybackMeses(veiculo.valor_compra, resumo.lucroConfirmado, mesesDeOperacao);
   const capitalRecuperado = calcularCapitalRecuperado(veiculo.valor_compra, resumo.lucroConfirmado);
+  const diasNaFrota = diasDesde(veiculo.data_compra ?? veiculo.criado_em);
+  const lucroPorKm = calcularLucroPorKm(resumo.lucroConfirmado, kmRodado > 0 ? kmRodado : null);
+  const lucroPorDia = calcularLucroPorDia(resumo.lucroConfirmado, diasNaFrota);
+  const roa = calcularRoa(resumo.lucroConfirmado, resolverValorAtualVeiculo(veiculo));
   const resumoFinanciamento = calcularResumoFinanciamentoReal(veiculo);
   const lucroMedioMensal = mesesDeOperacao >= 1 ? resumo.lucroConfirmado / mesesDeOperacao : null;
   const resultadoEsperado = calcularResultadoEsperado(veiculo, resumoFinanciamento, resumo.lucroConfirmado, lucroMedioMensal);
@@ -135,14 +147,29 @@ export function FinanceiroTab({ veiculo }: { veiculo: Veiculo }) {
                 {roi.roiPercentual === null && <p className="mt-0.5 text-[11px] text-neutral-400">{roi.motivos[0]}</p>}
               </div>
               <div>
-                <p className="text-xs text-neutral-400">Custo por KM</p>
-                <p className="font-medium text-neutral-900 dark:text-neutral-100">{custoPorKm.valor !== null ? formatMoeda(custoPorKm.valor) : '—'}</p>
-                {custoPorKm.valor === null && <p className="mt-0.5 text-[11px] text-neutral-400">{custoPorKm.motivo}</p>}
+                <p className="text-xs text-neutral-400">ROA acumulado</p>
+                <p className="font-medium text-neutral-900 dark:text-neutral-100">{roa.percentual !== null ? `${roa.percentual}%` : '—'}</p>
+                {roa.percentual === null && <p className="mt-0.5 text-[11px] text-neutral-400">{roa.motivo}</p>}
               </div>
               <div>
                 <p className="text-xs text-neutral-400">Payback estimado</p>
                 <p className="font-medium text-neutral-900 dark:text-neutral-100">{payback.meses !== null ? `${payback.meses} mês(es)` : '—'}</p>
                 {payback.meses === null && <p className="mt-0.5 text-[11px] text-neutral-400">{payback.motivo}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-neutral-400">Custo por KM</p>
+                <p className="font-medium text-neutral-900 dark:text-neutral-100">{custoPorKm.valor !== null ? formatMoeda(custoPorKm.valor) : '—'}</p>
+                {custoPorKm.valor === null && <p className="mt-0.5 text-[11px] text-neutral-400">{custoPorKm.motivo}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-neutral-400">Lucro por KM</p>
+                <p className="font-medium text-neutral-900 dark:text-neutral-100">{lucroPorKm.valor !== null ? formatMoeda(lucroPorKm.valor) : '—'}</p>
+                {lucroPorKm.valor === null && <p className="mt-0.5 text-[11px] text-neutral-400">{lucroPorKm.motivo}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-neutral-400">Lucro por dia</p>
+                <p className="font-medium text-neutral-900 dark:text-neutral-100">{lucroPorDia.valor !== null ? formatMoeda(lucroPorDia.valor) : '—'}</p>
+                {lucroPorDia.valor === null && <p className="mt-0.5 text-[11px] text-neutral-400">{lucroPorDia.motivo}</p>}
               </div>
             </div>
             <p className="mt-3 text-[11px] text-neutral-400">

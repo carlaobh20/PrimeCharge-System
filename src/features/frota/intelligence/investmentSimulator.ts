@@ -69,3 +69,39 @@ export function calcularCapitalRecuperado(valorInvestido: number | null, lucroCo
   const percentualRecuperado = Math.round((capitalRecuperado / valorInvestido) * 1000) / 10;
   return { capitalInvestido: valorInvestido, capitalRecuperado, capitalRestante, percentualRecuperado };
 }
+
+export type ValorPorUnidadeResult = { valor: number | null; motivo: string };
+
+// Épico 4 — "FROTA", Fase A.5. Mesmo racional de calcularCustoPorKm acima: "quanto cada km/dia
+// rendeu de lucro", não só "quanto custou". Reaproveita o mesmo lucroConfirmadoAcumulado que já
+// alimenta ROI/Payback/Capital Recuperado — nenhum cálculo de lucro novo, só nova divisão.
+export function calcularLucroPorKm(lucroConfirmadoAcumulado: number, kmRodado: number | null): ValorPorUnidadeResult {
+  if (kmRodado === null || kmRodado <= 0) {
+    return { valor: null, motivo: 'Sem quilometragem rodada registrada ainda.' };
+  }
+  return { valor: Math.round((lucroConfirmadoAcumulado / kmRodado) * 100) / 100, motivo: `${kmRodado} km rodados.` };
+}
+
+export function calcularLucroPorDia(lucroConfirmadoAcumulado: number, diasNaFrota: number | null): ValorPorUnidadeResult {
+  if (diasNaFrota === null || diasNaFrota <= 0) {
+    return { valor: null, motivo: 'Sem dias suficientes na frota para calcular ainda.' };
+  }
+  return { valor: Math.round((lucroConfirmadoAcumulado / diasNaFrota) * 100) / 100, motivo: `${diasNaFrota} dias na frota.` };
+}
+
+export type RoaResult = { percentual: number | null; motivo: string };
+
+// ROA (Return on Assets) — diferente de ROI (calcularRoi, financeiro/intelligence/roi.ts): ROI
+// mede retorno sobre o CAPITAL INVESTIDO na compra (valor_compra, histórico e fixo); ROA mede
+// retorno sobre o VALOR ATUAL do ativo (resolverValorAtualVeiculo — muda com depreciação/
+// mercado). Os dois respondem perguntas diferentes: "o que paguei valeu a pena" (ROI) vs "o
+// que esse ativo vale hoje está rendendo bem" (ROA).
+export function calcularRoa(lucroConfirmadoAcumulado: number, valorAtivoAtual: number | null): RoaResult {
+  if (valorAtivoAtual === null || valorAtivoAtual <= 0) {
+    return { percentual: null, motivo: 'Valor atual do ativo desconhecido — ROA não calculável.' };
+  }
+  return {
+    percentual: Math.round((lucroConfirmadoAcumulado / valorAtivoAtual) * 10000) / 100,
+    motivo: `Lucro confirmado sobre valor atual de ${valorAtivoAtual.toFixed(2)}.`,
+  };
+}
