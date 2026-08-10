@@ -6,6 +6,7 @@ import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancame
 import { usePagamentosPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { useAcoesPorEmpresa } from '@/features/operacoes/hooks/useAcoes';
 import { calcularResumoFinanceiro, type ResumoFinanceiro } from '@/features/financeiro/intelligence';
+import { resolverValorAtualVeiculo } from '@/shared/lib/valorAtivo';
 import { diasAte } from '@/shared/lib/format';
 import type { VeiculoStatus } from '@/features/frota/types';
 import type { ContratoStatus } from '@/features/contracts/types';
@@ -38,6 +39,13 @@ export type EmpresaHealthResult =
       filaOperacional: {
         total: number;
         porPrioridade: Partial<Record<AcaoPrioridade, number>>;
+      };
+      // Épico 4, Parte 8 — só "Veículos" tem dado real hoje. Wallbox/Loja/Software/Imóveis/
+      // Outros aparecem na tela sempre zerados (`pending`, mesma convenção de KpiCard já usada
+      // pra "módulo ainda não existe") — o objetivo é mudar a mentalidade ("a empresa tem mais
+      // de um tipo de ativo"), não fingir que já existe dado que não existe.
+      ativos: {
+        valorTotalVeiculos: number;
       };
     };
 
@@ -139,6 +147,14 @@ export function useEmpresaHealth(): EmpresaHealthResult {
     filaOperacional: {
       total: acoesAbertas.length,
       porPrioridade: contarPorStatus(acoesAbertas.map((a) => ({ status: a.prioridade }))),
+    },
+    ativos: {
+      // 'encerrado' é o único status realmente terminal (venda concluída e baixada) — um
+      // veículo 'venda' (anunciado, ainda não vendido) continua sendo patrimônio da empresa até
+      // a venda de fato acontecer, por isso entra na soma.
+      valorTotalVeiculos: (veiculos ?? [])
+        .filter((v) => v.status !== 'encerrado')
+        .reduce((soma, v) => soma + (resolverValorAtualVeiculo(v) ?? 0), 0),
     },
   };
 }

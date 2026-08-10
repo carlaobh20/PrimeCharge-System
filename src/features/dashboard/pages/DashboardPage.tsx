@@ -10,6 +10,12 @@ import {
   Users,
   IdCard,
   ListChecks,
+  Zap,
+  Store,
+  Code,
+  Building2,
+  Boxes,
+  Landmark,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { KpiCard } from '@/shared/components/ui/kpi-card';
@@ -90,6 +96,26 @@ export function DashboardPage() {
             value={health.isLoading ? '' : `${health.frota.criticos}`}
             pending={health.isLoading}
           />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <Landmark className="h-3.5 w-3.5" />
+          Ativos
+        </h2>
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          <KpiCard
+            icon={Car}
+            label="Veículos"
+            value={health.isLoading ? '' : formatMoeda(health.ativos.valorTotalVeiculos)}
+            pending={health.isLoading}
+          />
+          <KpiCard icon={Zap} label="Wallbox" value="" pending />
+          <KpiCard icon={Store} label="Loja" value="" pending />
+          <KpiCard icon={Code} label="Software" value="" pending />
+          <KpiCard icon={Building2} label="Imóveis" value="" pending />
+          <KpiCard icon={Boxes} label="Outros" value="" pending />
         </div>
       </section>
 
