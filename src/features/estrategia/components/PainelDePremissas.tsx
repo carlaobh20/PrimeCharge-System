@@ -1,8 +1,11 @@
+import { Fragment } from 'react';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { formatMoeda } from '@/shared/lib/format';
 import { formatarMoedaInput, digitosParaReais } from '../lib/moedaInput';
+import { AmortizacaoCard } from './AmortizacaoCard';
+import type { MesSimulado } from '../intelligence/simulacaoEmpresarial';
 import type { CenarioSimulacaoInput } from '../types';
 
 type CampoNumerico = Exclude<keyof CenarioSimulacaoInput, 'nome' | 'reinvestir_lucro' | 'amortizacao_estrategia' | 'amortizacao_valor_manual'>;
@@ -156,46 +159,55 @@ function calcularVeiculosDisponiveisAgora(valor: CenarioSimulacaoInput): number 
 export function PainelDePremissas({
   valor,
   onChange,
+  mesAtual,
 }: {
   valor: CenarioSimulacaoInput;
   onChange: (patch: Partial<CenarioSimulacaoInput>) => void;
+  mesAtual?: MesSimulado;
 }) {
   return (
     <div className="min-w-0 columns-1 gap-3 sm:columns-2 lg:columns-3">
       {GRUPOS.map((grupo) => (
-        <Card key={grupo.titulo} className="mb-3 break-inside-avoid">
-          <CardContent className="py-2.5">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{grupo.titulo}</p>
-            <div className="space-y-1.5">
-              {grupo.campos.map(({ chave, label, sufixo, tipo }) => (
-                <div key={chave} className="flex items-center justify-between gap-2">
-                  <Label htmlFor={chave} className="text-xs font-normal text-neutral-500">
-                    {label}
-                  </Label>
-                  <div className="flex w-36 shrink-0 items-center gap-1">
-                    <CampoInput chave={chave} valor={valor} tipo={tipo} onChange={onChange} />
-                    {sufixo && <span className="w-10 shrink-0 text-[10px] text-neutral-400">{sufixo}</span>}
+        <Fragment key={grupo.titulo}>
+          <Card className="mb-3 break-inside-avoid">
+            <CardContent className="py-2.5">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{grupo.titulo}</p>
+              <div className="space-y-1.5">
+                {grupo.campos.map(({ chave, label, sufixo, tipo }) => (
+                  <div key={chave} className="flex items-center justify-between gap-2">
+                    <Label htmlFor={chave} className="text-xs font-normal text-neutral-500">
+                      {label}
+                    </Label>
+                    <div className="flex w-36 shrink-0 items-center gap-1">
+                      <CampoInput chave={chave} valor={valor} tipo={tipo} onChange={onChange} />
+                      {sufixo && <span className="w-10 shrink-0 text-[10px] text-neutral-400">{sufixo}</span>}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            {grupo.titulo === 'Capital' && (
-              <p className="mt-2 border-t border-neutral-100 pt-2 text-[11px] text-neutral-500 dark:border-white/5">
-                {valor.capital_disponivel < valor.reserva_de_seguranca ? (
-                  <span className="text-amber-600 dark:text-amber-400">Capital abaixo da reserva de segurança — nenhum veículo pode ser comprado agora.</span>
-                ) : (
-                  <>
-                    Dá pra comprar{' '}
-                    <span className="font-semibold text-neutral-700 dark:text-neutral-300">
-                      {calcularVeiculosDisponiveisAgora(valor)} veículo(s)
-                    </span>{' '}
-                    agora, mantendo a reserva de {formatMoeda(valor.reserva_de_seguranca)}.
-                  </>
-                )}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+              {grupo.titulo === 'Capital' && (
+                <p className="mt-2 border-t border-neutral-100 pt-2 text-[11px] text-neutral-500 dark:border-white/5">
+                  {valor.capital_disponivel < valor.reserva_de_seguranca ? (
+                    <span className="text-amber-600 dark:text-amber-400">Capital abaixo da reserva de segurança — nenhum veículo pode ser comprado agora.</span>
+                  ) : (
+                    <>
+                      Dá pra comprar{' '}
+                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">
+                        {calcularVeiculosDisponiveisAgora(valor)} veículo(s)
+                      </span>{' '}
+                      agora, mantendo a reserva de {formatMoeda(valor.reserva_de_seguranca)}.
+                    </>
+                  )}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 2026-08-10 — pedido do Carlos: Amortização entra logo abaixo do card "Compra"
+              (Entrada/Financiado/Prazo/Juros), no HTML, pra cair na mesma coluna, logo em
+              seguida, no CSS multi-column abaixo — é a próxima decisão sobre a mesma dívida. */}
+          {grupo.titulo === 'Compra' && <AmortizacaoCard valor={valor} onChange={onChange} mesAtual={mesAtual} />}
+        </Fragment>
       ))}
 
       <Card className="mb-3 break-inside-avoid">

@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
+import { Card, CardContent } from '@/shared/components/ui/card';
 import { Select } from '@/shared/components/ui/select';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
@@ -46,9 +46,15 @@ const DICA_POR_ESTRATEGIA: Record<EstrategiaAmortizacao, string> = {
 
 // Épico 3 — Central de Decisão Empresarial, Card 4 (Amortização). É controle (muda a estratégia
 // = recalcula tudo, sem botão Simular, igual todo o resto do painel) e mostra o efeito em tempo
-// real (quanto já foi amortizado a mais até o mês atual). Fica no lado direito, junto dos outros
-// cards de resultado, porque é conceitualmente "mais uma alavanca de decisão", não uma premissa
-// estrutural do cenário (por isso não foi pro PainelDePremissas à esquerda).
+// real (quanto já foi amortizado a mais até o mês atual).
+//
+// 2026-08-10 — pedido do Carlos: mudou de lugar. Antes ficava no lado direito, junto dos cards de
+// resultado (grid com Evolução do Caixa); agora entra dentro do PainelDePremissas, logo abaixo do
+// card "Compra" (Entrada/Financiado/Prazo/Juros) — é literalmente a próxima decisão sobre a mesma
+// dívida, então fica junto no mesmo lugar em que se mexe no financiamento. Estilo compactado pra
+// ficar uniforme com os outros cards do painel (mesmo padding, mesma altura de input, mesmo
+// tamanho de texto) — deixou de ter CardHeader/CardTitle próprio porque nenhum card do painel
+// tem, só um rótulo pequeno em maiúsculas dentro do CardContent.
 export function AmortizacaoCard({
   valor,
   onChange,
@@ -62,45 +68,49 @@ export function AmortizacaoCard({
   const comparacao = compararAmortizarVsComprar(valor);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Amortização</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <Label className="mb-1 block text-xs font-normal text-neutral-500">Estratégia</Label>
-            <Select
-              value={valor.amortizacao_estrategia}
-              onChange={(e) => onChange({ amortizacao_estrategia: e.target.value as EstrategiaAmortizacao })}
-              className="h-9 text-sm"
-            >
-              {ESTRATEGIAS_AMORTIZACAO.map((e) => (
-                <option key={e} value={e}>
-                  {LABEL_ESTRATEGIA_AMORTIZACAO[e]}
-                </option>
-              ))}
-            </Select>
+    <Card className="mb-3 break-inside-avoid">
+      <CardContent className="py-2.5">
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Amortização</p>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-xs font-normal text-neutral-500">Estratégia</Label>
+            <div className="w-36 shrink-0">
+              <Select
+                value={valor.amortizacao_estrategia}
+                onChange={(e) => onChange({ amortizacao_estrategia: e.target.value as EstrategiaAmortizacao })}
+                className="h-7 px-1.5 text-xs"
+              >
+                {ESTRATEGIAS_AMORTIZACAO.map((e) => (
+                  <option key={e} value={e}>
+                    {LABEL_ESTRATEGIA_AMORTIZACAO[e]}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
 
           {mostrarCampoValor && (
-            <div>
-              <Label className="mb-1 block text-xs font-normal text-neutral-500">Valor por evento (R$)</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                className="h-9 text-sm"
-                value={formatarMoedaInput(valor.amortizacao_valor_manual ?? 0)}
-                onChange={(e) => onChange({ amortizacao_valor_manual: digitosParaReais(e.target.value) })}
-              />
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs font-normal text-neutral-500">Valor por evento</Label>
+              <div className="flex w-36 shrink-0 items-center gap-1">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  className="h-7 min-w-0 px-1.5 text-right text-xs"
+                  value={formatarMoedaInput(valor.amortizacao_valor_manual ?? 0)}
+                  onChange={(e) => onChange({ amortizacao_valor_manual: digitosParaReais(e.target.value) })}
+                />
+                <span className="w-10 shrink-0 text-[10px] text-neutral-400">R$</span>
+              </div>
             </div>
           )}
         </div>
 
-        <p className="text-xs text-neutral-500">{DICA_POR_ESTRATEGIA[valor.amortizacao_estrategia]}</p>
+        <p className="mt-2 text-[11px] leading-snug text-neutral-400">{DICA_POR_ESTRATEGIA[valor.amortizacao_estrategia]}</p>
 
         {mesAtual && valor.amortizacao_estrategia !== 'nunca' && (
-          <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2 text-xs dark:bg-white/[0.03]">
+          <div className="mt-2 flex items-center justify-between border-t border-neutral-100 pt-2 text-[11px] dark:border-white/5">
             <span className="text-neutral-500">Amortizado a mais até hoje</span>
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatMoeda(mesAtual.amortizacaoExtraAcumulada)}</span>
           </div>
@@ -108,13 +118,12 @@ export function AmortizacaoCard({
 
         <div
           className={cn(
-            'rounded-lg px-3 py-2 text-xs',
+            'mt-2 rounded-md px-2 py-1.5 text-[11px] leading-snug',
             comparacao.valeAmortizar ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300'
           )}
         >
           <span className="font-semibold">{comparacao.valeAmortizar ? 'Vale mais amortizar. ' : 'Vale mais comprar outro carro. '}</span>
-          Amortizar economiza ~{comparacao.economiaAmortizarAaPct.toFixed(1)}% a.a. de juros; comprar mais um veículo rende ~{comparacao.retornoComprarAaPct.toFixed(1)}% a.a. sobre o valor do carro
-          (comparação rápida, ordem de grandeza — a simulação completa acima já considera os dois efeitos juntos).
+          Amortizar economiza ~{comparacao.economiaAmortizarAaPct.toFixed(1)}% a.a. de juros; comprar mais um veículo rende ~{comparacao.retornoComprarAaPct.toFixed(1)}% a.a. sobre o valor do carro.
         </div>
       </CardContent>
     </Card>

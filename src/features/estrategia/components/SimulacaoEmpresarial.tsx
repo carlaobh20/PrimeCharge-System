@@ -5,7 +5,6 @@ import { PainelDePremissas } from './PainelDePremissas';
 import { VisaoExecutivaCard } from './VisaoExecutivaCard';
 import { FluxoDeCaixaChart } from './FluxoDeCaixaChart';
 import { SaldoDevedorPatrimonioChart } from './SaldoDevedorPatrimonioChart';
-import { AmortizacaoCard } from './AmortizacaoCard';
 import { LinhaDoTempo } from './LinhaDoTempo';
 import { EvolucaoDoCaixaChart } from './EvolucaoDoCaixaChart';
 import { EvolucaoPatrimonioCard } from './EvolucaoPatrimonioCard';
@@ -153,7 +152,7 @@ export function SimulacaoEmpresarial() {
       {/* Layout mudou de "30% premissas à esquerda / 70% resultado à direita" pra "premissas em
           faixa larga no topo, resultado embaixo" (pedido do Carlos, 2026-08-09) — preenche as
           premissas primeiro, os gráficos vêm depois, sem coluna estreita competindo por espaço. */}
-      <PainelDePremissas valor={input} onChange={atualizarCampo} />
+      <PainelDePremissas valor={input} onChange={atualizarCampo} mesAtual={mesAtual} />
 
       <div className="min-w-0 space-y-4">
         {mesAtual && <VisaoExecutivaCard mesAtual={mesAtual} alavancagemMaximaPct={politicas?.alavancagem_maxima_pct ?? null} />}
@@ -166,10 +165,7 @@ export function SimulacaoEmpresarial() {
           {resultado && <FluxoDeCaixaChart meses={resultado.meses} />}
           {resultado && <SaldoDevedorPatrimonioChart meses={resultado.meses} />}
         </div>
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <AmortizacaoCard valor={input} onChange={atualizarCampo} mesAtual={mesAtual} />
-          {resultado && <EvolucaoDoCaixaChart meses={resultado.meses} reservaMinima={input.reserva_de_seguranca} />}
-        </div>
+        {resultado && <EvolucaoDoCaixaChart meses={resultado.meses} reservaMinima={input.reserva_de_seguranca} />}
         {resultado && <EvolucaoPatrimonioCard meses={resultado.meses} />}
         {momentoDeCompra && <MomentoIdealDeCompraCard comparacao={momentoDeCompra} />}
         {resultado && <LinhaDoTempo meses={resultado.meses} />}
