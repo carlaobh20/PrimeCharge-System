@@ -17,6 +17,15 @@ import type { MesSimulado } from '../intelligence/simulacaoEmpresarial';
 // uma pela outra porque ele disse "também", não "em vez de". A visão mensal fica dentro de um
 // container com scroll interno (max-h) pra não estourar a altura da página de novo (o problema
 // que resolvemos hoje mais cedo era exatamente "rolar demais").
+//
+// Terceira rodada (2026-08-10) — juros do caixa aplicado, IR e caixa final: "quero que coloque o
+// caixa, se tiver dinheiro aplicado, mostrar o juros, e o caixa no final de cada mes... quero que
+// mostre o IR de cada mês". Três colunas novas entre "Saldo da dívida" e "Lucro líquido" — nessa
+// posição porque Juros e IR são justamente o que transforma o lucro operacional em "Lucro
+// líquido" (que já é líquido de IR, ver simulacaoEmpresarial.ts) — e "Caixa" depois do Lucro
+// líquido, mostrando o saldo em conta no fim do período. Juros e IR ficam com traço quando ~0
+// (a maioria dos cenários antigos tem taxa_juros_investimento_aa_pct e taxa_ir_pct zerados —
+// não faz sentido poluir a tabela com "R$ 0,00" em toda linha).
 function linhaMensal(m: MesSimulado) {
   return {
     rotulo: `Mês ${m.mes}`,
@@ -24,12 +33,31 @@ function linhaMensal(m: MesSimulado) {
     despesas: m.despesaMensal - m.despesaBreakdown.parcelas,
     amortizacaoDaDivida: m.amortizacaoProgramadaMensal + m.amortizacaoExtraMensal,
     saldoDaDivida: m.saldoDevedorTotal,
+    jurosInvestimento: m.jurosInvestimentoMensal,
+    ir: m.irMensal,
     lucroLiquido: m.lucroMensal,
+    caixa: m.caixaDisponivel,
     veiculosComprados: m.comprasNoMes,
   };
 }
 
-const CABECALHO = ['Período', 'Entrada', 'Despesas', 'Amortização da dívida', 'Saldo da dívida', 'Lucro líquido', 'Veículo(s) comprado(s)'];
+/** Traço quando o valor é irrelevante (cenário sem juros/IR configurado) — evita poluir a tabela com "R$ 0,00". */
+function valorOuTraco(v: number) {
+  return v > 0.005 ? formatMoeda(v) : '—';
+}
+
+const CABECALHO = [
+  'Período',
+  'Entrada',
+  'Despesas',
+  'Amortização da dívida',
+  'Saldo da dívida',
+  'Juros do caixa',
+  'IR',
+  'Lucro líquido',
+  'Caixa',
+  'Veículo(s) comprado(s)',
+];
 
 export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
   const [visao, setVisao] = useState<'ano' | 'mes'>('ano');
@@ -65,7 +93,7 @@ export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
         </div>
       </CardHeader>
       <CardContent className={cn('overflow-x-auto', visao === 'mes' && 'max-h-[420px] overflow-y-auto')}>
-        <table className="w-full min-w-[720px] border-collapse text-sm">
+        <table className="w-full min-w-[980px] border-collapse text-sm">
           <thead className={visao === 'mes' ? 'sticky top-0 z-10 bg-white dark:bg-neutral-900' : undefined}>
             <tr className="border-b border-neutral-200 text-left text-[11px] uppercase tracking-wide text-neutral-400 dark:border-white/10">
               {CABECALHO.map((titulo, i) => (
@@ -84,6 +112,9 @@ export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
                 <td className="py-2 pr-3 text-right">—</td>
                 <td className="py-2 pr-3 text-right">{formatMoeda(hoje.saldoDevedorTotal)}</td>
                 <td className="py-2 pr-3 text-right">—</td>
+                <td className="py-2 pr-3 text-right">—</td>
+                <td className="py-2 pr-3 text-right">—</td>
+                <td className="py-2 pr-3 text-right">{formatMoeda(hoje.caixaDisponivel)}</td>
                 <td className="py-2 pr-3 text-right">{hoje.comprasNoMes > 0 ? `${hoje.comprasNoMes} (frota inicial)` : '—'}</td>
               </tr>
             )}
@@ -95,6 +126,8 @@ export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
                     <td className="py-2 pr-3 text-right text-red-500">{formatMoeda(ano.despesas)}</td>
                     <td className="py-2 pr-3 text-right text-neutral-600 dark:text-neutral-300">{formatMoeda(ano.amortizacaoDaDivida)}</td>
                     <td className="py-2 pr-3 text-right text-neutral-600 dark:text-neutral-300">{formatMoeda(ano.saldoDaDivida)}</td>
+                    <td className="py-2 pr-3 text-right text-emerald-600 dark:text-emerald-400">{valorOuTraco(ano.jurosInvestimento)}</td>
+                    <td className="py-2 pr-3 text-right text-red-500">{valorOuTraco(ano.ir)}</td>
                     <td
                       className={cn(
                         'py-2 pr-3 text-right font-semibold',
@@ -103,6 +136,7 @@ export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
                     >
                       {formatMoeda(ano.lucroLiquido)}
                     </td>
+                    <td className="py-2 pr-3 text-right text-neutral-600 dark:text-neutral-300">{formatMoeda(ano.caixaFinal)}</td>
                     <td className="py-2 pr-3 text-right text-sky-600 dark:text-sky-400">{ano.veiculosComprados > 0 ? `+${ano.veiculosComprados}` : '—'}</td>
                   </tr>
                 ))
@@ -119,6 +153,8 @@ export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
                     <td className="py-2 pr-3 text-right text-red-500">{formatMoeda(m.despesas)}</td>
                     <td className="py-2 pr-3 text-right text-neutral-600 dark:text-neutral-300">{formatMoeda(m.amortizacaoDaDivida)}</td>
                     <td className="py-2 pr-3 text-right text-neutral-600 dark:text-neutral-300">{formatMoeda(m.saldoDaDivida)}</td>
+                    <td className="py-2 pr-3 text-right text-emerald-600 dark:text-emerald-400">{valorOuTraco(m.jurosInvestimento)}</td>
+                    <td className="py-2 pr-3 text-right text-red-500">{valorOuTraco(m.ir)}</td>
                     <td
                       className={cn(
                         'py-2 pr-3 text-right font-semibold',
@@ -127,15 +163,18 @@ export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
                     >
                       {formatMoeda(m.lucroLiquido)}
                     </td>
+                    <td className="py-2 pr-3 text-right text-neutral-600 dark:text-neutral-300">{formatMoeda(m.caixa)}</td>
                     <td className="py-2 pr-3 text-right text-sky-600 dark:text-sky-400">{m.veiculosComprados > 0 ? `+${m.veiculosComprados}` : '—'}</td>
                   </tr>
                 ))}
           </tbody>
         </table>
         <p className="mt-2 text-[11px] text-neutral-400">
-          "Despesas" é só custo operacional (seguro, IPVA, rastreador, lavagem, manutenção, licenciamento) — a parcela do financiamento
-          entra separada, em "Amortização da dívida" (o que reduziu o principal) e nos juros embutidos no lucro líquido. Linhas destacadas
-          em azul, na visão mensal, são meses em que um veículo foi comprado.
+          "Despesas" é só custo operacional (seguro, IPVA, rastreador, lavagem, manutenção, licenciamento, contador) — a parcela do
+          financiamento entra separada, em "Amortização da dívida" (o que reduziu o principal) e nos juros embutidos no lucro líquido.
+          "Juros do caixa" é o rendimento do dinheiro parado em caixa (configurável em Reinvestimento) e "IR" é o imposto sobre o lucro
+          do período — os dois já estão descontados/somados dentro de "Lucro líquido". "Caixa" é o saldo em conta no fim do período (não
+          soma mês a mês — é o saldo). Linhas destacadas em azul, na visão mensal, são meses em que um veículo foi comprado.
         </p>
       </CardContent>
     </Card>

@@ -19,6 +19,59 @@ type TipoCampo = 'moeda' | 'inteiro';
 
 type Grupo = { titulo: string; campos: { chave: CampoNumerico; label: string; sufixo?: string; tipo?: TipoCampo }[] };
 
+// Extraído (2026-08-10) pra reusar nos campos "soltos" fora do loop de GRUPOS: a taxa de juros de
+// investimento mora dentro do card Reinvestimento (que é hardcoded, tem o toggle Sim/Não) e os
+// campos de Custos administrativos moram num card novo — duplicar a ramificação moeda/inteiro/
+// decimal 3x violaria a mesma regra de "não duplicar" que já motivou extrair reamostrar/moedaInput.
+function CampoInput({
+  chave,
+  valor,
+  tipo,
+  onChange,
+}: {
+  chave: CampoNumerico;
+  valor: CenarioSimulacaoInput;
+  tipo?: TipoCampo;
+  onChange: (patch: Partial<CenarioSimulacaoInput>) => void;
+}) {
+  if (tipo === 'moeda') {
+    return (
+      <Input
+        id={chave}
+        type="text"
+        inputMode="numeric"
+        className="h-7 min-w-0 px-1.5 text-right text-xs"
+        value={formatarMoedaInput(Number(valor[chave]) || 0)}
+        onChange={(e) => onChange({ [chave]: digitosParaReais(e.target.value) } as Partial<CenarioSimulacaoInput>)}
+      />
+    );
+  }
+  if (tipo === 'inteiro') {
+    return (
+      <Input
+        id={chave}
+        type="number"
+        step="1"
+        inputMode="numeric"
+        className="h-7 min-w-0 px-1.5 text-right text-xs"
+        value={valor[chave] ?? ''}
+        onChange={(e) => onChange({ [chave]: e.target.value === '' ? 0 : Math.round(Number(e.target.value)) } as Partial<CenarioSimulacaoInput>)}
+      />
+    );
+  }
+  return (
+    <Input
+      id={chave}
+      type="number"
+      step="0.01"
+      inputMode="decimal"
+      className="h-7 min-w-0 px-1.5 text-right text-xs"
+      value={valor[chave] ?? ''}
+      onChange={(e) => onChange({ [chave]: e.target.value === '' ? 0 : Number(e.target.value) } as Partial<CenarioSimulacaoInput>)}
+    />
+  );
+}
+
 const GRUPOS: Grupo[] = [
   {
     titulo: 'Capital',
@@ -120,36 +173,7 @@ export function PainelDePremissas({
                     {label}
                   </Label>
                   <div className="flex w-36 shrink-0 items-center gap-1">
-                    {tipo === 'moeda' ? (
-                      <Input
-                        id={chave}
-                        type="text"
-                        inputMode="numeric"
-                        className="h-7 min-w-0 px-1.5 text-right text-xs"
-                        value={formatarMoedaInput(Number(valor[chave]) || 0)}
-                        onChange={(e) => onChange({ [chave]: digitosParaReais(e.target.value) } as Partial<CenarioSimulacaoInput>)}
-                      />
-                    ) : tipo === 'inteiro' ? (
-                      <Input
-                        id={chave}
-                        type="number"
-                        step="1"
-                        inputMode="numeric"
-                        className="h-7 min-w-0 px-1.5 text-right text-xs"
-                        value={valor[chave] ?? ''}
-                        onChange={(e) => onChange({ [chave]: e.target.value === '' ? 0 : Math.round(Number(e.target.value)) } as Partial<CenarioSimulacaoInput>)}
-                      />
-                    ) : (
-                      <Input
-                        id={chave}
-                        type="number"
-                        step="0.01"
-                        inputMode="decimal"
-                        className="h-7 min-w-0 px-1.5 text-right text-xs"
-                        value={valor[chave] ?? ''}
-                        onChange={(e) => onChange({ [chave]: e.target.value === '' ? 0 : Number(e.target.value) } as Partial<CenarioSimulacaoInput>)}
-                      />
-                    )}
+                    <CampoInput chave={chave} valor={valor} tipo={tipo} onChange={onChange} />
                     {sufixo && <span className="w-10 shrink-0 text-[10px] text-neutral-400">{sufixo}</span>}
                   </div>
                 </div>
@@ -177,25 +201,85 @@ export function PainelDePremissas({
       <Card className="mb-3 break-inside-avoid">
         <CardContent className="py-2.5">
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Reinvestimento</p>
-          <div className="flex items-center justify-between">
-            <Label className="text-xs font-normal text-neutral-500">Reinvestir lucro?</Label>
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => onChange({ reinvestir_lucro: true })}
-                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${valor.reinvestir_lucro ? 'bg-emerald-600 text-white' : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800'}`}
-              >
-                Sim
-              </button>
-              <button
-                type="button"
-                onClick={() => onChange({ reinvestir_lucro: false })}
-                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${!valor.reinvestir_lucro ? 'bg-emerald-600 text-white' : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800'}`}
-              >
-                Não
-              </button>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-normal text-neutral-500">Reinvestir lucro?</Label>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onChange({ reinvestir_lucro: true })}
+                  className={`rounded px-2 py-1 text-xs font-medium transition-colors ${valor.reinvestir_lucro ? 'bg-emerald-600 text-white' : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800'}`}
+                >
+                  Sim
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange({ reinvestir_lucro: false })}
+                  className={`rounded px-2 py-1 text-xs font-medium transition-colors ${!valor.reinvestir_lucro ? 'bg-emerald-600 text-white' : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800'}`}
+                >
+                  Não
+                </button>
+              </div>
+            </div>
+            {/* taxa_juros_investimento_aa_pct (2026-08-10, pedido do Carlos: "em reinvestimento,
+                precisamos colocar a taxa de juros anual, dai vc calcula por mes o juros do
+                dinheiro aplicado"). Fica aqui e não no card Capital porque é sobre o que
+                ACONTECE com o caixa parado, mesmo assunto do toggle Sim/Não acima — os dois
+                controlam "o que fazer com o dinheiro que sobra". Rende independente do toggle: o
+                caixa que já está na conta ganha juros de qualquer forma, reinvestir_lucro só
+                decide se o LUCRO NOVO do mês entra nessa conta ou não. */}
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="taxa_juros_investimento_aa_pct" className="text-xs font-normal text-neutral-500">
+                Juros do caixa aplicado
+              </Label>
+              <div className="flex w-36 shrink-0 items-center gap-1">
+                <CampoInput chave="taxa_juros_investimento_aa_pct" valor={valor} onChange={onChange} />
+                <span className="w-10 shrink-0 text-[10px] text-neutral-400">% a.a.</span>
+              </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Custos administrativos (2026-08-10, pedido do Carlos: "abaixo do reinvestimento...
+          abertura de empresa, contador, IR da operação"). Card novo, logo depois do
+          Reinvestimento no HTML — em CSS multi-column isso normalmente cai na mesma coluna,
+          logo abaixo (masonry preenche coluna por coluna, na ordem do documento). */}
+      <Card className="mb-3 break-inside-avoid">
+        <CardContent className="py-2.5">
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Custos administrativos</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="custo_abertura_empresa" className="text-xs font-normal text-neutral-500">
+                Abertura de empresa
+              </Label>
+              <div className="flex w-36 shrink-0 items-center gap-1">
+                <CampoInput chave="custo_abertura_empresa" valor={valor} tipo="moeda" onChange={onChange} />
+                <span className="w-10 shrink-0 text-[10px] text-neutral-400">R$</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="contador_mensal" className="text-xs font-normal text-neutral-500">
+                Contador
+              </Label>
+              <div className="flex w-36 shrink-0 items-center gap-1">
+                <CampoInput chave="contador_mensal" valor={valor} tipo="moeda" onChange={onChange} />
+                <span className="w-10 shrink-0 text-[10px] text-neutral-400">R$/mês</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="taxa_ir_pct" className="text-xs font-normal text-neutral-500">
+                IR da operação
+              </Label>
+              <div className="flex w-36 shrink-0 items-center gap-1">
+                <CampoInput chave="taxa_ir_pct" valor={valor} onChange={onChange} />
+                <span className="w-10 shrink-0 text-[10px] text-neutral-400">%</span>
+              </div>
+            </div>
+          </div>
+          <p className="mt-2 border-t border-neutral-100 pt-2 text-[11px] text-neutral-500 dark:border-white/5">
+            Abertura é descontada uma vez, no início. Contador e IR entram todo mês — o IR incide sobre o lucro do mês (se for positivo).
+          </p>
         </CardContent>
       </Card>
     </div>

@@ -11,6 +11,14 @@ import type { CenarioSimulacaoInput } from '../types';
 // Ver `calcularValorAmortizacaoExtra` e `aplicarAmortizacaoExtra` abaixo pra semântica de cada
 // estratégia.
 //
+// 2026-08-10 — juros sobre caixa parado + custos administrativos + IR: pedido do Carlos pra
+// "sistema mais inteligente". Caixa disponível agora rende (taxa_juros_investimento_aa_pct,
+// convertida pra mensal composta), a empresa tem custo de abertura (uma vez) e contador (mensal,
+// não por veículo), e o lucro líquido reportado em todo o módulo passou a ser DEPOIS de IR — antes
+// disso "lucro líquido" era só receita − despesa, o que já era o nome errado pro que era mostrado.
+// Todos os campos novos nascem com default 0 no schema, então cenário nenhum muda de
+// comportamento até o dono preencher algum desses valores.
+//
 // Continua sendo um simulador de CENÁRIO HIPOTÉTICO, independente do dado real da frota (mesmo
 // racional já registrado na v1) — responde "o que estou planejando", a Timeline de Crescimento/
 // Capital Allocation Center (dado real) continuam respondendo "o que já aconteceu".
@@ -23,6 +31,8 @@ export type DespesaBreakdown = {
   lavagem: number;
   manutencao: number;
   licenciamento: number;
+  /** Contador — custo fixo da EMPRESA, não multiplicado pela frota (2026-08-10). */
+  administrativo: number;
 };
 
 export type MesSimulado = {
@@ -36,10 +46,24 @@ export type MesSimulado = {
   receitaMensal: number;
   despesaMensal: number;
   despesaBreakdown: DespesaBreakdown;
+  /** Receita + juros de investimento − despesas (incluindo contador), JÁ LÍQUIDO de IR
+   * (2026-08-10). Antes de existir IR/juros de investimento no motor isso era só
+   * receita − despesa; agora "lucro líquido" significa depois desses dois efeitos, como o nome
+   * sempre devia significar. */
   lucroMensal: number;
   lucroAcumulado: number;
   /** Variação real do caixa no mês — difere do lucro quando o mês inclui a entrada de um veículo comprado (capex) ou amortização extra. */
   fluxoLivreMensal: number;
+  /** Juros ganhos neste mês sobre o caixa que estava disponível no início do mês (2026-08-10,
+   * "dinheiro aplicado"). Sempre creditado no caixa, independente de reinvestir_lucro — é
+   * rendimento passivo do que já está na conta, não uma decisão de reinvestimento. */
+  jurosInvestimentoMensal: number;
+  jurosInvestimentoAcumulado: number;
+  /** IR do mês — incide sobre receita + juros de investimento − despesas, só se esse total for
+   * positivo. Sempre descontado do caixa, independente de reinvestir_lucro (imposto não é
+   * opcional). */
+  irMensal: number;
+  irAcumulado: number;
   /** Amortização extraordinária aplicada neste mês (além da parcela normal) — 0 se a estratégia é 'nunca' ou não se aplicou neste mês específico. */
   amortizacaoExtraMensal: number;
   /** Soma de toda amortização extraordinária desde o mês 0 — o que a estratégia escolhida já tirou de dívida além do cronograma padrão. */
@@ -128,11 +152,22 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
   const inadimplencia = cenario.inadimplencia_esperada_pct / 100;
   const depreciacaoAm = cenario.depreciacao_am_pct / 100;
 
+  // Conversão anual → mensal composta (não linear): (1+i_aa)^(1/12) - 1. É a conversão
+  // financeiramente correta pra taxa de rendimento (diferente de IPVA/licenciamento, que são
+  // CUSTOS anuais divididos por 12 — ali é só ratear um valor fixo, aqui é uma taxa que precisa
+  // compor mês a mês pra bater com o rendimento anual configurado.
+  const taxaJurosInvestimentoAm = Math.pow(1 + cenario.taxa_juros_investimento_aa_pct / 100, 1 / 12) - 1;
+
   const veiculos: VeiculoSimulado[] = [];
-  let caixaDisponivel = cenario.capital_disponivel;
+  // custo_abertura_empresa: desconta ANTES de qualquer compra de veículo — é o primeiro evento de
+  // caixa da empresa (2026-08-10). Se isso comer capital que seria de veículo, o aviso de "capital
+  // inicial insuficiente" abaixo já pega isso naturalmente (caixaDisponivel já reflete o desconto).
+  let caixaDisponivel = cenario.capital_disponivel - cenario.custo_abertura_empresa;
   let lucroAcumulado = 0;
   let capitalInvestidoAcumulado = 0;
   let amortizacaoExtraAcumulada = 0;
+  let jurosInvestimentoAcumulado = 0;
+  let irAcumulado = 0;
   // Conta compras por mês (mesCompra → quantidade), independente do array `veiculos` — usado só
   // pra alimentar `comprasNoMes` em cada MesSimulado (marcador de "aqui comprei" no gráfico/tabela,
   // pedido do Carlos 2026-08-09). Cobre tanto a compra inicial (mês 0) quanto as compras de
@@ -194,15 +229,33 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       lavagem: frota * cenario.lavagem_mensal_por_veiculo,
       manutencao: frota * cenario.manutencao_mensal_por_veiculo,
       licenciamento: frota * licenciamentoMensalPorVeiculo,
+      administrativo: cenario.contador_mensal,
     };
     const despesaMensal = Object.values(despesaBreakdown).reduce((a, b) => a + b, 0);
-    const lucroMensal = receitaMensal - despesaMensal;
-    lucroAcumulado += lucroMensal;
+    const lucroOperacionalMensal = receitaMensal - despesaMensal;
 
     const caixaAntesDoMes = caixaDisponivel;
 
+    // Juros sobre o caixa que já estava disponível no início do mês ("dinheiro aplicado",
+    // 2026-08-10) — sempre creditado, é rendimento passivo do que já está na conta, não depende
+    // de reinvestir_lucro (essa flag só controla o que fazer com o LUCRO OPERACIONAL do mês).
+    const jurosInvestimentoMensal = caixaAntesDoMes * taxaJurosInvestimentoAm;
+    caixaDisponivel += jurosInvestimentoMensal;
+    jurosInvestimentoAcumulado += jurosInvestimentoMensal;
+
+    // IR incide sobre receita + juros de investimento − despesas (o lucro "de verdade" do mês,
+    // antes de decidir reinvestir ou não) — só sobre valor positivo, e sempre pago (imposto não é
+    // opcional como reinvestir_lucro é).
+    const lucroAntesDeIR = lucroOperacionalMensal + jurosInvestimentoMensal;
+    const irMensal = Math.max(0, lucroAntesDeIR) * (cenario.taxa_ir_pct / 100);
+    caixaDisponivel -= irMensal;
+    irAcumulado += irMensal;
+
+    const lucroMensal = lucroAntesDeIR - irMensal;
+    lucroAcumulado += lucroMensal;
+
     if (cenario.reinvestir_lucro) {
-      caixaDisponivel += lucroMensal;
+      caixaDisponivel += lucroOperacionalMensal;
     }
 
     if (mes > 0) {
@@ -256,6 +309,10 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       lucroMensal,
       lucroAcumulado,
       fluxoLivreMensal,
+      jurosInvestimentoMensal,
+      jurosInvestimentoAcumulado,
+      irMensal,
+      irAcumulado,
       amortizacaoExtraMensal,
       amortizacaoExtraAcumulada,
       amortizacaoProgramadaMensal: amortizacaoProgramadaDoMes,

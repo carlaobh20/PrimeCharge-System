@@ -25,6 +25,12 @@ export type FluxoAnual = {
   lucroLiquido: number;
   /** Quantos veículos foram comprados dentro desse ano — soma de comprasNoMes dos meses do período. Pedido do Carlos (2026-08-09): "quero ver o momento de compra dos carros no fluxo". */
   veiculosComprados: number;
+  /** Caixa disponível no ÚLTIMO mês do período (saldo, não soma — mesmo tratamento que saldoDaDivida). */
+  caixaFinal: number;
+  /** Soma dos juros de investimento ganhos nos meses do período (2026-08-10, "juros do dinheiro aplicado"). */
+  jurosInvestimento: number;
+  /** Soma do IR pago nos meses do período. */
+  ir: number;
 };
 
 export function agruparFluxoPorAno(meses: MesSimulado[]): FluxoAnual[] {
@@ -48,6 +54,9 @@ export function agruparFluxoPorAno(meses: MesSimulado[]): FluxoAnual[] {
     const saldoDaDivida = mesesDoAno[mesesDoAno.length - 1].saldoDevedorTotal;
     const anoIncompleto = mesesDoAno.length < 12;
     const veiculosComprados = mesesDoAno.reduce((acc, m) => acc + m.comprasNoMes, 0);
+    const caixaFinal = mesesDoAno[mesesDoAno.length - 1].caixaDisponivel;
+    const jurosInvestimento = mesesDoAno.reduce((acc, m) => acc + m.jurosInvestimentoMensal, 0);
+    const ir = mesesDoAno.reduce((acc, m) => acc + m.irMensal, 0);
 
     anos.push({
       rotulo: anoIncompleto ? `Ano ${ano} (${mesesDoAno.length} meses)` : `Ano ${ano}`,
@@ -61,6 +70,9 @@ export function agruparFluxoPorAno(meses: MesSimulado[]): FluxoAnual[] {
       saldoDaDivida,
       lucroLiquido,
       veiculosComprados,
+      caixaFinal,
+      jurosInvestimento,
+      ir,
     });
   }
 

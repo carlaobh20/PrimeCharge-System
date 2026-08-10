@@ -196,6 +196,19 @@ export type CenarioSimulacao = {
    * (2026-08-10, pedido do Carlos: "caixa de emergência"). 0 = sem reserva, comportamento antigo. */
   reserva_de_seguranca: number;
 
+  /** Taxa anual de rendimento do caixa parado ("dinheiro aplicado") — o motor converte pra
+   * mensal composta e credita todo mês sobre o saldo em caixa do início do mês. 0 = sem
+   * rendimento, comportamento antigo (2026-08-10). */
+  taxa_juros_investimento_aa_pct: number;
+  /** Custo único, descontado do capital antes de qualquer compra de veículo (mês 0). */
+  custo_abertura_empresa: number;
+  /** Custo mensal fixo, não multiplicado pela frota (é da empresa, não por veículo). */
+  contador_mensal: number;
+  /** Alíquota de IR aplicada sobre o lucro do mês (receita + juros de investimento − despesas,
+   * incluindo o contador) — só incide se esse lucro for positivo. "Lucro líquido" no resto do
+   * módulo passa a significar depois desse imposto. */
+  taxa_ir_pct: number;
+
   criado_em: string;
   atualizado_em: string;
 };

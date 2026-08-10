@@ -41,6 +41,10 @@ const CENARIO_PADRAO: CenarioSimulacaoInput = {
   amortizacao_estrategia: 'nunca',
   amortizacao_valor_manual: null,
   reserva_de_seguranca: 0,
+  taxa_juros_investimento_aa_pct: 0,
+  custo_abertura_empresa: 0,
+  contador_mensal: 0,
+  taxa_ir_pct: 0,
 };
 
 function extrairInput(c: Record<string, unknown>): CenarioSimulacaoInput {
