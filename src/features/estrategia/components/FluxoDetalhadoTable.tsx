@@ -59,7 +59,7 @@ const CABECALHO = [
   'Veículo(s) comprado(s)',
 ];
 
-export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
+export function FluxoDetalhadoTable({ meses, reservaMinima }: { meses: MesSimulado[]; reservaMinima: number }) {
   const [visao, setVisao] = useState<'ano' | 'mes'>('ano');
   const anos = agruparFluxoPorAno(meses);
   const hoje = meses.find((m) => m.mes === 0);
@@ -136,7 +136,10 @@ export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
                     >
                       {formatMoeda(ano.lucroLiquido)}
                     </td>
-                    <td className="py-2 pr-3 text-right text-neutral-600 dark:text-neutral-300">{formatMoeda(ano.caixaFinal)}</td>
+                    <td className={cn('py-2 pr-3 text-right', ano.caixaFinal < reservaMinima ? 'font-semibold text-red-500' : 'text-neutral-600 dark:text-neutral-300')}>
+                      {formatMoeda(ano.caixaFinal)}
+                      {ano.caixaFinal < reservaMinima && ' ⚠️'}
+                    </td>
                     <td className="py-2 pr-3 text-right text-sky-600 dark:text-sky-400">{ano.veiculosComprados > 0 ? `+${ano.veiculosComprados}` : '—'}</td>
                   </tr>
                 ))
@@ -163,7 +166,10 @@ export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
                     >
                       {formatMoeda(m.lucroLiquido)}
                     </td>
-                    <td className="py-2 pr-3 text-right text-neutral-600 dark:text-neutral-300">{formatMoeda(m.caixa)}</td>
+                    <td className={cn('py-2 pr-3 text-right', m.caixa < reservaMinima ? 'font-semibold text-red-500' : 'text-neutral-600 dark:text-neutral-300')}>
+                      {formatMoeda(m.caixa)}
+                      {m.caixa < reservaMinima && ' ⚠️'}
+                    </td>
                     <td className="py-2 pr-3 text-right text-sky-600 dark:text-sky-400">{m.veiculosComprados > 0 ? `+${m.veiculosComprados}` : '—'}</td>
                   </tr>
                 ))}
@@ -174,7 +180,8 @@ export function FluxoDetalhadoTable({ meses }: { meses: MesSimulado[] }) {
           financiamento entra separada, em "Amortização da dívida" (o que reduziu o principal) e nos juros embutidos no lucro líquido.
           "Juros do caixa" é o rendimento do dinheiro parado em caixa (configurável em Reinvestimento) e "IR" é o imposto sobre o lucro
           do período — os dois já estão descontados/somados dentro de "Lucro líquido". "Caixa" é o saldo em conta no fim do período (não
-          soma mês a mês — é o saldo). Linhas destacadas em azul, na visão mensal, são meses em que um veículo foi comprado.
+          soma mês a mês — é o saldo). Linhas destacadas em azul, na visão mensal, são meses em que um veículo foi comprado. Caixa em vermelho com ⚠️
+          significa que o saldo furou a reserva de segurança — a operação está consumindo capital próprio.
         </p>
       </CardContent>
     </Card>

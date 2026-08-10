@@ -221,6 +221,13 @@ export function PainelDePremissas({
                 </button>
               </div>
             </div>
+            {/* 2026-08-10 — clarifica o que o toggle passou a controlar depois da correção do
+                motor (auditoria "copiloto financeiro"): só o destino do LUCRO positivo. Prejuízo
+                nunca foi opcional e agora o motor reflete isso sempre, com o toggle em qualquer
+                posição. */}
+            <p className="text-[10px] leading-snug text-neutral-400">
+              Não: o lucro (quando positivo) sai da empresa todo mês, como se você retirasse — prejuízo sempre desconta do caixa, isso não muda.
+            </p>
             {/* taxa_juros_investimento_aa_pct (2026-08-10, pedido do Carlos: "em reinvestimento,
                 precisamos colocar a taxa de juros anual, dai vc calcula por mes o juros do
                 dinheiro aplicado"). Fica aqui e não no card Capital porque é sobre o que

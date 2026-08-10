@@ -73,15 +73,15 @@ export function VisaoExecutivaCard({ mesAtual, alavancagemMaximaPct }: { mesAtua
           />
           <KpiCard
             icon={Gauge}
-            label="ROI acumulado"
+            label="Seu dinheiro rende (acumulado)"
             value={formatPct(mesAtual.roiAcumuladoPct)}
-            hint="retorno acumulado sobre TODO o valor já investido nos carros, incluindo a parte financiada pelo banco"
+            hint="retorno acumulado sobre TODO o valor já investido nos carros, incluindo a parte financiada pelo banco — é o termo técnico 'ROI'"
           />
           <KpiCard
             icon={Clock}
-            label="Payback estimado"
+            label="Tempo para recuperar o investimento"
             value={payback === null ? '—' : `${payback} meses`}
-            hint="em quantos meses o lucro de hoje pagaria de volta tudo que já foi investido nos carros"
+            hint="em quantos meses o lucro de hoje pagaria de volta tudo que já foi investido nos carros — é o termo técnico 'payback'"
           />
           <KpiCard
             icon={Landmark}
@@ -97,21 +97,21 @@ export function VisaoExecutivaCard({ mesAtual, alavancagemMaximaPct }: { mesAtua
           />
           <KpiCard
             icon={PiggyBank}
-            label="Capital empatado"
+            label="Dinheiro ainda investido"
             value={formatMoeda(mesAtual.patrimonioLiquido)}
-            hint="o que já é realmente seu nos carros (valor do carro menos o que ainda se deve ao banco) — é o dinheiro que saiu do seu bolso"
+            hint="o que já é realmente seu nos carros (valor do carro menos o que ainda se deve ao banco) — é o termo técnico 'capital empatado'"
           />
           <KpiCard
             icon={Percent}
-            label="Retorno s/ capital empatado"
+            label="Seu dinheiro rende (este mês)"
             value={formatPct(retornoSobreCapitalEmpatadoPct)}
-            hint="o lucro deste mês dividido pelo capital empatado — o retorno real sobre o que saiu do seu bolso (diferente do ROI acumulado, que dilui com o dinheiro do banco)"
+            hint="o lucro deste mês dividido pelo dinheiro ainda investido — o retorno real sobre o que saiu do seu bolso (diferente do acumulado ao lado, que dilui com o dinheiro do banco)"
           />
           <KpiCard
             icon={Building2}
-            label="Patrimônio atual"
+            label="Quanto os carros valem hoje"
             value={formatMoeda(mesAtual.valorTotalFrota)}
-            hint="quanto os carros valem hoje, ANTES de descontar o que ainda se deve ao banco"
+            hint="valor total da frota, ANTES de descontar o que ainda se deve ao banco"
           />
           <KpiCard
             icon={TrendingUp}

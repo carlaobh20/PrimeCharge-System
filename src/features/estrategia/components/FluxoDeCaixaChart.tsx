@@ -27,6 +27,14 @@ export function FluxoDeCaixaChart({ meses }: { meses: MesSimulado[] }) {
   }));
   const comprasNoHorizonte = meses.filter((m) => m.comprasNoMes > 0);
 
+  // 2026-08-10 (missão "copiloto financeiro", Prioridade 7) — "nenhum indicador deve terminar
+  // apenas em um número": o gráfico já é visual, mas fecha com uma frase de conclusão sobre a
+  // tendência do Saldo (mesma leitura que alguém sem letramento financeiro faria olhando a linha
+  // roxa subir ou cair da esquerda pra direita).
+  const primeiroSaldo = dados.length > 0 ? dados[0].Saldo : 0;
+  const ultimoSaldo = dados.length > 0 ? dados[dados.length - 1].Saldo : 0;
+  const tendenciaSobe = ultimoSaldo >= primeiroSaldo;
+
   return (
     <Card>
       <CardHeader>
@@ -65,6 +73,11 @@ export function FluxoDeCaixaChart({ meses }: { meses: MesSimulado[] }) {
         {comprasNoHorizonte.length > 0 && (
           <p className="mt-1 text-[11px] text-neutral-400">As linhas verticais tracejadas marcam os meses em que um veículo foi comprado.</p>
         )}
+        <p className="mt-2 text-xs text-neutral-500">
+          {tendenciaSobe
+            ? <>O saldo em caixa (linha roxa) <strong className="text-neutral-900 dark:text-neutral-100">tende a subir</strong> ao longo do período simulado — a operação está gerando caixa.</>
+            : <>O saldo em caixa (linha roxa) <strong className="text-neutral-900 dark:text-neutral-100">tende a cair</strong> ao longo do período simulado — a operação está consumindo caixa.</>}
+        </p>
       </CardContent>
     </Card>
   );

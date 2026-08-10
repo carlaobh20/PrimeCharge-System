@@ -11,10 +11,13 @@ import { EvolucaoDoCaixaChart } from './EvolucaoDoCaixaChart';
 import { EvolucaoPatrimonioCard } from './EvolucaoPatrimonioCard';
 import { MomentoIdealDeCompraCard } from './MomentoIdealDeCompraCard';
 import { FluxoDetalhadoTable } from './FluxoDetalhadoTable';
+import { MargemDeSegurancaCard } from './MargemDeSegurancaCard';
+import { DinheiroDoBolsoCard } from './DinheiroDoBolsoCard';
 import { useCenarios, useCriarCenario, useAtualizarCenario } from '../hooks/useSimulacao';
 import { usePoliticasEstrategicas } from '../hooks/usePoliticas';
 import { useSimulacaoResultado } from '../hooks/useSimulacaoResultado';
 import { useMomentoDeCompra } from '../hooks/useMomentoDeCompra';
+import { calcularMargemDeSeguranca, calcularRunway } from '../intelligence/margemDeSeguranca';
 import type { CenarioSimulacaoInput } from '../types';
 
 const CENARIO_PADRAO: CenarioSimulacaoInput = {
@@ -139,6 +142,14 @@ export function SimulacaoEmpresarial() {
         ) : null}
       </div>
 
+      {/* Margem de Segurança da Operação — fica ACIMA das premissas de propósito (missão
+          "copiloto financeiro", 2026-08-10): é a primeira coisa que o dono deve ver ao abrir a
+          tela, antes até de mexer em qualquer campo — "posso dormir tranquilo?" em menos de 3
+          segundos. */}
+      {mesAtual && resultado && (
+        <MargemDeSegurancaCard margem={calcularMargemDeSeguranca(input, mesAtual)} runway={calcularRunway(resultado.meses, input.reserva_de_seguranca)} />
+      )}
+
       {/* Layout mudou de "30% premissas à esquerda / 70% resultado à direita" pra "premissas em
           faixa larga no topo, resultado embaixo" (pedido do Carlos, 2026-08-09) — preenche as
           premissas primeiro, os gráficos vêm depois, sem coluna estreita competindo por espaço. */}
@@ -146,17 +157,18 @@ export function SimulacaoEmpresarial() {
 
       <div className="min-w-0 space-y-4">
         {mesAtual && <VisaoExecutivaCard mesAtual={mesAtual} alavancagemMaximaPct={politicas?.alavancagem_maxima_pct ?? null} />}
+        {mesAtual && <DinheiroDoBolsoCard mesAtual={mesAtual} />}
         {/* Fluxo Detalhado (tabela ano a ano) vem antes do gráfico de Fluxo de Caixa — pedido
             explícito do Carlos: quem quer o número exato lê a tabela, quem quer a tendência olha
             o gráfico logo abaixo. */}
-        {resultado && <FluxoDetalhadoTable meses={resultado.meses} />}
+        {resultado && <FluxoDetalhadoTable meses={resultado.meses} reservaMinima={input.reserva_de_seguranca} />}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {resultado && <FluxoDeCaixaChart meses={resultado.meses} />}
           {resultado && <SaldoDevedorPatrimonioChart meses={resultado.meses} />}
         </div>
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <AmortizacaoCard valor={input} onChange={atualizarCampo} mesAtual={mesAtual} />
-          {resultado && <EvolucaoDoCaixaChart meses={resultado.meses} />}
+          {resultado && <EvolucaoDoCaixaChart meses={resultado.meses} reservaMinima={input.reserva_de_seguranca} />}
         </div>
         {resultado && <EvolucaoPatrimonioCard meses={resultado.meses} />}
         {momentoDeCompra && <MomentoIdealDeCompraCard comparacao={momentoDeCompra} />}

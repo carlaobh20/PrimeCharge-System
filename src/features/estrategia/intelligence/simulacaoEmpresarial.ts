@@ -254,7 +254,17 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
     const lucroMensal = lucroAntesDeIR - irMensal;
     lucroAcumulado += lucroMensal;
 
-    if (cenario.reinvestir_lucro) {
+    // 2026-08-10 — correção de causa (achado da auditoria "copiloto financeiro"): PREJUÍZO
+    // operacional sempre sai do caixa, não é opcional. Antes desta correção, com
+    // reinvestir_lucro=false, um mês de prejuízo (receita < despesa) simplesmente não descontava
+    // do caixa — o caixa ficava artificialmente estável mesmo a operação sangrando dinheiro, o
+    // que tornaria qualquer indicador de "runway"/"dias até precisar de aporte" mentiroso. A
+    // decisão de reinvestir ou não é sobre o que fazer com um LUCRO (positivo) — guardar na
+    // empresa (Sim) ou o dono retirar todo mês (Não); nunca foi sobre "escolher não pagar as
+    // contas". Prejuízo é sempre absorvido pelo caixa da empresa, com o toggle em qualquer posição.
+    if (lucroOperacionalMensal < 0) {
+      caixaDisponivel += lucroOperacionalMensal;
+    } else if (cenario.reinvestir_lucro) {
       caixaDisponivel += lucroOperacionalMensal;
     }
 

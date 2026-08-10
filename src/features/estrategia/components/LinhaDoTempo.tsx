@@ -20,6 +20,11 @@ function rotuloMes(indice: number): string {
 // entender a história mês a mês (o mesmo público do resto do módulo: banco/investidor/esposa).
 // Mostra todos os meses (sem reamostrar — aqui cada mês é uma "cena" da história, downsample
 // destruiria isso), com scroll horizontal.
+//
+// 2026-08-10 (missão "copiloto financeiro", Prioridade 7) — cartão inteiro fica vermelho em mês
+// de prejuízo (antes só o número "Lucrou" tinha cor — precisava ler o cartão pra notar). Mês de
+// prejuízo tem prioridade visual sobre mês de compra (saber que deu prejuízo é mais urgente que
+// saber que comprou um carro).
 export function LinhaDoTempo({ meses }: { meses: MesSimulado[] }) {
   return (
     <Card>
@@ -28,22 +33,30 @@ export function LinhaDoTempo({ meses }: { meses: MesSimulado[] }) {
       </CardHeader>
       <CardContent>
         <div className="flex gap-3 overflow-x-auto pb-2">
-          {meses.map((m) => (
+          {meses.map((m) => {
+            const prejuizo = m.lucroMensal < 0;
+            return (
             <div
               key={m.mes}
               className={cn(
                 'flex w-[168px] flex-shrink-0 flex-col gap-2 rounded-xl border p-3',
-                m.comprasNoMes > 0
-                  ? 'border-sky-300 bg-sky-50 dark:border-sky-500/40 dark:bg-sky-500/[0.08]'
-                  : 'border-neutral-200 bg-neutral-50 dark:border-white/10 dark:bg-white/[0.03]'
+                prejuizo
+                  ? 'border-red-300 bg-red-50 dark:border-red-500/40 dark:bg-red-500/[0.08]'
+                  : m.comprasNoMes > 0
+                    ? 'border-sky-300 bg-sky-50 dark:border-sky-500/40 dark:bg-sky-500/[0.08]'
+                    : 'border-neutral-200 bg-neutral-50 dark:border-white/10 dark:bg-white/[0.03]'
               )}
             >
               <div className="flex items-center justify-between gap-1">
                 <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{rotuloMes(m.mes)}</span>
-                {m.comprasNoMes > 0 && (
-                  <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                    +{m.comprasNoMes} veíc.
-                  </span>
+                {prejuizo ? (
+                  <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Prejuízo</span>
+                ) : (
+                  m.comprasNoMes > 0 && (
+                    <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                      +{m.comprasNoMes} veíc.
+                    </span>
+                  )
                 )}
               </div>
               <div className="space-y-1 text-xs">
@@ -68,7 +81,8 @@ export function LinhaDoTempo({ meses }: { meses: MesSimulado[] }) {
               </div>
               {m.frota > 0 && <span className="text-[10px] text-neutral-400">{m.frota} veículo(s) na frota</span>}
             </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

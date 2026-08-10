@@ -53,7 +53,11 @@ export type OpcaoMomentoCompra = {
   caixaNoMomentoDaCompra: number;
   patrimonioLiquidoNoHorizonte: number;
   caixaNoHorizonte: number;
+  /** Quanto falta de caixa pra fechar entrada + reserva de segurança, nesta opção — 0 se já dá. */
+  faltaParaEntrada: number;
 };
+
+export type SeloMomentoCompra = 'compre' | 'espere' | 'nao_compre';
 
 export type ComparacaoMomentoCompra = {
   horizonteMeses: number;
@@ -61,6 +65,12 @@ export type ComparacaoMomentoCompra = {
   /** null = nenhuma das opções testadas (0/3/6 meses) tem caixa suficiente pra entrada. */
   melhorOpcaoMesesDeEspera: number | null;
   justificativa: string;
+  /** 2026-08-10 (missão "copiloto financeiro") — selo pronto pro card, sem o card precisar reimplementar a lógica de verde/amarelo/vermelho. */
+  selo: SeloMomentoCompra;
+  /** Quanto a MELHOR opção ganha de patrimônio líquido no horizonte em relação à alternativa mais próxima (comprar agora, se a melhor for esperar; ou a melhor espera testada, se a melhor for agora). null se não há alternativa viável pra comparar. */
+  diferencaVsAlternativa: number | null;
+  /** Em quantos meses, mantida a frota atual (sem crescer), o caixa cobre entrada + reserva — mesmo se nenhuma das 3 opções testadas (0/3/6) já for viável. null se não acontece dentro de 36 meses. */
+  mesesAteConseguirComprar: number | null;
 };
 
 export function compararMomentoDeCompra(cenario: CenarioSimulacaoInput): ComparacaoMomentoCompra {
@@ -97,7 +107,9 @@ export function compararMomentoDeCompra(cenario: CenarioSimulacaoInput): Compara
     // reserva_de_seguranca (2026-08-10): mesma regra do motor principal — a entrada só é viável
     // se ainda sobrar a reserva depois de pagá-la, senão essa comparação ficaria mais otimista
     // que a simulação de crescimento de verdade (que já respeita a reserva).
-    const podeComprarNoMomento = caixaNoMomentoDaCompra >= cenario.valor_entrada_por_veiculo + cenario.reserva_de_seguranca;
+    const custoMinimoParaComprar = cenario.valor_entrada_por_veiculo + cenario.reserva_de_seguranca;
+    const podeComprarNoMomento = caixaNoMomentoDaCompra >= custoMinimoParaComprar;
+    const faltaParaEntrada = Math.max(0, custoMinimoParaComprar - caixaNoMomentoDaCompra);
 
     // Frota atual projetada até o horizonte inteiro (ela existe desde hoje, independente da espera).
     const projFrotaNoHorizonte = projetarVeiculo(
@@ -122,6 +134,7 @@ export function compararMomentoDeCompra(cenario: CenarioSimulacaoInput): Compara
         caixaNoMomentoDaCompra,
         patrimonioLiquidoNoHorizonte: caixaNoHorizonte + patrimonioFrotaNoHorizonte,
         caixaNoHorizonte,
+        faltaParaEntrada,
       };
     }
 
@@ -141,32 +154,55 @@ export function compararMomentoDeCompra(cenario: CenarioSimulacaoInput): Compara
     const caixaNoHorizonte = cenario.capital_disponivel + fluxoFrotaNoHorizonte + fluxoNovo;
     const patrimonioLiquidoNoHorizonte = caixaNoHorizonte + patrimonioFrotaNoHorizonte + patrimonioNovo;
 
-    return { mesesDeEspera, podeComprarNoMomento: true, caixaNoMomentoDaCompra, patrimonioLiquidoNoHorizonte, caixaNoHorizonte };
+    return { mesesDeEspera, podeComprarNoMomento: true, caixaNoMomentoDaCompra, patrimonioLiquidoNoHorizonte, caixaNoHorizonte, faltaParaEntrada };
   });
 
   const opcoesViaveis = opcoes.filter((o) => o.podeComprarNoMomento);
   let melhorOpcaoMesesDeEspera: number | null = null;
   let justificativa: string;
+  let diferencaVsAlternativa: number | null = null;
+  let selo: SeloMomentoCompra = 'nao_compre';
 
   if (opcoesViaveis.length === 0) {
     justificativa = `Nem hoje, nem em 3 ou 6 meses o caixa projetado cobre a entrada de ${formatMoedaSimples(cenario.valor_entrada_por_veiculo)} — antes de pensar no próximo veículo, o cenário precisa de mais capital ou de uma frota atual mais lucrativa.`;
+    selo = 'nao_compre';
   } else {
     const melhor = opcoesViaveis.reduce((a, b) => (b.patrimonioLiquidoNoHorizonte > a.patrimonioLiquidoNoHorizonte ? b : a));
     melhorOpcaoMesesDeEspera = melhor.mesesDeEspera;
     const agora = opcoes.find((o) => o.mesesDeEspera === 0);
 
     if (melhor.mesesDeEspera === 0) {
+      selo = 'compre';
       const segundaMelhor = opcoesViaveis.filter((o) => o.mesesDeEspera !== 0).sort((a, b) => b.patrimonioLiquidoNoHorizonte - a.patrimonioLiquidoNoHorizonte)[0];
       const diferenca = segundaMelhor ? melhor.patrimonioLiquidoNoHorizonte - segundaMelhor.patrimonioLiquidoNoHorizonte : 0;
+      diferencaVsAlternativa = segundaMelhor ? diferenca : null;
       justificativa = agora?.podeComprarNoMomento
         ? `Comprar agora projeta ${formatMoedaSimples(melhor.patrimonioLiquidoNoHorizonte)} de patrimônio líquido em ${HORIZONTE_COMPARACAO_MESES} meses${segundaMelhor ? `, ${formatMoedaSimples(diferenca)} a mais do que esperar ${segundaMelhor.mesesDeEspera} meses` : ''} — cada mês de espera é um mês a menos de aluguel desse veículo dentro do horizonte, e isso pesa mais do que a economia de juros de esperar.`
         : `Comprar agora não é viável (caixa insuficiente pra entrada), mas ainda assim é a opção com maior patrimônio projetado entre as testadas.`;
     } else {
+      selo = 'espere';
+      diferencaVsAlternativa = agora ? melhor.patrimonioLiquidoNoHorizonte - agora.patrimonioLiquidoNoHorizonte : null;
       justificativa = `Esperar ${melhor.mesesDeEspera} meses projeta ${formatMoedaSimples(melhor.patrimonioLiquidoNoHorizonte)} de patrimônio líquido em ${HORIZONTE_COMPARACAO_MESES} meses — ${agora?.podeComprarNoMomento ? 'melhor do que comprar agora, porque a frota atual ainda não gera caixa suficiente pra sustentar a entrada com folga' : 'comprar agora nem é viável com o caixa atual (falta pra entrada)'}.`;
     }
   }
 
-  return { horizonteMeses: HORIZONTE_COMPARACAO_MESES, opcoes, melhorOpcaoMesesDeEspera, justificativa };
+  // mesesAteConseguirComprar (2026-08-10, "quanto tempo falta"): varre mês a mês (não só 0/3/6)
+  // até achar o primeiro em que a frota ATUAL (sem crescer) já acumulou caixa suficiente pra
+  // entrada + reserva do próximo veículo. Reusa a mesma fórmula do loop de opções acima, só que
+  // testando cada mês em vez de 3 pontos fixos.
+  const custoMinimoParaComprar = cenario.valor_entrada_por_veiculo + cenario.reserva_de_seguranca;
+  let mesesAteConseguirComprar: number | null = null;
+  for (let m = 0; m <= 36; m++) {
+    const proj = projetarVeiculo(custoTotalPorVeiculo, cenario.valor_financiado_por_veiculo, cenario.taxa_juros_am_pct, cenario.prazo_financiamento_meses, cenario.depreciacao_am_pct, m);
+    const fluxo = cenario.veiculos_iniciais * (receitaLiquidaSemParcelaPorVeiculo * m - proj.totalParcelasPagas);
+    const caixaNoMes = cenario.capital_disponivel + fluxo;
+    if (caixaNoMes >= custoMinimoParaComprar) {
+      mesesAteConseguirComprar = m;
+      break;
+    }
+  }
+
+  return { horizonteMeses: HORIZONTE_COMPARACAO_MESES, opcoes, melhorOpcaoMesesDeEspera, justificativa, selo, diferencaVsAlternativa, mesesAteConseguirComprar };
 }
 
 function formatMoedaSimples(valor: number): string {
