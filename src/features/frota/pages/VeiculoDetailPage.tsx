@@ -34,6 +34,8 @@ import { PlaceholderActionDialog } from '../components/dialogs/PlaceholderAction
 
 import { useDeleteVeiculo, useUpdateVeiculoStatus, useVeiculo, useVenderVeiculo } from '../hooks/useVeiculos';
 import { useVehicleIntelligence } from '../hooks/useVehicleIntelligence';
+import { useSaudeDoAtivo } from '../hooks/useSaudeDoAtivo';
+import { VelocimetroSaudeAtivo } from '../components/VelocimetroSaudeAtivo';
 import { PLACEHOLDER_DESCRIPTIONS, type ActionKey } from '../lib/actions';
 import { VEICULO_STATUS_LABEL, VEICULO_STATUS_TRANSITIONS, type VeiculoStatus } from '../types';
 
@@ -87,6 +89,7 @@ export function VeiculoDetailPage() {
   const venderVeiculo = useVenderVeiculo();
   const deleteVeiculo = useDeleteVeiculo();
   const intelligence = useVehicleIntelligence(veiculo);
+  const saudeDoAtivo = useSaudeDoAtivo(veiculo);
   const commandActionsRef = useRef<HTMLDivElement>(null);
 
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null);
@@ -183,7 +186,18 @@ export function VeiculoDetailPage() {
         onExcluir={() => setConfirmExcluir(true)}
       />
 
-      <VeiculoKpiBand veiculo={veiculo} healthScore={intelligence.isLoading ? null : intelligence.healthScore} />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
+        <div className="lg:w-64 lg:shrink-0">
+          {saudeDoAtivo.isLoading ? (
+            <div className="h-full min-h-[180px] cockpit-shimmer rounded-2xl" />
+          ) : (
+            <VelocimetroSaudeAtivo saude={saudeDoAtivo.saude} />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <VeiculoKpiBand veiculo={veiculo} healthScore={intelligence.isLoading ? null : intelligence.healthScore} />
+        </div>
+      </div>
 
       <div className="flex flex-col gap-6 lg:flex-row">
         <div className="min-w-0 flex-1 space-y-6">
