@@ -9,6 +9,9 @@ import { StatusBadge } from '../components/StatusBadge';
 import { MOTORISTA_STATUS_LABEL, type MotoristaStatus } from '../types';
 
 // `?status=` opcional (Épico 1, Centro de Operações) — mesmo raciocínio de VeiculosListPage.
+// Épico 6 — embutida como aba "Todos os Motoristas" dentro de MotoristasPage (mesmo padrão já
+// usado em VeiculosListPage/FrotaPage): perdeu o próprio `<h1>`/wrapper `p-8`, só faz sentido
+// montada dentro da casca de abas agora.
 export function MotoristasListPage() {
   const [searchParams] = useSearchParams();
   const statusInicial = (searchParams.get('status') as MotoristaStatus | null) ?? 'todos';
@@ -17,19 +20,15 @@ export function MotoristasListPage() {
   const { data: motoristas, isLoading, isError } = useMotoristas({ status, busca });
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Motoristas</h1>
-          <p className="mt-1 text-sm text-neutral-500">Clientes cadastrados na PrimeCharge.</p>
-        </div>
+    <div>
+      <div className="flex items-center justify-end">
         <Link to="/motoristas/novo" className={buttonVariants({})}>
           <Plus className="h-4 w-4" />
           Novo motorista
         </Link>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
           <Input

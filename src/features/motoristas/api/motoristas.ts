@@ -25,7 +25,10 @@ export async function getMotorista(id: string) {
   return data as Motorista;
 }
 
-export type MotoristaInput = Omit<Motorista, 'id' | 'empresa_id' | 'criado_em' | 'atualizado_em'>;
+// `etapa_funil_desde` fica fora do Input — é mantido só por trigger (fn_motorista_etapa_funil,
+// migration 0025), a aplicação nunca escreve nele diretamente (mesmo raciocínio de
+// criado_em/atualizado_em).
+export type MotoristaInput = Omit<Motorista, 'id' | 'empresa_id' | 'criado_em' | 'atualizado_em' | 'etapa_funil_desde'>;
 
 export async function createMotorista(empresaId: string, payload: MotoristaInput) {
   const { data, error } = await supabase

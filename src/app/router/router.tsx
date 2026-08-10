@@ -9,7 +9,7 @@ import { FrotaPage } from '@/features/frota/pages/FrotaPage';
 import { VeiculoDetailPage } from '@/features/frota/pages/VeiculoDetailPage';
 import { VeiculoCreatePage } from '@/features/frota/pages/VeiculoCreatePage';
 import { VeiculoEditPage } from '@/features/frota/pages/VeiculoEditPage';
-import { MotoristasListPage } from '@/features/motoristas/pages/MotoristasListPage';
+import { MotoristasPage } from '@/features/motoristas/pages/MotoristasPage';
 import { MotoristaDetailPage } from '@/features/motoristas/pages/MotoristaDetailPage';
 import { MotoristaCreatePage } from '@/features/motoristas/pages/MotoristaCreatePage';
 import { MotoristaEditPage } from '@/features/motoristas/pages/MotoristaEditPage';
@@ -52,7 +52,7 @@ export const router = createBrowserRouter([
           { path: 'veiculos/novo', element: <VeiculoCreatePage /> },
           { path: 'veiculos/:id', element: <VeiculoDetailPage /> },
           { path: 'veiculos/:id/editar', element: <VeiculoEditPage /> },
-          { path: 'motoristas', element: <MotoristasListPage /> },
+          { path: 'motoristas', element: <MotoristasPage /> },
           { path: 'motoristas/novo', element: <MotoristaCreatePage /> },
           { path: 'motoristas/:id', element: <MotoristaDetailPage /> },
           { path: 'motoristas/:id/editar', element: <MotoristaEditPage /> },

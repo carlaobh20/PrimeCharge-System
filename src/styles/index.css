@@ -22,6 +22,14 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
+/* Épico 6 — CRM Motoristas, Fase 1: painel lateral (Drawer). Mesmo padrão das duas acima,
+   só com translateX em vez de scale/translateY — é o primeiro slide-over do app (ver
+   shared/components/ui/drawer.tsx). */
+@keyframes cockpit-slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 @keyframes cockpit-shimmer {
   from { background-position: -200% 0; }
   to { background-position: 200% 0; }
@@ -33,6 +41,10 @@ body {
 
 .animate-cockpit-scale-in {
   animation: cockpit-scale-in 0.18s ease-out both;
+}
+
+.animate-cockpit-slide-in-right {
+  animation: cockpit-slide-in-right 0.25s ease-out both;
 }
 
 .cockpit-shimmer {

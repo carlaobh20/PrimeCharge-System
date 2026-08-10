@@ -26,6 +26,11 @@ export function MotoristaCreatePage() {
           cidade: values.cidade ?? null,
           estado: values.estado ?? null,
           observacoes: values.observacoes ?? null,
+          // Épico 6, Fase 1 — motorista criado pelo formulário entra no Kanban já classificado
+          // (diferente do `null` reservado só pra quem existia antes da migration 0025).
+          etapa_funil: 'novo_lead',
+          responsavel_id: null,
+          prioridade: 'media',
         },
       },
       {
