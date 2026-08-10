@@ -4,7 +4,7 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { cn } from '@/shared/lib/utils';
 import { formatMoeda } from '@/shared/lib/format';
-import { formatarMoedaInput, digitosParaReais } from '../lib/moedaInput';
+import { formatarMoedaInput, digitosParaReais } from '@/shared/lib/moedaInput';
 import { ESTRATEGIAS_AMORTIZACAO, LABEL_ESTRATEGIA_AMORTIZACAO, type CenarioSimulacaoInput, type EstrategiaAmortizacao } from '../types';
 import { SEMANAS_POR_MES, type MesSimulado } from '../intelligence/simulacaoEmpresarial';
 

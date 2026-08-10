@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/shared/components/ui/card';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { formatMoeda } from '@/shared/lib/format';
-import { formatarMoedaInput, digitosParaReais } from '../lib/moedaInput';
+import { formatarMoedaInput, digitosParaReais } from '@/shared/lib/moedaInput';
 import { AmortizacaoCard } from './AmortizacaoCard';
 import type { MesSimulado } from '../intelligence/simulacaoEmpresarial';
 import type { CenarioSimulacaoInput } from '../types';

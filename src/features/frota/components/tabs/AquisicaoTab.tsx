@@ -1,5 +1,8 @@
 import { formatDataSimples, formatMoeda } from '@/shared/lib/format';
+import { resolverValorAtualVeiculo } from '@/shared/lib/valorAtivo';
 import { calcularResumoFinanciamentoReal } from '../../intelligence/financiamentoReal';
+import { FluxoFinanciamentoRealChart } from '../FluxoFinanciamentoRealChart';
+import { EconomiaFinanciamentoCard } from '../EconomiaFinanciamentoCard';
 import {
   SISTEMA_AMORTIZACAO_LABEL,
   TIPOS_AQUISICAO_COM_FINANCIAMENTO,
@@ -22,13 +25,16 @@ function Field({ label, value }: { label: string; value: string }) {
 // tipo_aquisicao, ver Dados Gerais) + fornecedor (novo, migration 0020) — mostrados aqui de
 // novo, lado a lado com Financiamento, porque juntos é que respondem "como este ativo nasceu".
 //
-// O resumo do financiamento (saldo devedor/parcela atual/quitação) é só um teaser — o gráfico
-// completo (Fluxo do Financiamento) é a Parte 2 da mesma missão, ainda não construída.
+// O resumo do financiamento (saldo devedor/parcela atual/quitação) logo abaixo é só o teaser —
+// o gráfico completo (Fluxo do Financiamento, Parte 2) vem depois do grid de 2 colunas.
 export function AquisicaoTab({ veiculo }: { veiculo: Veiculo }) {
   const temFinanciamento = TIPOS_AQUISICAO_COM_FINANCIAMENTO.includes(veiculo.tipo_aquisicao);
   const resumo = temFinanciamento ? calcularResumoFinanciamentoReal(veiculo) : null;
+  const valorAtual = resolverValorAtualVeiculo(veiculo);
+  const patrimonioLiquido = resumo && valorAtual !== null ? valorAtual - resumo.saldoDevedorAtual : null;
 
   return (
+    <div className="space-y-4">
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div className="rounded-xl border border-neutral-200 p-4 dark:border-white/10">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Compra</h3>
@@ -89,6 +95,42 @@ export function AquisicaoTab({ veiculo }: { veiculo: Veiculo }) {
           </>
         )}
       </div>
+    </div>
+
+    {resumo && (
+      <div className="rounded-xl border border-neutral-200 p-4 dark:border-white/10">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Fluxo do Financiamento</h3>
+
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div>
+            <p className="text-xs text-neutral-400">Total pago</p>
+            <p className="font-semibold text-neutral-900 dark:text-neutral-100">{formatMoeda(resumo.totalPago)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-neutral-400">Juros pagos</p>
+            <p className="font-semibold text-amber-600 dark:text-amber-400">{formatMoeda(resumo.totalJurosPago)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-neutral-400">Amortizado</p>
+            <p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatMoeda(resumo.totalAmortizado)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-neutral-400">Patrimônio líquido</p>
+            <p className="font-semibold text-neutral-900 dark:text-neutral-100">
+              {patrimonioLiquido !== null ? formatMoeda(patrimonioLiquido) : '—'}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <FluxoFinanciamentoRealChart resumo={resumo} />
+        </div>
+
+        <div className="mt-4 border-t border-neutral-100 pt-4 dark:border-white/5">
+          <EconomiaFinanciamentoCard veiculo={veiculo} />
+        </div>
+      </div>
+    )}
     </div>
   );
 }
