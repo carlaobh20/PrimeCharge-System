@@ -17,14 +17,21 @@ import { ComparativoFrotaTab } from '../components/ComparativoFrotaTab';
 // Planejamento de Renovação (Fase D) e Inteligência da Frota ainda não têm dado real por trás
 // nesta parte da missão — ficam como EmptyState em vez de tela em branco, mesmo padrão do
 // resto do Cockpit (DEC-021). Comparativo (Fase A.4) já foi construído.
+const ABAS_VALIDAS = new Set(['dashboard', 'todos', 'comparativo', 'renovacao', 'inteligencia']);
+
 export function FrotaPage() {
   // Achado da auditoria: Centro de Operações linka pra "/veiculos?status=disponivel" (fila
   // "Veículos Parados" etc.) esperando cair direto na lista já filtrada — se a aba padrão
   // continuasse sendo "Dashboard", esse deep link quebraria silenciosamente (a querystring
   // seria ignorada porque VeiculosListPage nem estaria montada). Com `?status=` na URL, a aba
   // inicial vira "Todos os Veículos" em vez de "Dashboard".
+  //
+  // Épico 5 — `?tab=` explícito tem prioridade sobre `?status=` — usado por VerComparativoCTA
+  // (Cockpit do Veículo → "/veiculos?tab=comparativo&destaque=<id>") pra abrir direto na aba
+  // certa em vez de sempre cair no Dashboard.
   const [searchParams] = useSearchParams();
-  const abaInicial = searchParams.has('status') ? 'todos' : 'dashboard';
+  const tabParam = searchParams.get('tab');
+  const abaInicial = tabParam && ABAS_VALIDAS.has(tabParam) ? tabParam : searchParams.has('status') ? 'todos' : 'dashboard';
 
   return (
     <div className="p-8">

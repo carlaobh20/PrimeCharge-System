@@ -2,7 +2,7 @@ import { HealthScoreCard } from '@/shared/components/intelligence/HealthScoreCar
 import { InsightsPanel } from '../intelligence/InsightsPanel';
 import { AlertasPanel } from '../intelligence/AlertasPanel';
 import { ProximasAcoesPanel } from '../intelligence/ProximasAcoesPanel';
-import { ComparativosPanel } from '../intelligence/ComparativosPanel';
+import { VerComparativoCTA } from '../intelligence/VerComparativoCTA';
 import type { UseVehicleIntelligenceResult } from '../../hooks/useVehicleIntelligence';
 import type { ActionKey } from '../../lib/actions';
 
@@ -33,7 +33,7 @@ export function IndicadoresTab({
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <HealthScoreCard resultado={resultado.healthScore} />
-      <ComparativosPanel resultado={resultado.comparativos} />
+      <VerComparativoCTA veiculoId={veiculoId} />
       <InsightsPanel insights={resultado.insights} />
       <AlertasPanel alertas={resultado.alertas} />
       <div className="lg:col-span-2">

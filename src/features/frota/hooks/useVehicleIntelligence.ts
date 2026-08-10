@@ -13,8 +13,13 @@ import { useTimeline } from '@/shared/capabilities/hooks/useTimeline';
 // para filtrar por `veiculo.id` em memória logo em seguida — a cada mil veículos com anos de
 // histórico financeiro, isso vira o gargalo #1 de toda a plataforma (DEC-108). Agora filtram
 // server-side, mesmo suporte que `useLancamentos({veiculoId})` já tinha desde a Missão 4.
-// `useVeiculos()` (linha abaixo) continua sem filtro de propósito — `gerarComparativos`
-// precisa mesmo da frota inteira para comparar este veículo contra os demais.
+//
+// Épico 5 — "Fleet Intelligence 360": `useVeiculos()` (buscava a frota inteira só pra
+// `gerarComparativos` calcular km/dias/valor médio) foi removido daqui — auditoria encontrou
+// que isso duplicava o Comparativo de Veículos dedicado (aba própria, mais completo). A
+// comparação com a frota agora vive só lá (ver VerComparativoCTA.tsx). Menos uma consulta da
+// empresa inteira disparada toda vez que o Cockpit de QUALQUER veículo abre — o mesmo tipo de
+// gargalo que a DEC-108 já tinha corrigido pros outros três, fechado agora pro último caso.
 import { useLancamentos } from '@/features/financeiro/hooks/useLancamentos';
 import { usePagamentosPendentesPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
@@ -22,11 +27,9 @@ import { calcularHealthScore } from '../intelligence/healthScore';
 import { gerarInsights } from '../intelligence/insights';
 import { gerarAlertas } from '../intelligence/alerts';
 import { gerarProximasAcoes } from '../intelligence/nextActions';
-import { gerarComparativos } from '../intelligence/comparatives';
 import { diasDesde } from '../lib/format';
-import { useVeiculos } from './useVeiculos';
 import type { VeiculoComRelacoes } from '../types';
-import type { Alerta, ComparativoResult, HealthScoreResult, Insight, NextAction } from '../intelligence/types';
+import type { Alerta, HealthScoreResult, Insight, NextAction } from '../intelligence/types';
 
 export type UseVehicleIntelligenceResult =
   | { isLoading: true }
@@ -36,7 +39,6 @@ export type UseVehicleIntelligenceResult =
       insights: Insight[];
       alertas: Alerta[];
       proximasAcoes: NextAction[];
-      comparativos: ComparativoResult;
     };
 
 // Ponte entre os hooks de dado (React Query + Supabase) e a camada intelligence/ (funções
@@ -49,7 +51,6 @@ export function useVehicleIntelligence(veiculo: VeiculoComRelacoes | undefined):
   const { data: comentarios, isLoading: loadingComentarios } = useComentarios('veiculo', veiculoId);
   const { data: tags, isLoading: loadingTags } = useTags('veiculo', veiculoId);
   const { data: eventos, isLoading: loadingEventos } = useTimeline('veiculo', veiculoId);
-  const { data: frota, isLoading: loadingFrota } = useVeiculos();
   const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentos({ veiculoId });
   const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa({ veiculoId });
   const { data: contratos, isLoading: loadingContratos } = useContratos({ veiculoId });
@@ -59,7 +60,6 @@ export function useVehicleIntelligence(veiculo: VeiculoComRelacoes | undefined):
     loadingComentarios ||
     loadingTags ||
     loadingEventos ||
-    loadingFrota ||
     loadingLancamentos ||
     loadingPagamentos ||
     loadingContratos;
@@ -101,21 +101,12 @@ export function useVehicleIntelligence(veiculo: VeiculoComRelacoes | undefined):
 
     const proximasAcoes = gerarProximasAcoes({ veiculo, totalDocumentos, totalTags });
 
-    const frotaLista = frota ?? [];
-    const comparativos = gerarComparativos({
-      veiculo,
-      diasNaFrota,
-      frota: frotaLista,
-      frotaComDiasNaFrota: frotaLista.map((v) => ({ id: v.id, dias: diasDesde(v.data_compra ?? v.criado_em) })),
-    });
-
     return {
       isLoading: false as const,
       healthScore,
       insights,
       alertas,
       proximasAcoes,
-      comparativos,
     };
-  }, [veiculo, isLoading, documentos, comentarios, tags, eventos, frota, lancamentos, pagamentosPendentes, contratos]);
+  }, [veiculo, isLoading, documentos, comentarios, tags, eventos, lancamentos, pagamentosPendentes, contratos]);
 }
