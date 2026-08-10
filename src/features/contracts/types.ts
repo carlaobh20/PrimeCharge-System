@@ -14,6 +14,13 @@ export type ContratoStatus =
 
 export type ContratoPeriodicidade = 'diaria' | 'semanal' | 'mensal';
 
+// Épico 4 — "Ativo Financeiro", Parte 9 (migration 0021). "Valor semanal/mensal" do pedido
+// original não virou campo novo — já coberto por valor_periodico + periodicidade acima.
+// "Caução" também não — já existe valor_caucao abaixo. `tipoGarantia` é o MECANISMO de
+// garantia (diferente do valor da caução) — ver comentário completo na migration.
+export type ContratoFormaPagamento = 'pix' | 'boleto' | 'cartao' | 'dinheiro' | 'transferencia';
+export type ContratoTipoGarantia = 'caucao' | 'fiador' | 'seguro_fianca' | 'nenhuma';
+
 export type Contrato = {
   id: string;
   empresa_id: string;
@@ -31,6 +38,13 @@ export type Contrato = {
   carga_inicial_pct: number | null;
   carga_final_pct: number | null;
   observacoes: string | null;
+  dia_vencimento: number | null;
+  data_reajuste: string | null;
+  indice_reajuste: string | null;
+  forma_pagamento: ContratoFormaPagamento | null;
+  tipo_garantia: ContratoTipoGarantia | null;
+  percentual_multa_atraso: number | null;
+  percentual_juros_atraso: number | null;
   criado_em: string;
   atualizado_em: string;
 };
@@ -85,4 +99,19 @@ export const CONTRATO_PERIODICIDADE_LABEL: Record<ContratoPeriodicidade, string>
   diaria: 'Diária',
   semanal: 'Semanal',
   mensal: 'Mensal',
+};
+
+export const CONTRATO_FORMA_PAGAMENTO_LABEL: Record<ContratoFormaPagamento, string> = {
+  pix: 'PIX',
+  boleto: 'Boleto',
+  cartao: 'Cartão',
+  dinheiro: 'Dinheiro',
+  transferencia: 'Transferência',
+};
+
+export const CONTRATO_TIPO_GARANTIA_LABEL: Record<ContratoTipoGarantia, string> = {
+  caucao: 'Caução',
+  fiador: 'Fiador',
+  seguro_fianca: 'Seguro-fiança',
+  nenhuma: 'Nenhuma',
 };

@@ -52,6 +52,13 @@ const CAMPOS_LABEL: Record<string, string> = {
   carga_inicial_pct: 'Carga na entrega',
   carga_final_pct: 'Carga na devolução',
   observacoes: 'Observações',
+  dia_vencimento: 'Dia de vencimento',
+  data_reajuste: 'Data de reajuste',
+  indice_reajuste: 'Índice de reajuste',
+  forma_pagamento: 'Forma de pagamento',
+  tipo_garantia: 'Garantia',
+  percentual_multa_atraso: 'Multa por atraso',
+  percentual_juros_atraso: 'Juros por atraso',
 };
 
 function CockpitSkeleton() {

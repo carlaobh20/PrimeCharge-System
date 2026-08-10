@@ -34,6 +34,13 @@ export function ContratoCreatePage() {
           km_inicial: values.km_inicial ?? null,
           carga_inicial_pct: values.carga_inicial_pct ?? null,
           observacoes: values.observacoes ?? null,
+          dia_vencimento: values.dia_vencimento ?? null,
+          data_reajuste: values.data_reajuste ?? null,
+          indice_reajuste: values.indice_reajuste ?? null,
+          forma_pagamento: values.forma_pagamento ?? null,
+          tipo_garantia: values.tipo_garantia ?? null,
+          percentual_multa_atraso: values.percentual_multa_atraso ?? null,
+          percentual_juros_atraso: values.percentual_juros_atraso ?? null,
         },
       },
       {
