@@ -9,9 +9,12 @@ import { LANCAMENTO_STATUS_LABEL, LANCAMENTO_TIPO_LABEL, type LancamentoStatus }
 import { calcularResumoFinanceiro, calcularRoi } from '@/features/financeiro/intelligence';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { calcularCapitalRecuperado, calcularCustoPorKm, calcularPaybackMeses } from '../../intelligence/investmentSimulator';
+import { calcularResumoFinanciamentoReal } from '../../intelligence/financiamentoReal';
+import { calcularResultadoEsperado } from '../../intelligence/resultadoEsperado';
 import { YieldAtivoCard } from '../YieldAtivoCard';
 import { CicloDeVidaTimeline } from '../CicloDeVidaTimeline';
 import { CapitalRecuperadoCard } from '../CapitalRecuperadoCard';
+import { ResultadoEsperadoCard } from '../ResultadoEsperadoCard';
 import type { Veiculo } from '../../types';
 
 const STATUS_BADGE: Record<LancamentoStatus, 'warning' | 'success' | 'secondary'> = {
@@ -35,11 +38,11 @@ const STATUS_BADGE: Record<LancamentoStatus, 'warning' | 'success' | 'secondary'
 // foi movido pra só esconder a lista de Lançamentos, não a aba inteira: nenhum dos três depende
 // de lançamento existir — Capital Recuperado usa o mesmo `resumo.lucroConfirmado` que já
 // alimentava ROI/Payback (fica em 0%/— sem lançamento nenhum, não trava a tela).
-export function FinanceiroTab({
-  veiculo,
-}: {
-  veiculo: Pick<Veiculo, 'id' | 'valor_compra' | 'data_compra' | 'status' | 'valor_mercado' | 'valor_fipe'>;
-}) {
+// A partir da Parte 7 (Resultado Esperado) esta aba passou a precisar de campos de
+// financiamento também (valor_financiado/taxa/prazo/sistema/primeiro vencimento) — em vez de ir
+// alargando o Pick a cada Parte nova, aceita o Veiculo inteiro (VeiculoDetailPage já passa o
+// objeto completo, então não é um Pick nunca de fato mais estreito que isso na prática).
+export function FinanceiroTab({ veiculo }: { veiculo: Veiculo }) {
   const veiculoId = veiculo.id;
   const { data: lancamentos, isLoading } = useLancamentos({ veiculoId });
   // Achado da Fase 9 (auditoria geral): buscava a empresa inteira de contratos só para
@@ -72,6 +75,9 @@ export function FinanceiroTab({
     : 0;
   const payback = calcularPaybackMeses(veiculo.valor_compra, resumo.lucroConfirmado, mesesDeOperacao);
   const capitalRecuperado = calcularCapitalRecuperado(veiculo.valor_compra, resumo.lucroConfirmado);
+  const resumoFinanciamento = calcularResumoFinanciamentoReal(veiculo);
+  const lucroMedioMensal = mesesDeOperacao >= 1 ? resumo.lucroConfirmado / mesesDeOperacao : null;
+  const resultadoEsperado = calcularResultadoEsperado(veiculo, resumoFinanciamento, resumo.lucroConfirmado, lucroMedioMensal);
 
   if (isLoading || loadingContratos) {
     return <div className="h-32 cockpit-shimmer rounded-2xl" />;
@@ -87,6 +93,8 @@ export function FinanceiroTab({
       </div>
 
       <CicloDeVidaTimeline status={veiculo.status} />
+
+      <ResultadoEsperadoCard resultado={resultadoEsperado} />
 
       {semLancamentos ? (
         <EmptyState
