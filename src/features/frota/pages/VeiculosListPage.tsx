@@ -12,6 +12,10 @@ import { VEICULO_STATUS_LABEL, type VeiculoStatus } from '../types';
 // chegue aqui já filtrada, em vez de cair numa lista genérica que o operador teria que
 // filtrar de novo manualmente — mesmo raciocínio de qualquer card clicável do Command Center
 // (leva direto pro filtro certo, não só pra tela certa).
+//
+// Épico 4 — este componente passou a viver como uma aba dentro de FrotaPage.tsx (rota
+// /veiculos renderiza FrotaPage, não mais este componente direto) — por isso não tem mais
+// wrapper de página (p-8) nem h1 próprio, ambos agora responsabilidade de FrotaPage.
 export function VeiculosListPage() {
   const [searchParams] = useSearchParams();
   const statusInicial = (searchParams.get('status') as VeiculoStatus | null) ?? 'todos';
@@ -20,19 +24,15 @@ export function VeiculosListPage() {
   const { data: veiculos, isLoading, isError } = useVeiculos({ status, busca });
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Veículos</h1>
-          <p className="mt-1 text-sm text-neutral-500">Frota cadastrada na PrimeCharge.</p>
-        </div>
+    <div>
+      <div className="flex items-center justify-end">
         <Link to="/veiculos/novo" className={buttonVariants({})}>
           <Plus className="h-4 w-4" />
           Novo veículo
         </Link>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
           <Input

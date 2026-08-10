@@ -5,7 +5,7 @@ import { AceitarConvitePage } from '@/features/auth/pages/AceitarConvitePage';
 import { UsuariosPage } from '@/features/auth/pages/UsuariosPage';
 import { CentroDeOperacoesPage } from '@/features/command-center/pages/CentroDeOperacoesPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
-import { VeiculosListPage } from '@/features/frota/pages/VeiculosListPage';
+import { FrotaPage } from '@/features/frota/pages/FrotaPage';
 import { VeiculoDetailPage } from '@/features/frota/pages/VeiculoDetailPage';
 import { VeiculoCreatePage } from '@/features/frota/pages/VeiculoCreatePage';
 import { VeiculoEditPage } from '@/features/frota/pages/VeiculoEditPage';
@@ -48,7 +48,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <CentroDeOperacoesPage /> },
           { path: 'dashboard', element: <DashboardPage /> },
-          { path: 'veiculos', element: <VeiculosListPage /> },
+          { path: 'veiculos', element: <FrotaPage /> },
           { path: 'veiculos/novo', element: <VeiculoCreatePage /> },
           { path: 'veiculos/:id', element: <VeiculoDetailPage /> },
           { path: 'veiculos/:id/editar', element: <VeiculoEditPage /> },

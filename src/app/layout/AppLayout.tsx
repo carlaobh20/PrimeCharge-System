@@ -18,7 +18,7 @@ import { GlobalSearchPalette } from '@/features/search/components/GlobalSearchPa
 // segue o mesmo raciocínio (DEC-054/055) — é fila de trabalho, não Cockpit.
 const NAV_ITEMS = [
   { to: '/', label: 'Centro de Operações', icon: Radar, end: true },
-  { to: '/veiculos', label: 'Veículos', icon: Car, end: false },
+  { to: '/veiculos', label: 'Frota', icon: Car, end: false },
   { to: '/motoristas', label: 'Motoristas', icon: Users, end: false },
   { to: '/contratos', label: 'Contratos', icon: FileSignature, end: false },
   { to: '/operacoes/acoes', label: 'Ações Operacionais', icon: ClipboardList, end: false },
