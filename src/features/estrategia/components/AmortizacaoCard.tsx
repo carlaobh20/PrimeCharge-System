@@ -3,6 +3,7 @@ import { Select } from '@/shared/components/ui/select';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { formatMoeda } from '@/shared/lib/format';
+import { formatarMoedaInput, digitosParaReais } from '../lib/moedaInput';
 import { ESTRATEGIAS_AMORTIZACAO, LABEL_ESTRATEGIA_AMORTIZACAO, type CenarioSimulacaoInput, type EstrategiaAmortizacao } from '../types';
 import type { MesSimulado } from '../intelligence/simulacaoEmpresarial';
 
@@ -58,12 +59,11 @@ export function AmortizacaoCard({
             <div>
               <Label className="mb-1 block text-xs font-normal text-neutral-500">Valor por evento (R$)</Label>
               <Input
-                type="number"
-                step="0.01"
-                inputMode="decimal"
+                type="text"
+                inputMode="numeric"
                 className="h-9 text-sm"
-                value={valor.amortizacao_valor_manual ?? ''}
-                onChange={(e) => onChange({ amortizacao_valor_manual: e.target.value === '' ? null : Number(e.target.value) })}
+                value={formatarMoedaInput(valor.amortizacao_valor_manual ?? 0)}
+                onChange={(e) => onChange({ amortizacao_valor_manual: digitosParaReais(e.target.value) })}
               />
             </div>
           )}

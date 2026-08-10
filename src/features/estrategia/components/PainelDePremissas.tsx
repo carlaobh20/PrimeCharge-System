@@ -2,34 +2,45 @@ import { Card, CardContent } from '@/shared/components/ui/card';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { formatMoeda } from '@/shared/lib/format';
+import { formatarMoedaInput, digitosParaReais } from '../lib/moedaInput';
 import type { CenarioSimulacaoInput } from '../types';
 
 type CampoNumerico = Exclude<keyof CenarioSimulacaoInput, 'nome' | 'reinvestir_lucro' | 'amortizacao_estrategia' | 'amortizacao_valor_manual'>;
 
-type Grupo = { titulo: string; campos: { chave: CampoNumerico; label: string; sufixo?: string }[] };
+// tipo do campo — controla o tipo de <input> renderizado (2026-08-10, pedido do Carlos: "ajuste
+// os números que for valor em x.xxx,xx" + "quando for pra números inteiros, está mudando nos
+// decimais"). 'moeda' = mascarado, mostra separador de milhar e 2 casas decimais no padrão BR.
+// 'inteiro' = number com step 1 (não deixa a setinha do input nem o parse aceitarem fração —
+// antes TODOS os campos usavam step="0.01", inclusive "Veículos iniciais"/"Prazo", que não fazem
+// sentido fracionados). Sem `tipo` = comportamento antigo (number, step 0.01) — é o caso dos
+// campos de percentual (juros, ocupação, inadimplência, depreciação), que continuam decimais de
+// verdade e o Carlos não reclamou desses.
+type TipoCampo = 'moeda' | 'inteiro';
+
+type Grupo = { titulo: string; campos: { chave: CampoNumerico; label: string; sufixo?: string; tipo?: TipoCampo }[] };
 
 const GRUPOS: Grupo[] = [
   {
     titulo: 'Capital',
     campos: [
-      { chave: 'capital_disponivel', label: 'Capital disponível', sufixo: 'R$' },
-      { chave: 'reserva_de_seguranca', label: 'Reserva de segurança', sufixo: 'R$' },
+      { chave: 'capital_disponivel', label: 'Capital disponível', sufixo: 'R$', tipo: 'moeda' },
+      { chave: 'reserva_de_seguranca', label: 'Reserva de segurança', sufixo: 'R$', tipo: 'moeda' },
     ],
   },
   {
     titulo: 'Compra',
     campos: [
-      { chave: 'veiculos_iniciais', label: 'Veículos iniciais', sufixo: 'un.' },
-      { chave: 'valor_entrada_por_veiculo', label: 'Entrada', sufixo: 'R$' },
-      { chave: 'valor_financiado_por_veiculo', label: 'Valor financiado', sufixo: 'R$' },
-      { chave: 'prazo_financiamento_meses', label: 'Prazo', sufixo: 'meses' },
+      { chave: 'veiculos_iniciais', label: 'Veículos iniciais', sufixo: 'un.', tipo: 'inteiro' },
+      { chave: 'valor_entrada_por_veiculo', label: 'Entrada', sufixo: 'R$', tipo: 'moeda' },
+      { chave: 'valor_financiado_por_veiculo', label: 'Valor financiado', sufixo: 'R$', tipo: 'moeda' },
+      { chave: 'prazo_financiamento_meses', label: 'Prazo', sufixo: 'meses', tipo: 'inteiro' },
       { chave: 'taxa_juros_am_pct', label: 'Juros', sufixo: '% a.m.' },
     ],
   },
   {
     titulo: 'Receita',
     campos: [
-      { chave: 'aluguel_esperado_semanal_por_veiculo', label: 'Aluguel semanal', sufixo: 'R$' },
+      { chave: 'aluguel_esperado_semanal_por_veiculo', label: 'Aluguel semanal', sufixo: 'R$', tipo: 'moeda' },
       { chave: 'ocupacao_esperada_pct', label: 'Taxa de ocupação', sufixo: '%' },
       { chave: 'inadimplencia_esperada_pct', label: 'Inadimplência', sufixo: '%' },
     ],
@@ -37,23 +48,24 @@ const GRUPOS: Grupo[] = [
   {
     titulo: 'Custos (por veículo)',
     campos: [
-      { chave: 'seguro_mensal_por_veiculo', label: 'Seguro', sufixo: 'R$/mês' },
-      { chave: 'ipva_anual_por_veiculo', label: 'IPVA', sufixo: 'R$/ano' },
-      { chave: 'rastreador_mensal_por_veiculo', label: 'Rastreador', sufixo: 'R$/mês' },
-      { chave: 'lavagem_mensal_por_veiculo', label: 'Lavagem', sufixo: 'R$/mês' },
-      { chave: 'manutencao_mensal_por_veiculo', label: 'Manutenção', sufixo: 'R$/mês' },
+      { chave: 'seguro_mensal_por_veiculo', label: 'Seguro', sufixo: 'R$/mês', tipo: 'moeda' },
+      { chave: 'ipva_anual_por_veiculo', label: 'IPVA', sufixo: 'R$/ano', tipo: 'moeda' },
+      { chave: 'rastreador_mensal_por_veiculo', label: 'Rastreador', sufixo: 'R$/mês', tipo: 'moeda' },
+      { chave: 'lavagem_mensal_por_veiculo', label: 'Lavagem', sufixo: 'R$/mês', tipo: 'moeda' },
+      { chave: 'manutencao_mensal_por_veiculo', label: 'Manutenção', sufixo: 'R$/mês', tipo: 'moeda' },
       { chave: 'depreciacao_am_pct', label: 'Depreciação', sufixo: '% a.m.' },
-      { chave: 'licenciamento_anual_por_veiculo', label: 'Licenciamento', sufixo: 'R$/ano' },
+      { chave: 'licenciamento_anual_por_veiculo', label: 'Licenciamento', sufixo: 'R$/ano', tipo: 'moeda' },
     ],
   },
   {
     titulo: 'Crescimento',
     campos: [
-      { chave: 'objetivo_veiculos', label: 'Objetivo', sufixo: 'veículos' },
-      { chave: 'prazo_desejado_meses', label: 'Prazo desejado', sufixo: 'meses' },
+      { chave: 'objetivo_veiculos', label: 'Objetivo', sufixo: 'veículos', tipo: 'inteiro' },
+      { chave: 'prazo_desejado_meses', label: 'Prazo desejado', sufixo: 'meses', tipo: 'inteiro' },
     ],
   },
 ];
+
 
 // Épico 3 — Central de Decisão Empresarial. Premissas em cards compactos (pedido explícito:
 // "não em formulário vertical"). Cada alteração dispara onChange imediatamente — quem chama
@@ -102,21 +114,42 @@ export function PainelDePremissas({
           <CardContent className="py-2.5">
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{grupo.titulo}</p>
             <div className="space-y-1.5">
-              {grupo.campos.map(({ chave, label, sufixo }) => (
+              {grupo.campos.map(({ chave, label, sufixo, tipo }) => (
                 <div key={chave} className="flex items-center justify-between gap-2">
                   <Label htmlFor={chave} className="text-xs font-normal text-neutral-500">
                     {label}
                   </Label>
                   <div className="flex w-36 shrink-0 items-center gap-1">
-                    <Input
-                      id={chave}
-                      type="number"
-                      step="0.01"
-                      inputMode="decimal"
-                      className="h-7 min-w-0 px-1.5 text-right text-xs"
-                      value={valor[chave] ?? ''}
-                      onChange={(e) => onChange({ [chave]: e.target.value === '' ? 0 : Number(e.target.value) } as Partial<CenarioSimulacaoInput>)}
-                    />
+                    {tipo === 'moeda' ? (
+                      <Input
+                        id={chave}
+                        type="text"
+                        inputMode="numeric"
+                        className="h-7 min-w-0 px-1.5 text-right text-xs"
+                        value={formatarMoedaInput(Number(valor[chave]) || 0)}
+                        onChange={(e) => onChange({ [chave]: digitosParaReais(e.target.value) } as Partial<CenarioSimulacaoInput>)}
+                      />
+                    ) : tipo === 'inteiro' ? (
+                      <Input
+                        id={chave}
+                        type="number"
+                        step="1"
+                        inputMode="numeric"
+                        className="h-7 min-w-0 px-1.5 text-right text-xs"
+                        value={valor[chave] ?? ''}
+                        onChange={(e) => onChange({ [chave]: e.target.value === '' ? 0 : Math.round(Number(e.target.value)) } as Partial<CenarioSimulacaoInput>)}
+                      />
+                    ) : (
+                      <Input
+                        id={chave}
+                        type="number"
+                        step="0.01"
+                        inputMode="decimal"
+                        className="h-7 min-w-0 px-1.5 text-right text-xs"
+                        value={valor[chave] ?? ''}
+                        onChange={(e) => onChange({ [chave]: e.target.value === '' ? 0 : Number(e.target.value) } as Partial<CenarioSimulacaoInput>)}
+                      />
+                    )}
                     {sufixo && <span className="w-10 shrink-0 text-[10px] text-neutral-400">{sufixo}</span>}
                   </div>
                 </div>
