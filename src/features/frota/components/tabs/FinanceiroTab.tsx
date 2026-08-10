@@ -9,6 +9,8 @@ import { LANCAMENTO_STATUS_LABEL, LANCAMENTO_TIPO_LABEL, type LancamentoStatus }
 import { calcularResumoFinanceiro, calcularRoi } from '@/features/financeiro/intelligence';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { calcularCustoPorKm, calcularPaybackMeses } from '../../intelligence/investmentSimulator';
+import { YieldAtivoCard } from '../YieldAtivoCard';
+import { CicloDeVidaTimeline } from '../CicloDeVidaTimeline';
 import type { Veiculo } from '../../types';
 
 const STATUS_BADGE: Record<LancamentoStatus, 'warning' | 'success' | 'secondary'> = {
@@ -25,7 +27,17 @@ const STATUS_BADGE: Record<LancamentoStatus, 'warning' | 'success' | 'secondary'
 // Simulador de Investimento (Missão 3, Parte 9): conecta `calcularRoi`/`calcularResumoFinanceiro`
 // (financeiro/intelligence/, existentes desde a Sprint 8, sem nenhum consumidor até esta
 // missão) pela primeira vez, mais custo-por-KM e payback estimado (novos, investmentSimulator.ts).
-export function FinanceiroTab({ veiculo }: { veiculo: Pick<Veiculo, 'id' | 'valor_compra' | 'data_compra'> }) {
+//
+// Yield do Ativo + Ciclo de Vida (Épico 4, Partes 4 e 6): entram nesta mesma aba em vez de uma
+// aba nova — a missão pede pra reaproveitar estrutura existente, e esta já é "a aba financeira
+// do veículo". Por isso o `return` antecipado do EmptyState (linha ~90) foi movido pra só
+// esconder a lista de Lançamentos, não a aba inteira: Yield/Ciclo de Vida não dependem de
+// nenhum lançamento existir, só de status + (opcionalmente) um contrato ativo.
+export function FinanceiroTab({
+  veiculo,
+}: {
+  veiculo: Pick<Veiculo, 'id' | 'valor_compra' | 'data_compra' | 'status' | 'valor_mercado' | 'valor_fipe'>;
+}) {
   const veiculoId = veiculo.id;
   const { data: lancamentos, isLoading } = useLancamentos({ veiculoId });
   // Achado da Fase 9 (auditoria geral): buscava a empresa inteira de contratos só para
@@ -41,6 +53,7 @@ export function FinanceiroTab({ veiculo }: { veiculo: Pick<Veiculo, 'id' | 'valo
   const totalDespesa = despesas.reduce((soma, l) => soma + l.valor, 0);
 
   const contratosDoVeiculo = contratos ?? [];
+  const contratoAtivo = contratosDoVeiculo.find((c) => c.status === 'ativo') ?? null;
   const kmRodado = contratosDoVeiculo.reduce((soma, c) => {
     if (c.km_final !== null && c.km_inicial !== null && c.km_final >= c.km_inicial) return soma + (c.km_final - c.km_inicial);
     return soma;
@@ -61,81 +74,88 @@ export function FinanceiroTab({ veiculo }: { veiculo: Pick<Veiculo, 'id' | 'valo
     return <div className="h-32 cockpit-shimmer rounded-2xl" />;
   }
 
-  if ((lancamentos?.length ?? 0) === 0) {
-    return (
-      <EmptyState
-        icon={Wallet}
-        title="Nenhum lançamento vinculado a este veículo ainda"
-        description="Receita, despesa e manutenção aparecem aqui quando um Lançamento (ou uma Manutenção) marcar este veículo."
-        action={
-          <Link to="/financeiro/lancamentos">
-            <Button type="button" variant="outline" size="sm">
-              Ir para Lançamentos
-            </Button>
-          </Link>
-        }
-      />
-    );
-  }
+  const semLancamentos = (lancamentos?.length ?? 0) === 0;
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
-          <p className="text-xs text-neutral-500">Receita</p>
-          <p className="text-lg font-semibold text-emerald-600">{formatMoeda(totalReceita)}</p>
-        </div>
-        <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
-          <p className="text-xs text-neutral-500">Despesa</p>
-          <p className="text-lg font-semibold text-red-600">{formatMoeda(totalDespesa)}</p>
-        </div>
-        <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
-          <p className="text-xs text-neutral-500">Resultado</p>
-          <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{formatMoeda(totalReceita - totalDespesa)}</p>
-        </div>
+      <div className="grid grid-cols-2 gap-3">
+        <YieldAtivoCard veiculo={veiculo} contratoAtivo={contratoAtivo} />
+        <CicloDeVidaTimeline status={veiculo.status} />
       </div>
 
-      <div className="rounded-xl border border-neutral-200 p-4 dark:border-white/10">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Simulador de Investimento</h3>
-        <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-          <div>
-            <p className="text-xs text-neutral-400">ROI acumulado</p>
-            <p className="font-medium text-neutral-900 dark:text-neutral-100">{roi.roiPercentual !== null ? `${roi.roiPercentual}%` : '—'}</p>
-            {roi.roiPercentual === null && <p className="mt-0.5 text-[11px] text-neutral-400">{roi.motivos[0]}</p>}
-          </div>
-          <div>
-            <p className="text-xs text-neutral-400">Custo por KM</p>
-            <p className="font-medium text-neutral-900 dark:text-neutral-100">{custoPorKm.valor !== null ? formatMoeda(custoPorKm.valor) : '—'}</p>
-            {custoPorKm.valor === null && <p className="mt-0.5 text-[11px] text-neutral-400">{custoPorKm.motivo}</p>}
-          </div>
-          <div>
-            <p className="text-xs text-neutral-400">Payback estimado</p>
-            <p className="font-medium text-neutral-900 dark:text-neutral-100">{payback.meses !== null ? `${payback.meses} mês(es)` : '—'}</p>
-            {payback.meses === null && <p className="mt-0.5 text-[11px] text-neutral-400">{payback.motivo}</p>}
-          </div>
-        </div>
-        <p className="mt-3 text-[11px] text-neutral-400">
-          Estimativa linear sobre lucro confirmado — não é fluxo de caixa descontado (TIR). Fundação da Missão 3, Parte 9.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        {lancamentos!.map((l) => (
-          <div key={l.id} className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-4 py-2.5 dark:border-white/10">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <Badge variant={STATUS_BADGE[l.status]}>{LANCAMENTO_STATUS_LABEL[l.status]}</Badge>
-                <span className="text-xs text-neutral-500">{LANCAMENTO_TIPO_LABEL[l.tipo]}</span>
-              </div>
-              <p className="truncate text-sm text-neutral-700 dark:text-neutral-300">{l.descricao}</p>
-              <p className="text-xs text-neutral-400">{formatDataSimples(l.data_prevista)}</p>
+      {semLancamentos ? (
+        <EmptyState
+          icon={Wallet}
+          title="Nenhum lançamento vinculado a este veículo ainda"
+          description="Receita, despesa e manutenção aparecem aqui quando um Lançamento (ou uma Manutenção) marcar este veículo."
+          action={
+            <Link to="/financeiro/lancamentos">
+              <Button type="button" variant="outline" size="sm">
+                Ir para Lançamentos
+              </Button>
+            </Link>
+          }
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
+              <p className="text-xs text-neutral-500">Receita</p>
+              <p className="text-lg font-semibold text-emerald-600">{formatMoeda(totalReceita)}</p>
             </div>
-            <p className={`shrink-0 text-sm font-medium ${l.tipo === 'receita' ? 'text-emerald-600' : 'text-red-600'}`}>
-              {formatMoeda(l.valor)}
+            <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
+              <p className="text-xs text-neutral-500">Despesa</p>
+              <p className="text-lg font-semibold text-red-600">{formatMoeda(totalDespesa)}</p>
+            </div>
+            <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
+              <p className="text-xs text-neutral-500">Resultado</p>
+              <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{formatMoeda(totalReceita - totalDespesa)}</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-neutral-200 p-4 dark:border-white/10">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Simulador de Investimento</h3>
+            <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-neutral-400">ROI acumulado</p>
+                <p className="font-medium text-neutral-900 dark:text-neutral-100">{roi.roiPercentual !== null ? `${roi.roiPercentual}%` : '—'}</p>
+                {roi.roiPercentual === null && <p className="mt-0.5 text-[11px] text-neutral-400">{roi.motivos[0]}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-neutral-400">Custo por KM</p>
+                <p className="font-medium text-neutral-900 dark:text-neutral-100">{custoPorKm.valor !== null ? formatMoeda(custoPorKm.valor) : '—'}</p>
+                {custoPorKm.valor === null && <p className="mt-0.5 text-[11px] text-neutral-400">{custoPorKm.motivo}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-neutral-400">Payback estimado</p>
+                <p className="font-medium text-neutral-900 dark:text-neutral-100">{payback.meses !== null ? `${payback.meses} mês(es)` : '—'}</p>
+                {payback.meses === null && <p className="mt-0.5 text-[11px] text-neutral-400">{payback.motivo}</p>}
+              </div>
+            </div>
+            <p className="mt-3 text-[11px] text-neutral-400">
+              Estimativa linear sobre lucro confirmado — não é fluxo de caixa descontado (TIR). Fundação da Missão 3, Parte 9.
             </p>
           </div>
-        ))}
-      </div>
+
+          <div className="space-y-2">
+            {lancamentos!.map((l) => (
+              <div key={l.id} className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-4 py-2.5 dark:border-white/10">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={STATUS_BADGE[l.status]}>{LANCAMENTO_STATUS_LABEL[l.status]}</Badge>
+                    <span className="text-xs text-neutral-500">{LANCAMENTO_TIPO_LABEL[l.tipo]}</span>
+                  </div>
+                  <p className="truncate text-sm text-neutral-700 dark:text-neutral-300">{l.descricao}</p>
+                  <p className="text-xs text-neutral-400">{formatDataSimples(l.data_prevista)}</p>
+                </div>
+                <p className={`shrink-0 text-sm font-medium ${l.tipo === 'receita' ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {formatMoeda(l.valor)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
