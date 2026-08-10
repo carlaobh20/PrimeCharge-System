@@ -21,7 +21,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui
 import { KpiCard } from '@/shared/components/ui/kpi-card';
 import { formatMoeda } from '@/shared/lib/format';
 import { useEmpresaHealth } from '../hooks/useEmpresaHealth';
+import { usePatrimonioEmpresa } from '../hooks/usePatrimonioEmpresa';
 import { MetasPanel } from '../components/MetasPanel';
+import { PatrimonioEmpresaCard } from '../components/PatrimonioEmpresaCard';
 
 // Missão 5 (Fase 2 — Business Operating System) redesenha o papel desta página. Até aqui
 // (DEC-024) era "exclusivamente analítico — tendência/histórico", em oposição ao Command
@@ -35,6 +37,7 @@ import { MetasPanel } from '../components/MetasPanel';
 // como emenda à DEC-024 em DEC-110 (ver DECISION_LOG.md), não como revogação silenciosa.
 export function DashboardPage() {
   const health = useEmpresaHealth();
+  const patrimonio = usePatrimonioEmpresa();
 
   return (
     <div className="space-y-6 p-8">
@@ -162,6 +165,8 @@ export function DashboardPage() {
           />
         </div>
       </section>
+
+      <PatrimonioEmpresaCard patrimonio={patrimonio} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
