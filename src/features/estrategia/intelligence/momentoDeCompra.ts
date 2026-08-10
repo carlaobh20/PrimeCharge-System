@@ -94,7 +94,10 @@ export function compararMomentoDeCompra(cenario: CenarioSimulacaoInput): Compara
     const fluxoFrotaNaEspera =
       cenario.veiculos_iniciais * (receitaLiquidaSemParcelaPorVeiculo * mesesDeEspera - projFrotaNaEspera.totalParcelasPagas);
     const caixaNoMomentoDaCompra = cenario.capital_disponivel + fluxoFrotaNaEspera;
-    const podeComprarNoMomento = caixaNoMomentoDaCompra >= cenario.valor_entrada_por_veiculo;
+    // reserva_de_seguranca (2026-08-10): mesma regra do motor principal — a entrada só é viável
+    // se ainda sobrar a reserva depois de pagá-la, senão essa comparação ficaria mais otimista
+    // que a simulação de crescimento de verdade (que já respeita a reserva).
+    const podeComprarNoMomento = caixaNoMomentoDaCompra >= cenario.valor_entrada_por_veiculo + cenario.reserva_de_seguranca;
 
     // Frota atual projetada até o horizonte inteiro (ela existe desde hoje, independente da espera).
     const projFrotaNoHorizonte = projetarVeiculo(

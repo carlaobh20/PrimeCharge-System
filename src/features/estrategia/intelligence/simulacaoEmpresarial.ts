@@ -151,10 +151,17 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
     comprasPorMes.set(mes, (comprasPorMes.get(mes) ?? 0) + 1);
   }
 
+  // reserva_de_seguranca (2026-08-10, pedido do Carlos: "caixa de emergência") — o motor só
+  // compra um veículo se, DEPOIS de pagar a entrada, ainda sobrar pelo menos essa reserva em
+  // caixa. Vale tanto pra compra inicial quanto pra compra de crescimento (abaixo) e pra
+  // amortização extraordinária 'quando_sobrar_caixa' (mais abaixo) — os 3 lugares que consomem
+  // caixa livre têm que respeitar o mesmo piso, senão a reserva "vaza" por outro caminho.
+  const custoMinimoParaComprar = cenario.valor_entrada_por_veiculo + cenario.reserva_de_seguranca;
+
   const veiculosIniciaisDesejados = Math.min(cenario.veiculos_iniciais, cenario.objetivo_veiculos);
   let avisoCapitalInicialInsuficiente = false;
   for (let n = 0; n < veiculosIniciaisDesejados; n++) {
-    if (caixaDisponivel < cenario.valor_entrada_por_veiculo) {
+    if (caixaDisponivel < custoMinimoParaComprar) {
       avisoCapitalInicialInsuficiente = true;
       break;
     }
@@ -199,19 +206,22 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
     }
 
     if (mes > 0) {
-      while (veiculos.length < cenario.objetivo_veiculos && caixaDisponivel >= cenario.valor_entrada_por_veiculo) {
+      while (veiculos.length < cenario.objetivo_veiculos && caixaDisponivel >= custoMinimoParaComprar) {
         comprarVeiculo(mes);
       }
     }
 
     // Amortização extraordinária (Card 4) — depois de tentar crescer a frota, pra não competir
     // com a compra de veículo no mesmo caixa. 'quando_sobrar_caixa' só age depois que a frota já
-    // atingiu o objetivo (antes disso, "sobra" é capital de crescimento represado, não sobra real).
+    // atingiu o objetivo (antes disso, "sobra" é capital de crescimento represado, não sobra
+    // real) — e, como a compra de veículo, também não pode consumir a reserva_de_seguranca:
+    // "sobrar caixa" tem que sobrar ACIMA da reserva, senão amortização extra esvazia a reserva
+    // por um caminho que a compra de veículo não deixaria.
     let amortizacaoExtraMensal = 0;
     if (mes > 0 && caixaDisponivel > 0) {
       let valorAlvo = calcularValorAmortizacaoExtra(cenario, mes);
       if (valorAlvo === Infinity) {
-        valorAlvo = veiculos.length >= cenario.objetivo_veiculos ? caixaDisponivel : 0;
+        valorAlvo = veiculos.length >= cenario.objetivo_veiculos ? Math.max(0, caixaDisponivel - cenario.reserva_de_seguranca) : 0;
       }
       if (valorAlvo > 0) {
         amortizacaoExtraMensal = aplicarAmortizacaoExtra(veiculos, Math.min(valorAlvo, caixaDisponivel));

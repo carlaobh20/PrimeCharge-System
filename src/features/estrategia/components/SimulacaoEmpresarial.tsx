@@ -40,6 +40,7 @@ const CENARIO_PADRAO: CenarioSimulacaoInput = {
   prazo_desejado_meses: 60,
   amortizacao_estrategia: 'nunca',
   amortizacao_valor_manual: null,
+  reserva_de_seguranca: 0,
 };
 
 function extrairInput(c: Record<string, unknown>): CenarioSimulacaoInput {

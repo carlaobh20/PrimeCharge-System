@@ -192,6 +192,10 @@ export type CenarioSimulacao = {
   amortizacao_estrategia: EstrategiaAmortizacao;
   amortizacao_valor_manual: number | null;
 
+  /** Piso de caixa que o motor NUNCA usa pra comprar veículo nem pra amortização extraordinária
+   * (2026-08-10, pedido do Carlos: "caixa de emergência"). 0 = sem reserva, comportamento antigo. */
+  reserva_de_seguranca: number;
+
   criado_em: string;
   atualizado_em: string;
 };

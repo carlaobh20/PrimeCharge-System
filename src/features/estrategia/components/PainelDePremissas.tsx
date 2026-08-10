@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import { formatMoeda } from '@/shared/lib/format';
 import type { CenarioSimulacaoInput } from '../types';
 
 type CampoNumerico = Exclude<keyof CenarioSimulacaoInput, 'nome' | 'reinvestir_lucro' | 'amortizacao_estrategia' | 'amortizacao_valor_manual'>;
@@ -10,7 +11,10 @@ type Grupo = { titulo: string; campos: { chave: CampoNumerico; label: string; su
 const GRUPOS: Grupo[] = [
   {
     titulo: 'Capital',
-    campos: [{ chave: 'capital_disponivel', label: 'Capital disponível', sufixo: 'R$' }],
+    campos: [
+      { chave: 'capital_disponivel', label: 'Capital disponível', sufixo: 'R$' },
+      { chave: 'reserva_de_seguranca', label: 'Reserva de segurança', sufixo: 'R$' },
+    ],
   },
   {
     titulo: 'Compra',
@@ -71,6 +75,19 @@ const GRUPOS: Grupo[] = [
 // cada card ocupa só a própria altura e o PRÓXIMO card da mesma coluna começa logo em seguida,
 // sem esperar a linha toda "fechar". `break-inside-avoid` evita que o conteúdo de um card seja
 // cortado ao meio entre duas colunas.
+//
+// reserva_de_seguranca + indicador "dá pra comprar N agora" (2026-08-10, pedido do Carlos:
+// "o sistema tem que ser inteligente... deixe mais interativo"). Mesma conta que o motor de
+// simulação usa pra liberar compra (simulacaoEmpresarial.ts): compra N veículos enquanto
+// capital - N×entrada continuar >= reserva, ou seja N = floor((capital - reserva) / entrada).
+// Fica no card Capital, direto abaixo dos dois campos que alimentam essa conta — não precisa
+// olhar o gráfico/tabela lá embaixo pra saber "quantos dá pra comprar hoje", o número já
+// aparece enquanto digita.
+function calcularVeiculosDisponiveisAgora(valor: CenarioSimulacaoInput): number {
+  if (valor.valor_entrada_por_veiculo <= 0) return 0;
+  return Math.max(0, Math.floor((valor.capital_disponivel - valor.reserva_de_seguranca) / valor.valor_entrada_por_veiculo));
+}
+
 export function PainelDePremissas({
   valor,
   onChange,
@@ -105,6 +122,21 @@ export function PainelDePremissas({
                 </div>
               ))}
             </div>
+            {grupo.titulo === 'Capital' && (
+              <p className="mt-2 border-t border-neutral-100 pt-2 text-[11px] text-neutral-500 dark:border-white/5">
+                {valor.capital_disponivel < valor.reserva_de_seguranca ? (
+                  <span className="text-amber-600 dark:text-amber-400">Capital abaixo da reserva de segurança — nenhum veículo pode ser comprado agora.</span>
+                ) : (
+                  <>
+                    Dá pra comprar{' '}
+                    <span className="font-semibold text-neutral-700 dark:text-neutral-300">
+                      {calcularVeiculosDisponiveisAgora(valor)} veículo(s)
+                    </span>{' '}
+                    agora, mantendo a reserva de {formatMoeda(valor.reserva_de_seguranca)}.
+                  </>
+                )}
+              </p>
+            )}
           </CardContent>
         </Card>
       ))}
