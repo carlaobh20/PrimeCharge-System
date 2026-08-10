@@ -7,7 +7,13 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { Button } from '@/shared/components/ui/button';
 import { veiculoSchema, type VeiculoFormInput, type VeiculoFormValues } from '../schemas/veiculo.schema';
 import { MarcaModeloFields } from './MarcaModeloFields';
-import { TIPO_AQUISICAO_LABEL, VEICULO_CATEGORIA_LABEL, VEICULO_STATUS_LABEL } from '../types';
+import {
+  SISTEMA_AMORTIZACAO_LABEL,
+  TIPO_AQUISICAO_LABEL,
+  TIPOS_AQUISICAO_COM_FINANCIAMENTO,
+  VEICULO_CATEGORIA_LABEL,
+  VEICULO_STATUS_LABEL,
+} from '../types';
 
 export function VeiculoForm({
   defaultValues,
@@ -41,6 +47,8 @@ export function VeiculoForm({
 
   const marcaId = watch('marca_id');
   const modeloId = watch('modelo_id');
+  const tipoAquisicao = watch('tipo_aquisicao');
+  const temFinanciamento = TIPOS_AQUISICAO_COM_FINANCIAMENTO.includes(tipoAquisicao ?? 'compra_direta');
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
@@ -120,6 +128,10 @@ export function VeiculoForm({
             <Input type="date" {...register('data_compra')} />
           </div>
           <div>
+            <Label>Fornecedor</Label>
+            <Input {...register('fornecedor')} />
+          </div>
+          <div>
             <Label>Status inicial *</Label>
             <Select {...register('status')} disabled={isEdit}>
               {Object.entries(VEICULO_STATUS_LABEL).map(([value, label]) => (
@@ -134,6 +146,53 @@ export function VeiculoForm({
           </div>
         </div>
       </section>
+
+      {/* Épico 4, Parte 1 (2026-08-10) — só aparece pra formas de aquisição que envolvem
+          financiamento de verdade (financiamento/consórcio/leasing). "Parcela inicial"/"Parcela
+          atual"/"Quitação prevista" da missão original NÃO viram campo aqui — são calculados a
+          partir destes (ver AquisicaoTab.tsx), pra nunca ficarem desatualizados sozinhos. */}
+      {temFinanciamento && (
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Financiamento</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <Label>Banco</Label>
+              <Input {...register('banco')} />
+            </div>
+            <div>
+              <Label>Entrada</Label>
+              <Input type="number" step="0.01" {...register('valor_entrada')} />
+            </div>
+            <div>
+              <Label>Valor financiado</Label>
+              <Input type="number" step="0.01" {...register('valor_financiado')} />
+            </div>
+            <div>
+              <Label>Taxa (% a.m.)</Label>
+              <Input type="number" step="0.001" {...register('taxa_juros_am_pct')} />
+            </div>
+            <div>
+              <Label>Prazo (meses)</Label>
+              <Input type="number" {...register('prazo_financiamento_meses')} />
+            </div>
+            <div>
+              <Label>Sistema</Label>
+              <Select {...register('sistema_amortizacao')}>
+                <option value="">Selecione</option>
+                {Object.entries(SISTEMA_AMORTIZACAO_LABEL).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>Primeiro vencimento</Label>
+              <Input type="date" {...register('primeiro_vencimento_financiamento')} />
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="space-y-4">
         <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Uso e autonomia</h2>

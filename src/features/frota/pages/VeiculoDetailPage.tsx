@@ -17,6 +17,7 @@ import { VeiculoKpiBand } from '../components/VeiculoKpiBand';
 import { VeiculoSidebar } from '../components/VeiculoSidebar';
 import { VeiculoCommandActions } from '../components/VeiculoCommandActions';
 import { DadosGeraisTab } from '../components/tabs/DadosGeraisTab';
+import { AquisicaoTab } from '../components/tabs/AquisicaoTab';
 import { ArquivosTab } from '../components/tabs/ArquivosTab';
 import { FinanceiroTab } from '../components/tabs/FinanceiroTab';
 import { IndicadoresTab } from '../components/tabs/IndicadoresTab';
@@ -53,6 +54,14 @@ const CAMPOS_LABEL: Record<string, string> = {
   chassi: 'Chassi',
   renavam: 'RENAVAM',
   placa: 'Placa',
+  fornecedor: 'Fornecedor',
+  banco: 'Banco',
+  valor_entrada: 'Entrada',
+  valor_financiado: 'Valor financiado',
+  taxa_juros_am_pct: 'Taxa de juros',
+  prazo_financiamento_meses: 'Prazo do financiamento',
+  sistema_amortizacao: 'Sistema de amortização',
+  primeiro_vencimento_financiamento: 'Primeiro vencimento',
 };
 
 function CockpitSkeleton() {
@@ -183,6 +192,7 @@ export function VeiculoDetailPage() {
           <Tabs
             items={[
               { value: 'dados', label: 'Dados Gerais', content: <DadosGeraisTab veiculo={veiculo} /> },
+              { value: 'aquisicao', label: 'Aquisição', content: <AquisicaoTab veiculo={veiculo} /> },
               {
                 value: 'timeline',
                 label: 'Timeline',

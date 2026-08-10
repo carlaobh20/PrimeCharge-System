@@ -1,3 +1,4 @@
+import { calcularParcelaPrice as calcularParcela } from '@/shared/lib/amortizacao';
 import type { CenarioSimulacaoInput } from '../types';
 
 // Épico 3 — Central de Decisão Empresarial (2026-08-09, reconstrução completa a pedido do
@@ -93,12 +94,11 @@ type VeiculoSimulado = {
 
 // Exportada (Fase 3) — o motor de "Momento Ideal de Comprar" (momentoDeCompra.ts) precisa da
 // mesma fórmula Price/francesa pra projetar um veículo isolado, sem duplicar a conta aqui.
-export function calcularParcela(valorFinanciado: number, taxaAmPct: number, prazoMeses: number): number {
-  if (prazoMeses <= 0 || valorFinanciado <= 0) return 0;
-  const i = taxaAmPct / 100;
-  if (i === 0) return valorFinanciado / prazoMeses;
-  return (valorFinanciado * i) / (1 - Math.pow(1 + i, -prazoMeses));
-}
+// 2026-08-10 (Épico 4 "Ativo Financeiro") — a fórmula da Tabela Price virou utilitário
+// compartilhado (o financiamento REAL de cada veículo em /frota também precisa dela agora).
+// Re-exportada aqui com o nome antigo pra não quebrar quem já importava `calcularParcela`
+// deste arquivo (ex. momentoDeCompra.ts).
+export { calcularParcela };
 
 export const SEMANAS_POR_MES = 52 / 12;
 
