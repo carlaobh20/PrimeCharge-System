@@ -1,9 +1,10 @@
 import { useSearchParams } from 'react-router-dom';
-import { GitCompare, Lightbulb, CalendarClock } from 'lucide-react';
+import { Lightbulb, CalendarClock } from 'lucide-react';
 import { Tabs } from '@/shared/components/ui/tabs';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FrotaDashboardPage } from './FrotaDashboardPage';
 import { VeiculosListPage } from './VeiculosListPage';
+import { ComparativoFrotaTab } from '../components/ComparativoFrotaTab';
 
 // Épico 4 — menu "Frota" (substitui "Veículos"). O brief pede 5 sub-telas dentro do módulo
 // (Dashboard da Frota / Todos os Veículos / Comparativo / Planejamento de Renovação /
@@ -13,9 +14,9 @@ import { VeiculosListPage } from './VeiculosListPage';
 // registro individual. Rota continua /veiculos, só o rótulo do menu muda pra "Frota" — evita
 // quebrar link salvo/histórico do navegador (Palpite, flagado no relatório).
 //
-// Comparativo dedicado (Fase A.4), Planejamento de Renovação (Fase D) e Inteligência da Frota
-// ainda não têm dado real por trás nesta parte da missão — ficam como EmptyState em vez de
-// tela em branco, mesmo padrão do resto do Cockpit (DEC-021).
+// Planejamento de Renovação (Fase D) e Inteligência da Frota ainda não têm dado real por trás
+// nesta parte da missão — ficam como EmptyState em vez de tela em branco, mesmo padrão do
+// resto do Cockpit (DEC-021). Comparativo (Fase A.4) já foi construído.
 export function FrotaPage() {
   // Achado da auditoria: Centro de Operações linka pra "/veiculos?status=disponivel" (fila
   // "Veículos Parados" etc.) esperando cair direto na lista já filtrada — se a aba padrão
@@ -38,18 +39,7 @@ export function FrotaPage() {
           items={[
             { value: 'dashboard', label: 'Dashboard da Frota', content: <FrotaDashboardPage /> },
             { value: 'todos', label: 'Todos os Veículos', content: <VeiculosListPage /> },
-            {
-              value: 'comparativo',
-              label: 'Comparativo de Veículos',
-              content: (
-                <EmptyState
-                  icon={GitCompare}
-                  title="Comparativo dedicado em construção"
-                  description="Comparação lado a lado entre veículos, segmentada por modelo/fabricante, ainda não foi construída nesta parte da missão."
-                  className="mb-8"
-                />
-              ),
-            },
+            { value: 'comparativo', label: 'Comparativo de Veículos', content: <ComparativoFrotaTab /> },
             {
               value: 'renovacao',
               label: 'Planejamento de Renovação',
