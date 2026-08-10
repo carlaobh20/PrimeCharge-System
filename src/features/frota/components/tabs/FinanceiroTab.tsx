@@ -6,6 +6,7 @@ import { diasDesde, formatMoeda } from '@/shared/lib/format';
 import { useLancamentos } from '@/features/financeiro/hooks/useLancamentos';
 import { calcularResumoFinanceiro, calcularRoi } from '@/features/financeiro/intelligence';
 import { useContratos } from '@/features/contracts/hooks/useContratos';
+import { useTimeline } from '@/shared/capabilities/hooks/useTimeline';
 import { resolverValorAtualVeiculo } from '@/shared/lib/valorAtivo';
 import {
   calcularCapitalRecuperado,
@@ -17,10 +18,12 @@ import {
 } from '../../intelligence/investmentSimulator';
 import { calcularResumoFinanciamentoReal } from '../../intelligence/financiamentoReal';
 import { calcularResultadoEsperado } from '../../intelligence/resultadoEsperado';
+import { calcularTempoPorStatus } from '../../intelligence/tempoPorStatus';
 import { YieldAtivoCard } from '../YieldAtivoCard';
 import { CicloDeVidaTimeline } from '../CicloDeVidaTimeline';
 import { CapitalRecuperadoCard } from '../CapitalRecuperadoCard';
 import { ResultadoEsperadoCard } from '../ResultadoEsperadoCard';
+import { TempoPorStatusCard } from '../TempoPorStatusCard';
 import { ExtratoFinanceiroVeiculo } from '../ExtratoFinanceiroVeiculo';
 import type { Veiculo } from '../../types';
 
@@ -52,6 +55,9 @@ export function FinanceiroTab({ veiculo }: { veiculo: Veiculo }) {
   // intelligence) tinha ficado de fora daquela varredura. `useVehicleIntelligence` no mesmo
   // Cockpit já usa `useContratos({ veiculoId })` — agora as duas consultas dedupe.
   const { data: contratos, isLoading: loadingContratos } = useContratos({ veiculoId });
+  // Mesma queryKey já usada por useVehicleIntelligence (VeiculoDetailPage) — dedupe automático
+  // do React Query, sem requisição extra na prática.
+  const { data: eventosTimeline, isLoading: loadingTimeline } = useTimeline('veiculo', veiculoId);
 
   const receitas = (lancamentos ?? []).filter((l) => l.tipo === 'receita' && l.status !== 'cancelada');
   const despesas = (lancamentos ?? []).filter((l) => l.tipo === 'despesa' && l.status !== 'cancelada');
@@ -83,8 +89,9 @@ export function FinanceiroTab({ veiculo }: { veiculo: Veiculo }) {
   const resumoFinanciamento = calcularResumoFinanciamentoReal(veiculo);
   const lucroMedioMensal = mesesDeOperacao >= 1 ? resumo.lucroConfirmado / mesesDeOperacao : null;
   const resultadoEsperado = calcularResultadoEsperado(veiculo, resumoFinanciamento, resumo.lucroConfirmado, lucroMedioMensal);
+  const tempoPorStatus = calcularTempoPorStatus(veiculo, eventosTimeline ?? []);
 
-  if (isLoading || loadingContratos) {
+  if (isLoading || loadingContratos || loadingTimeline) {
     return <div className="h-32 cockpit-shimmer rounded-2xl" />;
   }
 
@@ -98,6 +105,8 @@ export function FinanceiroTab({ veiculo }: { veiculo: Veiculo }) {
       </div>
 
       <CicloDeVidaTimeline status={veiculo.status} />
+
+      <TempoPorStatusCard resultado={tempoPorStatus} />
 
       <ResultadoEsperadoCard resultado={resultadoEsperado} />
 
