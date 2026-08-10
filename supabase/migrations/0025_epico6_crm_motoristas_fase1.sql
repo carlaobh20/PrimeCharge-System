@@ -29,6 +29,7 @@ exception
 end $$;
 
 alter table motoristas add column if not exists etapa_funil motorista_etapa_funil;
+alter table motoristas add column if not exists etapa_funil_desde timestamptz;
 alter table motoristas add column if not exists responsavel_id uuid references usuarios(id) on delete set null;
 alter table motoristas add column if not exists prioridade text not null default 'media' check (prioridade in ('baixa','media','alta','critica'));
 
@@ -38,6 +39,11 @@ comment on column motoristas.etapa_funil is
   'histórico passou — seria inventado. A UI trata NULL como "Não classificado", uma faixa '
   'separada das 14 colunas, não uma 15ª etapa real). Independente de `status` — ver nota no '
   'topo do arquivo.';
+comment on column motoristas.etapa_funil_desde is
+  'Épico 6, Fase 1 — timestamp da última mudança de etapa_funil (mantido por trigger, nunca '
+  'setado direto pela aplicação). Base real para "dias parado naquela etapa" no Kanban — NÃO '
+  'usa atualizado_em pra isso (esse muda em qualquer edição do motorista, não só troca de '
+  'etapa, e daria um número enganoso).';
 comment on column motoristas.responsavel_id is 'Épico 6, Fase 1 — usuário interno responsável por este motorista/lead no funil. Mesmo padrão já usado em acoes_operacionais/checklists (migration 0007).';
 comment on column motoristas.prioridade is 'Épico 6, Fase 1 — prioridade do lead/motorista no funil. text com check em vez de enum novo: mesmos 4 valores já usados em acao_prioridade (operacoes), sem criar um segundo enum idêntico.';
 
@@ -45,4 +51,35 @@ create index if not exists idx_motoristas_etapa_funil on motoristas(empresa_id, 
 create index if not exists idx_motoristas_responsavel on motoristas(responsavel_id);
 
 -- Nenhuma mudança de RLS necessária — a policy de select/update de `motoristas` já é por
--- empresa_id (migration 0004), cobre as 3 colunas novas automaticamente.
+-- empresa_id (migration 0004), cobre as colunas novas automaticamente.
+
+-- ============================================================
+-- Trigger: mantém etapa_funil_desde e espelha a troca de etapa na Timeline única (mesmo
+-- padrão da Fase E.4/Consolidação do Épico 5 — cada mudança relevante já vira evento
+-- consultável, e "Score mudou"/"Mudou etapa" (Etapa 10 do brief, eventos estruturados pra
+-- automação futura) começam a existir de verdade a partir desta migration, não são só
+-- promessa).
+-- ============================================================
+
+create or replace function public.fn_motorista_etapa_funil() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_descricao text;
+begin
+  if TG_OP = 'UPDATE' and old.etapa_funil is distinct from new.etapa_funil then
+    new.etapa_funil_desde := now();
+    v_descricao := 'Etapa do funil alterada de "' || coalesce(old.etapa_funil::text, 'não classificado')
+      || '" para "' || coalesce(new.etapa_funil::text, 'não classificado') || '"';
+    insert into timeline_eventos (empresa_id, entidade_tipo, entidade_id, tipo, descricao, usuario_id)
+    values (new.empresa_id, 'motorista', new.id, 'etapa_funil_alterada', v_descricao, auth.uid());
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_motoristas_etapa_funil on motoristas;
+create trigger trg_motoristas_etapa_funil before update on motoristas
+  for each row execute function public.fn_motorista_etapa_funil();
