@@ -1,7 +1,7 @@
 import { supabase } from '@/shared/lib/supabase';
 import type { AcaoCandidata, AcaoOperacional, AcaoOperacionalComRelacoes, AcaoStatus } from '../types';
 
-const SELECT_COM_RELACOES = '*, responsavel:usuarios(id, nome_completo)';
+const SELECT_COM_RELACOES = '*, responsavel:usuarios!responsavel_id(id, nome_completo)';
 
 export type AcaoFilters = {
   status?: AcaoStatus | 'todos';
