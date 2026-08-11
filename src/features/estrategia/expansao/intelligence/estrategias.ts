@@ -1,29 +1,37 @@
 import type { EstrategiaExpansao } from '../types';
 
-// Épico 9 — Motor de Expansão, Fase 1. As 3 estratégias são multiplicadores determinísticos
-// sobre a MESMA premissa base do cenário (nunca 3 configurações independentes que o usuário
-// precisaria manter sincronizadas — Regra dos 3, DECISION_LOG.md) — só ajustam QUANTO do capital
-// disponível o motor tenta comprometer agora e QUANTA reserva de segurança extra exigir acima do
-// reserva_minima já configurado no cenário.
+// Épico 9 — Motor de Expansão, Fase 1.1 (correção pedida pelo Carlos 2026-08-11: "não invente
+// números arbitrários e apresente como regra financeira universal" + "os parâmetros devem
+// aparecer claramente na interface"). As 3 estratégias continuam sendo multiplicadores
+// determinísticos sobre a MESMA premissa base do cenário (Regra dos 3 — 3 estratégias fixas e
+// nomeadas não justificam uma tabela configurável nova) — a mudança desta revisão é que os 3
+// números de cada estratégia agora são EXIBIDOS na tela (ver ExpansaoDaFrota.tsx, card
+// "Parâmetros da estratégia"), não só documentados em comentário. O usuário vê exatamente por
+// que "Conservadora" dá 1 carro e "Agressiva" dá 2, em vez de confiar numa conta escondida.
 //
-// [PALPITE — precisa confirmação do Carlos]: esta sessão sofreu um corte de contexto no meio da
-// implementação do Épico 9 e a definição literal de "Conservadora/Balanceada/Agressiva" do brief
-// original não estava mais disponível no momento em que este arquivo foi escrito. Os
-// multiplicadores abaixo são minha melhor hipótese de engenharia financeira (perfil de risco
-// crescente: quanto do capital é comprometido agora × quanta reserva extra é exigida × se usa
-// capital reciclável) — NÃO confirmados linha a linha contra o texto original do brief. Reportado
-// explicitamente no relatório de entrega (tarefa #89) — não trate como spec fechada sem revisão.
-export type MultiplicadorEstrategia = {
-  /** Fração do capital_disponivel do cenário que o motor tenta comprometer com aquisição de veículos nesta estratégia (0–1). */
+// Direção de cada estratégia (pedida explicitamente pelo Carlos):
+// Conservadora = maior reserva, menor uso do capital, menor alavancagem.
+// Balanceada   = reserva e uso do capital intermediários.
+// Agressiva    = maior uso do capital, menor reserva, maior velocidade de expansão.
+// Os valores exatos (50/75/100% e 1,5×/1×/0,5×) continuam sendo uma escolha de engenharia desta
+// sessão, não uma norma de mercado — por isso ficam visíveis e editáveis-por-leitura na tela, não
+// escondidos.
+export type ParametrosEstrategia = {
+  /** Fração do capital_disponivel do cenário que esta estratégia tenta comprometer com aquisição de veículos (0–1). */
   fracaoCapitalUsavel: number;
   /** Multiplicador sobre reserva_minima do cenário — >1 exige reserva extra (mais conservador), <1 relaxa a reserva (mais agressivo). */
   multiplicadorReserva: number;
-  /** Se true, soma o capital reciclável (venda de veículos já sinalizados com status 'venda') ao capital disponível para aquisição. */
-  usaCapitalReciclavel: boolean;
 };
 
-export const ESTRATEGIAS: Record<EstrategiaExpansao, MultiplicadorEstrategia> = {
-  conservadora: { fracaoCapitalUsavel: 0.5, multiplicadorReserva: 1.5, usaCapitalReciclavel: false },
-  balanceada: { fracaoCapitalUsavel: 0.75, multiplicadorReserva: 1.0, usaCapitalReciclavel: false },
-  agressiva: { fracaoCapitalUsavel: 1.0, multiplicadorReserva: 0.5, usaCapitalReciclavel: true },
+export const ESTRATEGIAS: Record<EstrategiaExpansao, ParametrosEstrategia> = {
+  conservadora: { fracaoCapitalUsavel: 0.5, multiplicadorReserva: 1.5 },
+  balanceada: { fracaoCapitalUsavel: 0.75, multiplicadorReserva: 1.0 },
+  agressiva: { fracaoCapitalUsavel: 1.0, multiplicadorReserva: 0.5 },
 };
+
+// Importante (correção da seção 7/8 do Carlos): capital reciclável (venda de veículo já
+// sinalizada) NUNCA entra automaticamente no capitalParaAquisicao de nenhuma estratégia — mesmo
+// a Agressiva. É mostrado como informação separada ("Capital reciclável potencial") em toda
+// estratégia; se o usuário quiser contar com ele, ele mesmo soma ao editar capital_disponivel.
+// Equity/capital reciclável só viram caixa quando o veículo é de fato vendido — tratá-los como
+// caixa automaticamente seria exatamente o erro que o Carlos apontou.

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Loader2, Wallet, TrendingDown, Landmark, Car } from 'lucide-react';
+import { CheckCircle2, Loader2, Wallet, TrendingDown, Landmark, Car, Recycle, Target, Info } from 'lucide-react';
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
@@ -8,25 +8,21 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { formatMoeda } from '@/shared/lib/format';
+import { formatarMoedaInput, digitosParaReais } from '@/shared/lib/moedaInput';
 import { extrairMensagemTecnicaDeErro } from '@/shared/lib/errors';
 import { useEstadoRealFrota } from '../hooks/useEstadoRealFrota';
 import { useCenariosExpansao, useCriarCenarioExpansao, useAtualizarCenarioExpansao } from '../hooks/useCenarioExpansao';
 import { compararEstrategias } from '../intelligence/motor';
+import { ESTRATEGIAS } from '../intelligence/estrategias';
 import { ESTRATEGIA_LABEL, type CenarioExpansaoInput, type EstrategiaExpansao } from '../types';
 
-// Épico 9 — Motor de Expansão da Frota, Fase 1. Responde "com o capital/patrimônio/caixa/dívida
-// atuais, quantos veículos a empresa consegue adicionar e qual a melhor estrutura?" — sempre
-// contra o ESTADO REAL da frota (useEstadoRealFrota, ao vivo, nunca persistido), nunca um número
-// hipotético desconectado (essa é a Central de Decisão, aba anterior). Mesmo padrão de autosave
-// debounced da SimulacaoEmpresarial (Épico 3) — sem botão "Salvar", cada alteração recalcula na
-// hora e persiste sozinha alguns segundos depois de parar de digitar.
-//
-// [ATENÇÃO — GAP CONHECIDO]: esta sessão sofreu um corte de contexto no meio da implementação do
-// Épico 9 e a lista exata de gráficos pedida no brief original ("×5 gráficos", conforme minha
-// própria lista de tarefas) não estava mais disponível quando esta tela foi construída. Entreguei
-// 1 gráfico (Saldo devedor × Equity incremental, estratégia Balanceada) que responde diretamente
-// à pergunta central — não inventei os outros 4 sem saber quais o Carlos pediu. Reportado no
-// relatório de entrega (tarefa #89).
+// Épico 9 — Motor de Expansão da Frota. Fase 1 (2026-08-11) + correções da Fase 1.1
+// (2026-08-11, mesmo dia, pedido de fechamento do Carlos): separação explícita caixa × equity ×
+// capital reciclável (nunca somados silenciosamente — seção 7/8), estratégias com parâmetros
+// visíveis na tela (seção 4), inputs monetários com máscara (seção 5), rotulagem DADO REAL /
+// PREMISSA / PROJEÇÃO / ESTIMATIVA (seção 17), Ciclo de Expansão com Próximo Marco (seções 9/11)
+// e os 5 gráficos pedidos (seção 12), todos lendo o mesmo MesExpansao do motor — nenhum cálculo
+// independente no componente.
 
 function extrairInput(c: Record<string, unknown>): CenarioExpansaoInput {
   const { id: _id, empresa_id: _empresaId, criado_por: _criadoPor, criado_em: _criadoEm, atualizado_em: _atualizadoEm, ...resto } = c;
@@ -67,6 +63,28 @@ const ESTRATEGIA_COR: Record<EstrategiaExpansao, string> = {
   agressiva: '#ef4444',
 };
 
+function formatPct(valor: number, casas = 2): string {
+  return `${valor.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })}%`;
+}
+
+// Selo pequeno que classifica a natureza do número (seção 17, obrigatório: usuário precisa saber
+// se está vendo "R$ 100.000 reais no banco" ou "R$ 100.000 estimados").
+function Selo({ tipo }: { tipo: 'real' | 'premissa' | 'projecao' | 'estimativa' }) {
+  const estilos: Record<typeof tipo, string> = {
+    real: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400',
+    premissa: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400',
+    projecao: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400',
+    estimativa: 'bg-neutral-100 text-neutral-600 dark:bg-white/10 dark:text-neutral-400',
+  };
+  const texto: Record<typeof tipo, string> = {
+    real: 'DADO REAL',
+    premissa: 'PREMISSA',
+    projecao: 'PROJEÇÃO',
+    estimativa: 'ESTIMATIVA',
+  };
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${estilos[tipo]}`}>{texto[tipo]}</span>;
+}
+
 export function ExpansaoDaFrota() {
   const { data: usuario } = useCurrentUsuario();
   const estadoRealResult = useEstadoRealFrota();
@@ -81,10 +99,6 @@ export function ExpansaoDaFrota() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cenarioIdRef = useRef<string | null>(null);
 
-  // Carrega o cenário mais recente uma única vez; se não existir nenhum, pré-preenche a partir
-  // do caixa real (migration 0032: capital_disponivel "pré-preenchido com o caixa real na
-  // criação, mas editável"). Não sobrescreve o que o dono está digitando se o React Query
-  // revalidar em segundo plano depois disso.
   useEffect(() => {
     if (inicializado || carregandoCenarios || estadoRealResult.isLoading) return;
     if (cenarios && cenarios.length > 0) {
@@ -145,16 +159,20 @@ export function ExpansaoDaFrota() {
   }
 
   const { estadoReal, veiculos } = estadoRealResult;
-  // cenario_expansao completo (com id) — necessário como CenarioExpansao pra calcularExpansao;
-  // como o motor não usa id/empresa_id/criado_por/timestamps, um objeto parcial tipado é seguro.
   const cenarioCompleto = { ...input, id: cenarioIdRef.current ?? 'novo', empresa_id: usuario?.empresa_id ?? '', criado_por: null, criado_em: '', atualizado_em: '' };
   const comparacao = compararEstrategias(cenarioCompleto, veiculos);
   const foco = comparacao[estrategiaFoco];
 
+  const sobraAposCompraInicial = foco.meses[0]?.caixaDisponivelParaAquisicao ?? 0;
+  const gapProximoVeiculo = Math.max(0, foco.reservaMinimaAplicada + input.entrada_por_veiculo - sobraAposCompraInicial);
+
   const chartData = foco.meses.map((m) => ({
     mes: m.mes,
+    frota: m.veiculosNovos,
+    caixaOperacional: m.caixaOperacionalAcumulado,
     saldoDevedor: m.saldoDevedorIncremental,
     equity: m.equityIncremental,
+    patrimonioTotal: m.patrimonioTotalIncremental,
   }));
 
   return (
@@ -171,44 +189,158 @@ export function ExpansaoDaFrota() {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard icon={Wallet} label="Caixa real" value={formatMoeda(estadoReal.caixaAtual)} hint="calcularSaldoPorConta, ao vivo" />
-        <KpiCard icon={TrendingDown} label="Dívida real" value={formatMoeda(estadoReal.dividaAtual)} hint="saldo devedor dos financiamentos ativos" />
-        <KpiCard icon={Landmark} label="Equity real" value={formatMoeda(estadoReal.equityFrota)} hint="valor da frota − dívida" />
-        <KpiCard
-          icon={Car}
-          label="Frota atual"
-          value={`${estadoReal.veiculosAtuais}`}
-          hint={estadoReal.veiculosComValorConhecido < estadoReal.veiculosAtuais ? `${estadoReal.veiculosAtuais - estadoReal.veiculosComValorConhecido} sem valor cadastrado` : undefined}
-        />
+      {/* Estado real — seção 7/8: Caixa, Equity e Capital reciclável são 3 números SEPARADOS,
+          nunca somados automaticamente entre si. */}
+      <div>
+        <div className="mb-2 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Estado real da frota</h3>
+          <Selo tipo="real" />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard icon={Wallet} label="Caixa atual" value={formatMoeda(estadoReal.caixaAtual)} hint="calcularSaldoPorConta, ao vivo — dinheiro na conta hoje" />
+          <KpiCard icon={TrendingDown} label="Dívida atual" value={formatMoeda(estadoReal.dividaAtual)} hint="saldo devedor dos financiamentos ativos" />
+          <KpiCard icon={Landmark} label="Equity realizável" value={formatMoeda(estadoReal.equityFrota)} hint="valor da frota − dívida. NÃO é caixa: só vira dinheiro se vender/refinanciar." />
+          <KpiCard
+            icon={Recycle}
+            label="Capital reciclável potencial"
+            value={formatMoeda(comparacao.balanceada.capitalReciclavelPotencial)}
+            hint="veículos já marcados para venda, líquido de dívida e custo. NÃO incluído automaticamente em nenhuma estratégia abaixo."
+          />
+        </div>
+        <div className="mt-2 flex items-center gap-2 text-xs text-neutral-400">
+          <Car className="h-3.5 w-3.5" /> Frota atual: {estadoReal.veiculosAtuais} veículo(s)
+          {estadoReal.veiculosComValorConhecido < estadoReal.veiculosAtuais && ` (${estadoReal.veiculosAtuais - estadoReal.veiculosComValorConhecido} sem valor cadastrado)`}
+        </div>
       </div>
+
+      {/* Ciclo de Expansão — seções 9/11: Hoje / Próxima expansão / Próximo marco. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-4 w-4" /> Ciclo de Expansão — estratégia {ESTRATEGIA_LABEL[estrategiaFoco]}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Hoje</span>
+                <Selo tipo="real" />
+              </div>
+              <dl className="space-y-1 text-sm">
+                <div className="flex justify-between"><dt className="text-neutral-500">Frota</dt><dd className="font-medium">{estadoReal.veiculosAtuais}</dd></div>
+                <div className="flex justify-between"><dt className="text-neutral-500">Caixa</dt><dd className="font-medium">{formatMoeda(estadoReal.caixaAtual)}</dd></div>
+                <div className="flex justify-between"><dt className="text-neutral-500">Dívida</dt><dd className="font-medium">{formatMoeda(estadoReal.dividaAtual)}</dd></div>
+                <div className="flex justify-between"><dt className="text-neutral-500">Equity</dt><dd className="font-medium">{formatMoeda(estadoReal.equityFrota)}</dd></div>
+                <div className="flex justify-between"><dt className="text-neutral-500">Capital reciclável</dt><dd className="font-medium">{formatMoeda(foco.capitalReciclavelPotencial)}</dd></div>
+              </dl>
+            </div>
+
+            <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Próxima expansão</span>
+                <Selo tipo="projecao" />
+              </div>
+              <dl className="space-y-1 text-sm">
+                <div className="flex justify-between"><dt className="text-neutral-500">Próximo carro</dt><dd className="font-medium">#{foco.veiculosAdicionadosTotal + 1}</dd></div>
+                <div className="flex justify-between"><dt className="text-neutral-500">Entrada necessária</dt><dd className="font-medium">{formatMoeda(input.entrada_por_veiculo + foco.reservaMinimaAplicada)}</dd></div>
+                <div className="flex justify-between"><dt className="text-neutral-500">Capital disponível</dt><dd className="font-medium">{formatMoeda(sobraAposCompraInicial)}</dd></div>
+                <div className="flex justify-between">
+                  <dt className="text-neutral-500">Gap</dt>
+                  <dd className={`font-medium ${gapProximoVeiculo > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{gapProximoVeiculo > 0 ? formatMoeda(gapProximoVeiculo) : 'Nenhum — já cabe'}</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Próximo marco</span>
+                <Selo tipo="projecao" />
+              </div>
+              {foco.proximoMarco.possivel ? (
+                <p className="text-sm">
+                  Você consegue adicionar o próximo veículo em aproximadamente{' '}
+                  <span className="font-semibold text-emerald-600">{foco.proximoMarco.mesesAteProximoVeiculo} mês(es)</span>, se o caixa operacional projetado desta expansão se confirmar.
+                </p>
+              ) : (
+                <p className="text-sm text-neutral-500">{foco.proximoMarco.motivo}</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Premissas do próximo veículo</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Premissas do próximo veículo <Selo tipo="premissa" />
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           <CampoMoeda label="Capital disponível" chave="capital_disponivel" input={input} onChange={atualizarCampo} />
           <CampoMoeda label="Reserva mínima" chave="reserva_minima" input={input} onChange={atualizarCampo} />
           <CampoMoeda label="Preço do veículo" chave="preco_veiculo" input={input} onChange={atualizarCampo} />
           <CampoMoeda label="Entrada por veículo" chave="entrada_por_veiculo" input={input} onChange={atualizarCampo} />
-          <CampoNumero label="Taxa de juros (% a.m.)" chave="taxa_juros_am_pct" input={input} onChange={atualizarCampo} step={0.01} />
-          <CampoNumero label="Prazo (meses)" chave="prazo_financiamento_meses" input={input} onChange={atualizarCampo} step={1} />
+          <CampoPercentual label="Taxa de juros" chave="taxa_juros_am_pct" input={input} onChange={atualizarCampo} sufixo="% a.m." />
+          <CampoInteiro label="Prazo" chave="prazo_financiamento_meses" input={input} onChange={atualizarCampo} sufixo="meses" />
           <CampoMoeda label="Aluguel semanal/veículo" chave="aluguel_semanal_por_veiculo" input={input} onChange={atualizarCampo} />
-          <CampoNumero label="Ocupação (%)" chave="ocupacao_pct" input={input} onChange={atualizarCampo} step={1} />
-          <CampoNumero label="KM mensal/veículo" chave="km_mensal_por_veiculo" input={input} onChange={atualizarCampo} step={100} />
+          <CampoPercentual label="Ocupação" chave="ocupacao_pct" input={input} onChange={atualizarCampo} sufixo="%" />
+          <CampoInteiro label="KM mensal/veículo" chave="km_mensal_por_veiculo" input={input} onChange={atualizarCampo} sufixo="km" />
           <CampoMoeda label="Seguro mensal/veículo" chave="seguro_mensal_por_veiculo" input={input} onChange={atualizarCampo} />
           <CampoMoeda label="IPVA anual/veículo" chave="ipva_anual_por_veiculo" input={input} onChange={atualizarCampo} />
           <CampoMoeda label="Rastreador mensal/veículo" chave="rastreador_mensal_por_veiculo" input={input} onChange={atualizarCampo} />
-          <CampoNumero label="Manutenção por km (R$)" chave="manutencao_por_km" input={input} onChange={atualizarCampo} step={0.01} />
+          <CampoMoeda label="Manutenção por km (R$)" chave="manutencao_por_km" input={input} onChange={atualizarCampo} />
           <CampoMoeda label="Contador mensal (empresa)" chave="contador_mensal" input={input} onChange={atualizarCampo} />
-          <CampoNumero label="Horizonte (meses)" chave="horizonte_meses" input={input} onChange={atualizarCampo} step={12} />
+          <CampoInteiro label="Horizonte" chave="horizonte_meses" input={input} onChange={atualizarCampo} sufixo="meses" />
+          <CampoPercentual label="DSCR mínimo saudável" chave="dscr_minimo_saudavel" input={input} onChange={atualizarCampo} sufixo="×" casas={2} />
+          <CampoPercentual label="DSCR mínimo de atenção" chave="dscr_minimo_atencao" input={input} onChange={atualizarCampo} sufixo="×" casas={2} />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Comparação de estratégias</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-4 w-4" /> Parâmetros da estratégia — o que cada uma realmente faz
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-3 text-xs text-neutral-400">
+            Não são regra financeira universal — são 3 configurações fixas desta implementação (Regra dos 3). Editáveis no código (<code>expansao/intelligence/estrategias.ts</code>) se você quiser outros valores.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-400 dark:border-white/10">
+                  <th className="py-2 pr-4">Estratégia</th>
+                  <th className="py-2 pr-4">% do capital disponível usado</th>
+                  <th className="py-2 pr-4">Reserva exigida (neste cenário)</th>
+                  <th className="py-2 pr-4">Capital para aquisição (neste cenário)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(Object.keys(ESTRATEGIAS) as EstrategiaExpansao[]).map((chave) => {
+                  const p = ESTRATEGIAS[chave];
+                  const r = comparacao[chave];
+                  return (
+                    <tr key={chave} className="border-b border-neutral-100 dark:border-white/5">
+                      <td className="py-2 pr-4 font-medium" style={{ color: ESTRATEGIA_COR[chave] }}>{ESTRATEGIA_LABEL[chave]}</td>
+                      <td className="py-2 pr-4">{formatPct(p.fracaoCapitalUsavel * 100, 0)}</td>
+                      <td className="py-2 pr-4">{formatMoeda(r.reservaMinimaAplicada)} <span className="text-neutral-400">({p.multiplicadorReserva}× a reserva do cenário)</span></td>
+                      <td className="py-2 pr-4 font-medium">{formatMoeda(r.capitalDisponivelParaAquisicao)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Comparação de estratégias <Selo tipo="projecao" />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -218,7 +350,6 @@ export function ExpansaoDaFrota() {
                   <th className="py-2 pr-4">Estratégia</th>
                   <th className="py-2 pr-4">Veículos que cabem</th>
                   <th className="py-2 pr-4">Capital usado</th>
-                  <th className="py-2 pr-4">Capital disponível p/ aquisição</th>
                   <th className="py-2 pr-4">Parcela/veículo</th>
                   <th className="py-2 pr-4">DSCR (mês 1)</th>
                   <th className="py-2 pr-4">Status</th>
@@ -234,12 +365,9 @@ export function ExpansaoDaFrota() {
                       onClick={() => setEstrategiaFoco(chave)}
                       className={`cursor-pointer border-b border-neutral-100 dark:border-white/5 ${chave === estrategiaFoco ? 'bg-neutral-50 dark:bg-white/[0.04]' : ''}`}
                     >
-                      <td className="py-2 pr-4 font-medium" style={{ color: ESTRATEGIA_COR[chave] }}>
-                        {ESTRATEGIA_LABEL[chave]}
-                      </td>
+                      <td className="py-2 pr-4 font-medium" style={{ color: ESTRATEGIA_COR[chave] }}>{ESTRATEGIA_LABEL[chave]}</td>
                       <td className="py-2 pr-4">{r.veiculosAdicionadosTotal}</td>
                       <td className="py-2 pr-4">{formatMoeda(r.capitalUsadoTotal)}</td>
-                      <td className="py-2 pr-4">{formatMoeda(r.capitalDisponivelParaAquisicao)}</td>
                       <td className="py-2 pr-4">{formatMoeda(r.parcelaMensalPorVeiculo)}</td>
                       <td className="py-2 pr-4">{mes1?.dscr !== null && mes1?.dscr !== undefined ? mes1.dscr.toFixed(2) : '—'}</td>
                       <td className="py-2 pr-4">
@@ -259,9 +387,7 @@ export function ExpansaoDaFrota() {
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-neutral-400">
-            Clique numa linha para ver a projeção detalhada dessa estratégia no gráfico abaixo. Definição de cada estratégia (fração do capital comprometida / reserva exigida / uso de capital reciclável) está documentada em <code>expansao/intelligence/estrategias.ts</code> — é uma hipótese de engenharia financeira desta sessão, ainda não confirmada linha a linha contra o brief original.
-          </p>
+          <p className="mt-3 text-xs text-neutral-400">Clique numa linha para focar o Ciclo de Expansão e os gráficos abaixo nessa estratégia.</p>
         </CardContent>
       </Card>
 
@@ -272,26 +398,55 @@ export function ExpansaoDaFrota() {
           description="O capital disponível para aquisição, nesta estratégia, não cobre nem a entrada + reserva mínima de 1 veículo. Ajuste as premissas acima ou escolha uma estratégia mais agressiva."
         />
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Saldo devedor × Equity — {ESTRATEGIA_LABEL[estrategiaFoco]} ({foco.veiculosAdicionadosTotal} veículo(s) novo(s))</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={chartData} margin={{ left: 8, right: 24 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-neutral-200 dark:stroke-neutral-800" />
-                <XAxis dataKey="mes" fontSize={11} tickFormatter={(v) => `m${v}`} />
-                <YAxis fontSize={11} tickFormatter={(v) => formatMoeda(v)} width={90} />
-                <Tooltip formatter={(v) => formatMoeda(Number(v))} labelFormatter={(v) => `Mês ${v}`} />
-                <Legend />
-                <Line type="monotone" dataKey="saldoDevedor" name="Saldo devedor" stroke="#ef4444" dot={false} strokeWidth={2} />
-                <Line type="monotone" dataKey="equity" name="Equity" stroke="#10b981" dot={false} strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <GraficoLinha titulo="Frota — veículos desta expansão" data={chartData} linhas={[{ key: 'frota', nome: 'Veículos', cor: '#6366f1' }]} formatador={(v) => `${v}`} />
+          <GraficoLinha titulo="Caixa operacional acumulado (desta expansão)" data={chartData} linhas={[{ key: 'caixaOperacional', nome: 'Caixa operacional', cor: '#10b981' }]} />
+          <GraficoLinha titulo="Dívida incremental" data={chartData} linhas={[{ key: 'saldoDevedor', nome: 'Saldo devedor', cor: '#ef4444' }]} />
+          <GraficoLinha titulo="Equity incremental" data={chartData} linhas={[{ key: 'equity', nome: 'Equity', cor: '#f59e0b' }]} />
+          <div className="xl:col-span-2">
+            <GraficoLinha titulo="Patrimônio total incremental (caixa operacional + equity)" data={chartData} linhas={[{ key: 'patrimonioTotal', nome: 'Patrimônio total', cor: '#0ea5e9' }]} />
+          </div>
+        </div>
       )}
+      <p className="text-xs text-neutral-400">
+        Todos os gráficos acima são "incrementais": mostram só os {foco.veiculosAdicionadosTotal} veículo(s) novo(s) desta expansão (estratégia {ESTRATEGIA_LABEL[estrategiaFoco]}), não a frota da empresa inteira nem a dívida/equity dos veículos já existentes — a amortização da frota atual não é projetada para o futuro nesta fase.
+      </p>
     </div>
+  );
+}
+
+function GraficoLinha({
+  titulo,
+  data,
+  linhas,
+  formatador,
+}: {
+  titulo: string;
+  data: { mes: number }[];
+  linhas: { key: string; nome: string; cor: string }[];
+  formatador?: (v: number) => string;
+}) {
+  const fmt = formatador ?? ((v: number) => formatMoeda(v));
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{titulo}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={240}>
+          <LineChart data={data} margin={{ left: 8, right: 24 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-neutral-200 dark:stroke-neutral-800" />
+            <XAxis dataKey="mes" fontSize={11} tickFormatter={(v) => `m${v}`} />
+            <YAxis fontSize={11} tickFormatter={fmt} width={90} />
+            <Tooltip formatter={(v) => fmt(Number(v))} labelFormatter={(v) => `Mês ${v}`} />
+            <Legend />
+            {linhas.map((l) => (
+              <Line key={l.key} type="monotone" dataKey={l.key} name={l.nome} stroke={l.cor} dot={false} strokeWidth={2} />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -308,49 +463,84 @@ function CampoMoeda({
 }) {
   return (
     <div className="space-y-1">
-      <Label htmlFor={chave} className="text-xs text-neutral-500">
-        {label}
-      </Label>
-      <Input
-        id={chave}
-        type="number"
-        step="0.01"
-        inputMode="decimal"
-        className="h-8 text-sm"
-        value={Number(input[chave]) || 0}
-        onChange={(e) => onChange({ [chave]: Number(e.target.value) } as Partial<CenarioExpansaoInput>)}
-      />
+      <Label htmlFor={chave} className="text-xs text-neutral-500">{label}</Label>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-neutral-400">R$</span>
+        <Input
+          id={chave}
+          type="text"
+          inputMode="numeric"
+          className="h-8 pl-7 text-right text-sm"
+          value={formatarMoedaInput(Number(input[chave]) || 0)}
+          onChange={(e) => onChange({ [chave]: digitosParaReais(e.target.value) } as Partial<CenarioExpansaoInput>)}
+        />
+      </div>
     </div>
   );
 }
 
-function CampoNumero({
+function CampoPercentual({
   label,
   chave,
   input,
   onChange,
-  step,
+  sufixo = '%',
+  casas = 2,
 }: {
   label: string;
   chave: keyof CenarioExpansaoInput;
   input: CenarioExpansaoInput;
   onChange: (patch: Partial<CenarioExpansaoInput>) => void;
-  step: number;
+  sufixo?: string;
+  casas?: number;
 }) {
   return (
     <div className="space-y-1">
-      <Label htmlFor={chave} className="text-xs text-neutral-500">
-        {label}
-      </Label>
-      <Input
-        id={chave}
-        type="number"
-        step={step}
-        inputMode="decimal"
-        className="h-8 text-sm"
-        value={Number(input[chave]) || 0}
-        onChange={(e) => onChange({ [chave]: Number(e.target.value) } as Partial<CenarioExpansaoInput>)}
-      />
+      <Label htmlFor={chave} className="text-xs text-neutral-500">{label}</Label>
+      <div className="relative">
+        <Input
+          id={chave}
+          type="number"
+          step={casas === 0 ? 1 : Math.pow(10, -casas)}
+          inputMode="decimal"
+          className="h-8 pr-9 text-right text-sm"
+          value={Number(input[chave]) || 0}
+          onChange={(e) => onChange({ [chave]: Number(e.target.value) } as Partial<CenarioExpansaoInput>)}
+        />
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-400">{sufixo}</span>
+      </div>
+    </div>
+  );
+}
+
+function CampoInteiro({
+  label,
+  chave,
+  input,
+  onChange,
+  sufixo,
+}: {
+  label: string;
+  chave: keyof CenarioExpansaoInput;
+  input: CenarioExpansaoInput;
+  onChange: (patch: Partial<CenarioExpansaoInput>) => void;
+  sufixo?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={chave} className="text-xs text-neutral-500">{label}</Label>
+      <div className="relative">
+        <Input
+          id={chave}
+          type="number"
+          step={1}
+          inputMode="numeric"
+          className="h-8 pr-14 text-right text-sm"
+          value={Number(input[chave]) || 0}
+          onChange={(e) => onChange({ [chave]: e.target.value === '' ? 0 : Math.round(Number(e.target.value)) } as Partial<CenarioExpansaoInput>)}
+        />
+        {sufixo && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-400">{sufixo}</span>}
+      </div>
     </div>
   );
 }
