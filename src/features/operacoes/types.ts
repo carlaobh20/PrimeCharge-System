@@ -12,6 +12,17 @@ export type AcaoOrigem = 'manual' | 'sistema' | 'automacao' | 'agente' | 'ia';
 
 export type ChecklistStatus = 'aberto' | 'concluido' | 'cancelado';
 
+// Épico 8 — tipo real de vistoria (migration 0022, nunca persistido pelo frontend até agora).
+export type ChecklistTipo = 'entrega' | 'devolucao' | 'renovacao' | 'manutencao' | 'sinistro';
+
+export const CHECKLIST_TIPO_LABEL: Record<ChecklistTipo, string> = {
+  entrega: 'Entrega',
+  devolucao: 'Devolução',
+  renovacao: 'Renovação',
+  manutencao: 'Manutenção',
+  sinistro: 'Sinistro',
+};
+
 export type AcaoOperacional = {
   id: string;
   empresa_id: string;
@@ -58,6 +69,10 @@ export type ChecklistItem = {
   obrigatorio: boolean;
   resposta: boolean | null;
   observacao: string | null;
+  foto_url: string | null;
+  // Épico 8 — terceiro estado do item ("não se aplica"). false = fora da exigência de
+  // resposta/foto deste item, independente de `obrigatorio`.
+  aplicavel: boolean;
   respondido_por: string | null;
   respondido_em: string | null;
   criado_em: string;
@@ -76,6 +91,19 @@ export type Checklist = {
   concluido_por: string | null;
   criado_em: string;
   atualizado_em: string;
+  // Épico 8 — vistoria real (migration 0030). tipo/odometro_km/carga_pct/assinatura_url já
+  // existiam desde 0010/0022, sem UI até agora.
+  tipo: ChecklistTipo | null;
+  odometro_km: number | null;
+  carga_pct: number | null;
+  assinatura_url: string | null;
+  checklist_anterior_id: string | null;
+  contrato_id: string | null;
+  motorista_id: string | null;
+  observacoes: string | null;
+  destino_veiculo: string | null;
+  houve_sinistro: boolean;
+  confirmacao_motorista: boolean;
 };
 
 export type ChecklistComItens = Checklist & { itens: ChecklistItem[] };
