@@ -3,6 +3,7 @@ import {
   Ban,
   Camera,
   Copy,
+  DollarSign,
   FileText,
   MessageSquarePlus,
   Receipt,
@@ -32,6 +33,7 @@ export type ActionKey =
   | 'documento'
   | 'comentario'
   | 'tag'
+  | 'lancamento'
   | 'pagamento'
   | 'atraso'
   | 'compartilhar'
@@ -49,6 +51,9 @@ export const COMMAND_ACTIONS: { key: ActionKey; label: string; icon: LucideIcon;
   { key: 'documento', label: 'Adicionar documento', icon: FileText, real: true },
   { key: 'comentario', label: 'Novo comentário', icon: MessageSquarePlus, real: true },
   { key: 'tag', label: 'Nova tag', icon: Tags, real: true },
+  // Épico 7 — abre LancamentoFormDialog direto com contrato_id/veiculo_id/motorista_id já
+  // preenchidos, mesmo padrão de defaultValues dos outros dialogs do Cockpit.
+  { key: 'lancamento', label: 'Novo lançamento', icon: DollarSign, real: true },
   { key: 'pagamento', label: 'Registrar pagamento', icon: Receipt, real: true },
   // "atraso" virou ação real na Missão 4 (Fase 9, auditoria de UX) — navega direto para
   // /financeiro/pagamentos (mesmo padrão de 'pagamento' e de 'cobranca' em motoristas/lib/actions.ts),

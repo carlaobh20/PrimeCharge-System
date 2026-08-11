@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createLancamento,
   deleteLancamento,
+  gerarCobrancasRecorrentes,
   getLancamento,
   listLancamentos,
   listLancamentosPorEmpresa,
@@ -78,6 +79,17 @@ export function useDeleteLancamento() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteLancamento,
+    onSuccess: () => invalidateLancamento(queryClient),
+  });
+}
+
+// Botão "Gerar cobranças do mês" (migration 0029, fn_gerar_cobrancas_recorrentes) — sempre a
+// competência atual (null → banco usa date_trunc('month', current_date)), sem seletor de mês
+// nesta fase. Mesma invalidação de useCreateLancamento: cria lançamentos novos.
+export function useGerarCobrancasRecorrentes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (empresaId: string) => gerarCobrancasRecorrentes(empresaId, null),
     onSuccess: () => invalidateLancamento(queryClient),
   });
 }

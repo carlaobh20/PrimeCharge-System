@@ -1,9 +1,11 @@
-// Tipos do módulo Financeiro — espelha supabase/migrations/0006_modulo_financeiro.sql.
+// Tipos do módulo Financeiro — espelha supabase/migrations/0006_modulo_financeiro.sql e,
+// para Plano de Contas/Centro de Resultado/rastreabilidade, 0028_epico7_controladoria_fundacao.sql.
 // Receita e Despesa são unificadas em Lancamento (tipo) — Provisão é lancamento com
 // status 'prevista', não uma entidade própria (DEC-046). Pagamento é o evento real de
 // movimentação bancária, separado do lançamento contábil.
 
 export type LancamentoTipo = 'receita' | 'despesa';
+export type PlanoContaGrupo = 'receita' | 'custo' | 'despesa' | 'financeiro' | 'investimento' | 'patrimonio';
 export type LancamentoStatus = 'prevista' | 'confirmada' | 'cancelada';
 export type LancamentoOrigem = 'manual' | 'automacao' | 'agente' | 'ia';
 export type PagamentoStatus = 'pendente' | 'pago' | 'cancelado' | 'estornado';
@@ -41,6 +43,31 @@ export type CentroCusto = {
   atualizado_em: string;
 };
 
+// Plano de Contas (Épico 7) — classificação contábil estruturada, PARALELA a
+// lancamentos.categoria (texto livre), não uma substituição. parent_id permite hierarquia,
+// mas esta fase só tem a raiz (6 grupos) — sem tela de criação/edição ainda.
+export type PlanoConta = {
+  id: string;
+  empresa_id: string;
+  parent_id: string | null;
+  nome: string;
+  grupo: PlanoContaGrupo;
+  ativo: boolean;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+// Centro de Resultado (Épico 7) — distinto de CentroCusto (migration 0006): agrupa
+// RECEITA/resultado, não custo operacional. Mesma ressalva: sem tela de gestão nesta fase.
+export type CentroResultado = {
+  id: string;
+  empresa_id: string;
+  nome: string;
+  ativo: boolean;
+  criado_em: string;
+  atualizado_em: string;
+};
+
 export type Lancamento = {
   id: string;
   empresa_id: string;
@@ -57,6 +84,14 @@ export type Lancamento = {
   data_confirmacao: string | null;
   criado_via: LancamentoOrigem;
   observacoes: string | null;
+  // Épico 7 (migration 0028) — conta_contabil_id/centro_resultado_id/competencia são
+  // opcionalmente preenchidos manualmente aqui, ou pelo trigger fn_classificar_lancamento_
+  // automaticamente no banco quando ficam NULL na criação (regra de classificação casando
+  // por substring). Seleção manual sempre vence — o trigger só preenche o que está NULL.
+  conta_contabil_id: string | null;
+  centro_resultado_id: string | null;
+  competencia: string | null;
+  usuario_id: string | null;
   criado_em: string;
   atualizado_em: string;
 };

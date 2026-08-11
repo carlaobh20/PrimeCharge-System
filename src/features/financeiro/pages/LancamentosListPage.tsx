@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Select } from '@/shared/components/ui/select';
 import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { formatDataSimples, formatMoeda } from '@/shared/lib/format';
 import { toast } from '@/shared/components/ui/toast';
-import { useDeleteLancamento, useLancamentos, useUpdateLancamentoStatus } from '../hooks/useLancamentos';
+import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
+import {
+  useDeleteLancamento,
+  useGerarCobrancasRecorrentes,
+  useLancamentos,
+  useUpdateLancamentoStatus,
+} from '../hooks/useLancamentos';
 import { LancamentoFormDialog } from '../components/LancamentoFormDialog';
 import {
   LANCAMENTO_STATUS_LABEL,
@@ -29,8 +35,27 @@ export function LancamentosListPage() {
   const [dialogAberto, setDialogAberto] = useState(false);
   const [excluirId, setExcluirId] = useState<string | null>(null);
   const { data: lancamentos, isLoading, isError } = useLancamentos({ tipo, status });
+  const { data: usuario } = useCurrentUsuario();
   const updateStatus = useUpdateLancamentoStatus();
   const deleteLancamento = useDeleteLancamento();
+  const gerarCobrancas = useGerarCobrancasRecorrentes();
+
+  function handleGerarCobrancas() {
+    if (!usuario?.empresa_id) return;
+    gerarCobrancas.mutate(usuario.empresa_id, {
+      onSuccess: (resultado) => {
+        const geradas = resultado.filter((r) => r.gerado).length;
+        const jaExistiam = resultado.filter((r) => !r.gerado && r.motivo === 'ja_existe_para_esta_competencia').length;
+        if (geradas === 0 && jaExistiam === 0) {
+          toast.info('Nenhum contrato mensal ativo com cobrança recorrente configurada.');
+          return;
+        }
+        const partes = [`${geradas} cobranças geradas`];
+        if (jaExistiam > 0) partes.push(`${jaExistiam} já existiam`);
+        toast.success(partes.join(' — '));
+      },
+    });
+  }
 
   return (
     <div className="p-8">
@@ -41,10 +66,16 @@ export function LancamentosListPage() {
             Receitas e despesas — uma Provisão é um lançamento com status "Prevista" ainda sem pagamento.
           </p>
         </div>
-        <Button onClick={() => setDialogAberto(true)}>
-          <Plus className="h-4 w-4" />
-          Novo lançamento
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={handleGerarCobrancas} disabled={gerarCobrancas.isPending}>
+            <RefreshCw className="h-4 w-4" />
+            {gerarCobrancas.isPending ? 'Gerando…' : 'Gerar cobranças do mês'}
+          </Button>
+          <Button onClick={() => setDialogAberto(true)}>
+            <Plus className="h-4 w-4" />
+            Novo lançamento
+          </Button>
+        </div>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">

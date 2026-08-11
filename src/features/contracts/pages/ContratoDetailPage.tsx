@@ -9,6 +9,7 @@ import { HistoricoPanel } from '@/shared/capabilities/components/HistoricoPanel'
 import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { PlaceholderActionDialog } from '@/shared/components/ui/placeholder-action-dialog';
 import { toast } from '@/shared/components/ui/toast';
+import { LancamentoFormDialog } from '@/features/financeiro/components/LancamentoFormDialog';
 
 import { ContratoCockpitHeader } from '../components/ContratoCockpitHeader';
 import { ContratoKpiBand } from '../components/ContratoKpiBand';
@@ -326,6 +327,11 @@ export function ContratoDetailPage() {
         contratoId={contrato.id}
         empresaId={usuario?.empresa_id ?? undefined}
         usuarioId={usuario?.id}
+      />
+      <LancamentoFormDialog
+        open={activeAction === 'lancamento'}
+        onOpenChange={(open) => setActiveAction(open ? 'lancamento' : null)}
+        defaultValues={{ contrato_id: contrato.id, veiculo_id: contrato.veiculo_id, motorista_id: contrato.motorista_id, tipo: 'receita' }}
       />
       <AtivarContratoDialog
         open={activeAction === 'ativar'}
