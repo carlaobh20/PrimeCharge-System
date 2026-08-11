@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { MessageCirclePlus, Trash2 } from 'lucide-react';
 import { Drawer } from '@/shared/components/ui/drawer';
 import { Tabs } from '@/shared/components/ui/tabs';
 import { Badge } from '@/shared/components/ui/badge';
@@ -15,7 +15,8 @@ import { useDriverIntelligence } from '../../hooks/useDriverIntelligence';
 import { diasNaEtapa } from '../../intelligence/funilMetrics';
 import { ArquivosTab } from '../tabs/ArquivosTab';
 import { StatusBadge } from '../StatusBadge';
-import { MOTORISTA_PRIORIDADE_COLOR, MOTORISTA_PRIORIDADE_LABEL } from '../../types';
+import { RegistrarConversaDialog } from './RegistrarConversaDialog';
+import { MOTORISTA_PRIORIDADE_COLOR, MOTORISTA_PRIORIDADE_LABEL, ORIGEM_LEAD_LABEL } from '../../types';
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -55,6 +56,12 @@ function ResumoTab({ motoristaId }: { motoristaId: string }) {
         <StatusBadge status={motorista.status} />
         <Badge variant="secondary">{nomeEtapa ?? 'Não classificado'}</Badge>
         <Badge variant={MOTORISTA_PRIORIDADE_COLOR[motorista.prioridade]}>{MOTORISTA_PRIORIDADE_LABEL[motorista.prioridade]}</Badge>
+        {motorista.origem_lead && (
+          <Badge variant="secondary">
+            Origem: {ORIGEM_LEAD_LABEL[motorista.origem_lead]}
+            {motorista.origem_lead_detalhe ? ` — ${motorista.origem_lead_detalhe}` : ''}
+          </Badge>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <Stat label="Telefone" value={motorista.telefone ?? '—'} />
@@ -74,6 +81,7 @@ export function MotoristaCrmDrawer({ motoristaId, onOpenChange }: { motoristaId:
   const { data: usuario } = useCurrentUsuario();
   const deleteMotorista = useDeleteMotorista();
   const [confirmExcluirAberto, setConfirmExcluirAberto] = useState(false);
+  const [registrarConversaAberto, setRegistrarConversaAberto] = useState(false);
 
   function handleExcluir() {
     if (!motoristaId) return;
@@ -94,7 +102,11 @@ export function MotoristaCrmDrawer({ motoristaId, onOpenChange }: { motoristaId:
               0004: pode_excluir_motorista, gated a super_admin/owner/admin; contrato vinculado
               já bloqueia via FK "on delete restrict") — só ganhou um segundo ponto de entrada,
               aqui no painel do Kanban, em vez de só na página cheia /motoristas/:id. */}
-          <div className="mb-3 flex justify-end">
+          <div className="mb-3 flex justify-end gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={() => setRegistrarConversaAberto(true)}>
+              <MessageCirclePlus className="h-3.5 w-3.5" />
+              Registrar conversa
+            </Button>
             <Button
               type="button"
               variant="ghost"
@@ -126,6 +138,13 @@ export function MotoristaCrmDrawer({ motoristaId, onOpenChange }: { motoristaId:
             destructive
             onConfirm={handleExcluir}
             isPending={deleteMotorista.isPending}
+          />
+          <RegistrarConversaDialog
+            open={registrarConversaAberto}
+            onOpenChange={setRegistrarConversaAberto}
+            empresaId={usuario?.empresa_id ?? undefined}
+            entidadeId={motoristaId}
+            usuarioId={usuario?.id ?? undefined}
           />
         </>
       )}

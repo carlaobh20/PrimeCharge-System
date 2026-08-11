@@ -35,6 +35,19 @@ export const FUNIL_ETAPA_GRUPO_LABEL: Record<FunilEtapaGrupo, string> = {
 
 export type MotoristaPrioridade = 'baixa' | 'media' | 'alta' | 'critica';
 
+// Épico 6, Fase 1.2 (migration 0027) — de onde o lead veio. Opcional: motoristas cadastrados
+// antes desta fase, ou cadastrados sem essa informação à mão, ficam null — nunca inferimos.
+export type OrigemLead = 'indicacao' | 'rede_social' | 'propaganda' | 'busca_organica' | 'evento' | 'outro';
+
+export const ORIGEM_LEAD_LABEL: Record<OrigemLead, string> = {
+  indicacao: 'Indicação',
+  rede_social: 'Rede social',
+  propaganda: 'Propaganda',
+  busca_organica: 'Busca orgânica',
+  evento: 'Evento',
+  outro: 'Outro',
+};
+
 export type Motorista = {
   id: string;
   empresa_id: string;
@@ -58,6 +71,8 @@ export type Motorista = {
   etapa_funil_desde: string | null;
   responsavel_id: string | null;
   prioridade: MotoristaPrioridade;
+  origem_lead: OrigemLead | null;
+  origem_lead_detalhe: string | null;
   criado_em: string;
   atualizado_em: string;
 };

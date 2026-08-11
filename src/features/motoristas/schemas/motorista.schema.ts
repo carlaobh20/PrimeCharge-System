@@ -20,6 +20,11 @@ export const motoristaSchema = z.object({
   cidade: optionalString(),
   estado: optionalString(),
   observacoes: optionalString(),
+  origem_lead: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.enum(['indicacao', 'rede_social', 'propaganda', 'busca_organica', 'evento', 'outro']).optional()
+  ),
+  origem_lead_detalhe: optionalString(),
 });
 
 // z.transform faz input (o que o form escreve) e output (o que é enviado à API) divergirem

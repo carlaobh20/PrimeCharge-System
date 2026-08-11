@@ -26,6 +26,8 @@ export function MotoristaEditPage() {
           cidade: values.cidade ?? null,
           estado: values.estado ?? null,
           observacoes: values.observacoes ?? null,
+          origem_lead: values.origem_lead ?? null,
+          origem_lead_detalhe: values.origem_lead_detalhe ?? null,
         },
       },
       { onSuccess: () => navigate(`/motoristas/${id}`) }
@@ -58,6 +60,8 @@ export function MotoristaEditPage() {
             cidade: motorista.cidade ?? '',
             estado: motorista.estado ?? '',
             observacoes: motorista.observacoes ?? '',
+            origem_lead: motorista.origem_lead ?? '',
+            origem_lead_detalhe: motorista.origem_lead_detalhe ?? '',
           }}
           onSubmit={handleSubmit}
           isSubmitting={updateMotorista.isPending}

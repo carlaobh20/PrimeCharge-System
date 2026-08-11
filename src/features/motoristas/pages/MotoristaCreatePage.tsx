@@ -38,6 +38,8 @@ export function MotoristaCreatePage() {
           cidade: values.cidade ?? null,
           estado: values.estado ?? null,
           observacoes: values.observacoes ?? null,
+          origem_lead: values.origem_lead ?? null,
+          origem_lead_detalhe: values.origem_lead_detalhe ?? null,
           etapa_funil_id: etapaInicial?.id ?? null,
           responsavel_id: null,
           prioridade: 'media',
