@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import { cn } from '@/shared/lib/utils';
+import { SeloOrigemDado, type OrigemDado } from './selo-dado';
 
 // Card de KPI do Cockpit — morava em features/frota/ (regra dos 3, DEC-008): "não generalizar
 // pra shared/ até um segundo módulo precisar do mesmo padrão". Motoristas (Sprint 6) é esse
@@ -10,6 +11,7 @@ export function KpiCard({
   value,
   hint,
   pending,
+  origem,
 }: {
   icon: ComponentType<{ className?: string }>;
   label: string;
@@ -17,6 +19,11 @@ export function KpiCard({
   hint?: string;
   /** true = KPI ainda sem módulo de negócio por trás (Financeiro/Manutenção/Contratos) — mostrado como "Em breve". */
   pending?: boolean;
+  /** Épico 9, Fase 2.1 Parte 3 — só preencher quando ESTE KPI específico precisa de um selo
+   * diferente do que a seção ao redor já declara (ex.: um número "potencial"/estimado dentro de
+   * uma seção que, no geral, é toda DADO REAL). Não preencher em todo KPI — isso viraria ruído; a
+   * maioria já está coberta pelo selo da seção/Card em volta. */
+  origem?: OrigemDado;
 }) {
   return (
     <div
@@ -25,9 +32,12 @@ export function KpiCard({
         pending && 'opacity-70'
       )}
     >
-      <div className="flex items-center gap-2 text-neutral-500">
-        <Icon className="h-3.5 w-3.5" />
-        <span className="text-[11px] font-medium uppercase tracking-wide">{label}</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-neutral-500">
+          <Icon className="h-3.5 w-3.5" />
+          <span className="text-[11px] font-medium uppercase tracking-wide">{label}</span>
+        </div>
+        {origem && !pending && <SeloOrigemDado origem={origem} />}
       </div>
       {pending ? (
         <span className="text-xs font-medium text-neutral-400">Em breve</span>

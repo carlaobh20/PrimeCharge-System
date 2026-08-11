@@ -8,6 +8,7 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Select } from '@/shared/components/ui/select';
 import { EmptyState } from '@/shared/components/ui/empty-state';
+import { SeloOrigemDado, InformacaoIndisponivel } from '@/shared/components/ui/selo-dado';
 import { formatMoeda } from '@/shared/lib/format';
 import { formatarMoedaInput, digitosParaReais } from '@/shared/lib/moedaInput';
 import { extrairMensagemTecnicaDeErro } from '@/shared/lib/errors';
@@ -80,23 +81,17 @@ function formatPct(valor: number, casas = 2): string {
   return `${valor.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })}%`;
 }
 
-// Selo pequeno que classifica a natureza do número (seção 17, obrigatório: usuário precisa saber
-// se está vendo "R$ 100.000 reais no banco" ou "R$ 100.000 estimados").
-function Selo({ tipo }: { tipo: 'real' | 'premissa' | 'projecao' | 'estimativa' }) {
-  const estilos: Record<typeof tipo, string> = {
-    real: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400',
-    premissa: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400',
-    projecao: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400',
-    estimativa: 'bg-neutral-100 text-neutral-600 dark:bg-white/10 dark:text-neutral-400',
-  };
-  const texto: Record<typeof tipo, string> = {
-    real: 'DADO REAL',
-    premissa: 'PREMISSA',
-    projecao: 'PROJEÇÃO',
-    estimativa: 'ESTIMATIVA',
-  };
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${estilos[tipo]}`}>{texto[tipo]}</span>;
+// Parte 4 — lista até 3 placas por extenso, resume o resto ("e mais N") em vez de um parágrafo
+// de placas quando a frota é grande.
+function formatarListaPlacas(placas: string[]): string {
+  if (placas.length <= 3) return placas.join(', ');
+  return `${placas.slice(0, 3).join(', ')} e mais ${placas.length - 3}`;
 }
+
+// Fase 2.1, Parte 3 (2026-08-11) — o Selo local que nasceu aqui na Fase 1 foi promovido pra
+// shared/components/ui/selo-dado.tsx (SeloOrigemDado): o pedido explícito da Parte 3 é que este
+// vire o padrão ÚNICO de rotulagem de origem de dado em todo o PrimeCharge, não só nesta tela —
+// ver comentário de topo do arquivo promovido pro raciocínio completo.
 
 export function ExpansaoDaFrota() {
   const { data: usuario } = useCurrentUsuario();
@@ -189,6 +184,10 @@ export function ExpansaoDaFrota() {
   // Fase 2.1, Parte 2 — a mesma frota real (`veiculos`) que já alimenta os KPIs "Estado real da
   // frota" acima agora também entra dentro do motor de crescimento, mês a mês.
   const frotaReal = construirFrotaRealParaProjecao(veiculos, qContratosAtivos.data ?? []);
+  // Parte 4 — placas específicas, não só uma contagem, pra o aviso de "informação incompleta"
+  // ser acionável (o usuário sabe exatamente qual veículo cadastrar/atualizar).
+  const placasSemValorConhecido = frotaReal.filter((v) => v.valorAtual === null).map((v) => v.identificador);
+  const placasSemContratoAtivo = frotaReal.filter((v) => v.receitaMensalReal === 0).map((v) => v.identificador);
   const cenarioCompleto = { ...input, id: cenarioIdRef.current ?? 'novo', empresa_id: usuario?.empresa_id ?? '', criado_por: null, criado_em: '', atualizado_em: '' };
   const comparacao = compararEstrategias(cenarioCompleto, veiculos);
   const foco = comparacao[estrategiaFoco];
@@ -248,7 +247,7 @@ export function ExpansaoDaFrota() {
       <div>
         <div className="mb-2 flex items-center gap-2">
           <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Estado real da frota</h3>
-          <Selo tipo="real" />
+          <SeloOrigemDado origem="real" />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard icon={Wallet} label="Caixa atual" value={formatMoeda(estadoReal.caixaAtual)} hint="calcularSaldoPorConta, ao vivo — dinheiro na conta hoje" />
@@ -259,12 +258,19 @@ export function ExpansaoDaFrota() {
             label="Capital reciclável potencial"
             value={formatMoeda(comparacao.balanceada.capitalReciclavelPotencial)}
             hint="veículos já marcados para venda, líquido de dívida e custo. NÃO incluído automaticamente em nenhuma estratégia abaixo."
+            origem="estimativa"
           />
         </div>
-        <div className="mt-2 flex items-center gap-2 text-xs text-neutral-400">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-400">
           <Car className="h-3.5 w-3.5" /> Frota atual: {estadoReal.veiculosAtuais} veículo(s)
-          {estadoReal.veiculosComValorConhecido < estadoReal.veiculosAtuais && ` (${estadoReal.veiculosAtuais - estadoReal.veiculosComValorConhecido} sem valor cadastrado)`}
         </div>
+        {/* Parte 4 — mesma regra da Projeção abaixo: nomeia a placa em vez de só contar. */}
+        {placasSemValorConhecido.length > 0 && (
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+            <InformacaoIndisponivel motivo="valor de mercado/FIPE/compra não cadastrado" />
+            <span>{formatarListaPlacas(placasSemValorConhecido)} — não entram no Equity acima.</span>
+          </div>
+        )}
       </div>
 
       {/* Ciclo de Expansão — seções 9/11: Hoje / Próxima expansão / Próximo marco. */}
@@ -279,7 +285,7 @@ export function ExpansaoDaFrota() {
             <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
               <div className="mb-2 flex items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Hoje</span>
-                <Selo tipo="real" />
+                <SeloOrigemDado origem="real" />
               </div>
               <dl className="space-y-1 text-sm">
                 <div className="flex justify-between"><dt className="text-neutral-500">Frota</dt><dd className="font-medium">{estadoReal.veiculosAtuais}</dd></div>
@@ -293,7 +299,7 @@ export function ExpansaoDaFrota() {
             <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
               <div className="mb-2 flex items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Próxima expansão</span>
-                <Selo tipo="projecao" />
+                <SeloOrigemDado origem="projecao" />
               </div>
               <dl className="space-y-1 text-sm">
                 <div className="flex justify-between"><dt className="text-neutral-500">Próximo carro</dt><dd className="font-medium">#{foco.veiculosAdicionadosTotal + 1}</dd></div>
@@ -309,7 +315,7 @@ export function ExpansaoDaFrota() {
             <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
               <div className="mb-2 flex items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Próximo marco</span>
-                <Selo tipo="projecao" />
+                <SeloOrigemDado origem="projecao" />
               </div>
               {foco.proximoMarco.possivel ? (
                 <p className="text-sm">
@@ -327,7 +333,7 @@ export function ExpansaoDaFrota() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Premissas do próximo veículo <Selo tipo="premissa" />
+            Premissas do próximo veículo <SeloOrigemDado origem="premissa" />
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -356,23 +362,33 @@ export function ExpansaoDaFrota() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Rocket className="h-4 w-4" /> Projeção de Crescimento — Fase 2 <Selo tipo="projecao" />
+            <Rocket className="h-4 w-4" /> Projeção de Crescimento — Fase 2 <SeloOrigemDado origem="projecao" />
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Fase 2.1, Parte 2/3 — a frota real (mesma da seção "Estado real da frota" acima)
+          {/* Fase 2.1, Parte 2/3/4 — a frota real (mesma da seção "Estado real da frota" acima)
               agora entra dentro desta projeção desde o mês 0, com dívida e receita reais, não só
-              como um número de caixa agregado. Rotulagem explícita (Parte 3/4): quantos veículos
-              reais entraram, e quantos deles não têm valor de mercado/FIPE/compra cadastrado — a
-              dívida desses ainda conta, mas o valor do ativo não (nunca inventado). */}
+              como um número de caixa agregado. Parte 4 ("se estiver incompleto, o sistema me
+              avisa"): não basta um contador — nomeia a placa de cada veículo com informação
+              faltando, senão o aviso é verdade mas não é acionável. */}
           {crescimentoFoco && (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:border-white/10 dark:bg-white/5 dark:text-neutral-400">
-              <Selo tipo="real" />
-              <span>
-                {crescimentoFoco.frotaRealIntegrada} veículo(s) real(is) integrado(s) desde o mês 0 (dívida e receita real de cada um simuladas mês a mês).
-                {crescimentoFoco.frotaRealSemValorConhecido > 0 &&
-                  ` ${crescimentoFoco.frotaRealSemValorConhecido} sem valor de mercado/FIPE/compra cadastrado — a dívida entra no cálculo, o valor do ativo não (informação não disponível, não inventada).`}
-              </span>
+            <div className="flex flex-col gap-1.5 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:border-white/10 dark:bg-white/5 dark:text-neutral-400">
+              <div className="flex flex-wrap items-center gap-2">
+                <SeloOrigemDado origem="real" />
+                <span>{crescimentoFoco.frotaRealIntegrada} veículo(s) real(is) integrado(s) desde o mês 0 (dívida e receita real de cada um simuladas mês a mês, não uma premissa uniforme).</span>
+              </div>
+              {placasSemValorConhecido.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <InformacaoIndisponivel motivo="valor de mercado/FIPE/compra não cadastrado" />
+                  <span>{formatarListaPlacas(placasSemValorConhecido)} — a dívida entra no cálculo do patrimônio, o valor do ativo não (nunca inventado).</span>
+                </div>
+              )}
+              {placasSemContratoAtivo.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <InformacaoIndisponivel motivo="sem contrato ativo hoje" />
+                  <span>{formatarListaPlacas(placasSemContratoAtivo)} — receita real R$ 0 na projeção (fato, não estimativa: ninguém está pagando por esse veículo agora).</span>
+                </div>
+              )}
             </div>
           )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -454,7 +470,7 @@ export function ExpansaoDaFrota() {
                 <div className="mb-2 flex items-center gap-2">
                   <Target className="h-3.5 w-3.5" />
                   <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Próximo veículo além do horizonte</span>
-                  <Selo tipo="estimativa" />
+                  <SeloOrigemDado origem="estimativa" />
                 </div>
                 {crescimentoFoco.proximoVeiculo.possivel ? (
                   <p className="text-sm">
@@ -625,7 +641,7 @@ export function ExpansaoDaFrota() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Comparação de estratégias <Selo tipo="projecao" />
+            Comparação de estratégias <SeloOrigemDado origem="projecao" />
           </CardTitle>
         </CardHeader>
         <CardContent>
