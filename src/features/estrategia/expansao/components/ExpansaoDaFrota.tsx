@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Loader2, Wallet, TrendingDown, Landmark, Car, Recycle, Target, Info } from 'lucide-react';
-import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { CheckCircle2, Loader2, Wallet, TrendingDown, Landmark, Car, Recycle, Target, Info, Rocket, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
 import { KpiCard } from '@/shared/components/ui/kpi-card';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import { Select } from '@/shared/components/ui/select';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { formatMoeda } from '@/shared/lib/format';
 import { formatarMoedaInput, digitosParaReais } from '@/shared/lib/moedaInput';
@@ -13,8 +14,16 @@ import { extrairMensagemTecnicaDeErro } from '@/shared/lib/errors';
 import { useEstadoRealFrota } from '../hooks/useEstadoRealFrota';
 import { useCenariosExpansao, useCriarCenarioExpansao, useAtualizarCenarioExpansao } from '../hooks/useCenarioExpansao';
 import { compararEstrategias } from '../intelligence/motor';
+import { compararCrescimentoComposto } from '../intelligence/crescimentoComposto';
 import { ESTRATEGIAS } from '../intelligence/estrategias';
-import { ESTRATEGIA_LABEL, type CenarioExpansaoInput, type EstrategiaExpansao } from '../types';
+import {
+  ESTRATEGIA_LABEL,
+  METODO_CRESCIMENTO_LABEL,
+  type CenarioExpansaoInput,
+  type EstrategiaExpansao,
+  type HorizonteCrescimento,
+  type MetodoCrescimento,
+} from '../types';
 
 // Épico 9 — Motor de Expansão da Frota. Fase 1 (2026-08-11) + correções da Fase 1.1
 // (2026-08-11, mesmo dia, pedido de fechamento do Carlos): separação explícita caixa × equity ×
@@ -54,6 +63,9 @@ function cenarioPadrao(caixaReal: number): CenarioExpansaoInput {
     venda_custos_pct: 0,
     dscr_minimo_saudavel: 1.5,
     dscr_minimo_atencao: 1.1,
+    vender_apos_meses: null,
+    valor_venda_por_veiculo: null,
+    metodo_crescimento: 'caixa_operacional',
   };
 }
 
@@ -96,6 +108,7 @@ export function ExpansaoDaFrota() {
   const [inicializado, setInicializado] = useState(false);
   const [status, setStatus] = useState<'idle' | 'salvando' | 'salvo'>('idle');
   const [estrategiaFoco, setEstrategiaFoco] = useState<EstrategiaExpansao>('balanceada');
+  const [horizonteFoco, setHorizonteFoco] = useState<HorizonteCrescimento>(24);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cenarioIdRef = useRef<string | null>(null);
 
@@ -174,6 +187,30 @@ export function ExpansaoDaFrota() {
     equity: m.equityIncremental,
     patrimonioTotal: m.patrimonioTotalIncremental,
   }));
+
+  // Fase 2 — Crescimento Composto. 'caixa_aporte' ainda recusa no motor (não implementado nesta
+  // fase) — capturamos aqui pra mostrar um EmptyState explicativo em vez de quebrar a tela.
+  let crescimentoComparacao: ReturnType<typeof compararCrescimentoComposto> | null = null;
+  let erroCrescimento: string | null = null;
+  try {
+    crescimentoComparacao = compararCrescimentoComposto(cenarioCompleto, horizonteFoco);
+  } catch (e) {
+    erroCrescimento = e instanceof Error ? e.message : String(e);
+  }
+  const crescimentoFoco = crescimentoComparacao?.[estrategiaFoco] ?? null;
+  const chartDataCrescimento = (crescimentoFoco?.meses ?? []).map((m) => ({
+    mes: m.mes,
+    frota: m.frotaTotal,
+    caixa: m.caixaFinal,
+    divida: m.dividaTotal,
+    equity: m.equityTotal,
+    patrimonio: m.patrimonioLiquido,
+    receita: m.receita,
+    fluxoDeCaixa: m.fluxoDeCaixa,
+    compras: m.veiculosComprados,
+    vendas: m.veiculosVendidos,
+  }));
+  const mesesComCompraOuVenda = (crescimentoFoco?.meses ?? []).filter((m) => m.veiculosComprados > 0 || m.veiculosVendidos > 0);
 
   return (
     <div className="space-y-6">
@@ -294,6 +331,223 @@ export function ExpansaoDaFrota() {
           <CampoInteiro label="Horizonte" chave="horizonte_meses" input={input} onChange={atualizarCampo} sufixo="meses" />
           <CampoPercentual label="DSCR mínimo saudável" chave="dscr_minimo_saudavel" input={input} onChange={atualizarCampo} sufixo="×" casas={2} />
           <CampoPercentual label="DSCR mínimo de atenção" chave="dscr_minimo_atencao" input={input} onChange={atualizarCampo} sufixo="×" casas={2} />
+        </CardContent>
+      </Card>
+
+      {/* Fase 2 — Crescimento Composto (seção 2 do brief): Horizonte / Estratégia / Método, e as
+          premissas de "Renovação/Venda" (seção 11) — só relevantes quando o método usa venda. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Rocket className="h-4 w-4" /> Projeção de Crescimento — Fase 2 <Selo tipo="projecao" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-neutral-500">Horizonte</Label>
+              <Select value={String(horizonteFoco)} onChange={(e) => setHorizonteFoco(Number(e.target.value) as HorizonteCrescimento)}>
+                {[12, 24, 36, 48, 60].map((h) => (
+                  <option key={h} value={h}>{h} meses</option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-neutral-500">Estratégia</Label>
+              <Select value={estrategiaFoco} onChange={(e) => setEstrategiaFoco(e.target.value as EstrategiaExpansao)}>
+                {(Object.keys(ESTRATEGIAS) as EstrategiaExpansao[]).map((e) => (
+                  <option key={e} value={e}>{ESTRATEGIA_LABEL[e]}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-neutral-500">Método de crescimento</Label>
+              <Select
+                value={input.metodo_crescimento}
+                onChange={(e) => {
+                  const metodo = e.target.value as MetodoCrescimento;
+                  // Constraint do banco (migration 0033) exige vender_apos_meses > 0 quando
+                  // preenchido — inicializa com um valor válido em vez de deixar 0/inválido.
+                  if (metodo === 'caixa_e_venda' && input.vender_apos_meses === null) {
+                    atualizarCampo({ metodo_crescimento: metodo, vender_apos_meses: 12, valor_venda_por_veiculo: input.preco_veiculo });
+                  } else {
+                    atualizarCampo({ metodo_crescimento: metodo });
+                  }
+                }}
+              >
+                <option value="caixa_operacional">{METODO_CRESCIMENTO_LABEL.caixa_operacional}</option>
+                <option value="caixa_e_venda">{METODO_CRESCIMENTO_LABEL.caixa_e_venda}</option>
+                <option value="caixa_aporte" disabled>{METODO_CRESCIMENTO_LABEL.caixa_aporte}</option>
+              </Select>
+            </div>
+          </div>
+
+          {input.metodo_crescimento === 'caixa_e_venda' && (
+            <div className="grid grid-cols-1 gap-4 rounded-xl border border-neutral-200 p-3 sm:grid-cols-3 dark:border-white/10">
+              <CampoInteiro label="Vender cada veículo após" chave="vender_apos_meses" input={input} onChange={atualizarCampo} sufixo="meses" />
+              <CampoMoeda label="Valor de venda por veículo" chave="valor_venda_por_veiculo" input={input} onChange={atualizarCampo} />
+              <CampoPercentual label="Custos de venda" chave="venda_custos_pct" input={input} onChange={atualizarCampo} sufixo="%" />
+            </div>
+          )}
+
+          {erroCrescimento ? (
+            <EmptyState icon={AlertTriangle} title="Método ainda não implementado" description={erroCrescimento} />
+          ) : crescimentoFoco ? (
+            <>
+              {/* Dashboard executivo — seção 23 */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                <KpiCard icon={Car} label="Frota inicial → final" value={`${crescimentoFoco.frotaInicial} → ${crescimentoFoco.frotaFinal}`} />
+                <KpiCard icon={Rocket} label="Comprados / vendidos" value={`${crescimentoFoco.veiculosCompradosTotal} / ${crescimentoFoco.veiculosVendidosTotal}`} />
+                <KpiCard icon={Wallet} label="Caixa final" value={formatMoeda(crescimentoFoco.caixaFinal)} />
+                <KpiCard icon={TrendingDown} label="Dívida final" value={formatMoeda(crescimentoFoco.dividaFinal)} />
+                <KpiCard icon={Landmark} label="Equity final" value={formatMoeda(crescimentoFoco.equityFinal)} />
+                <KpiCard icon={Info} label="Receita acumulada" value={formatMoeda(crescimentoFoco.receitaAcumulada)} />
+                <KpiCard icon={Info} label="Fluxo de caixa acumulado" value={formatMoeda(crescimentoFoco.fluxoDeCaixaAcumulado)} />
+                <KpiCard icon={Landmark} label="Patrimônio final" value={formatMoeda(crescimentoFoco.patrimonioFinal)} />
+                <KpiCard
+                  icon={TrendingDown}
+                  label="Crescimento patrimonial"
+                  value={crescimentoFoco.crescimentoPatrimonialPct !== null ? formatPct(crescimentoFoco.crescimentoPatrimonialPct, 1) : '—'}
+                />
+                <KpiCard icon={ShieldCheck} label="Capital externo necessário" value={formatMoeda(crescimentoFoco.capitalExternoNecessario)} hint="Nesta fase o motor só simula crescimento autofinanciado — nunca aporte externo." />
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="font-semibold text-emerald-600">100% AUTOFINANCIADO</span>
+                <span className="text-neutral-400">— nenhum capital externo foi necessário nesta projeção (método de novo aporte ainda não implementado).</span>
+              </div>
+
+              {/* Próximo veículo — seção 19 */}
+              <div className="rounded-xl border border-neutral-200 p-3 dark:border-white/10">
+                <div className="mb-2 flex items-center gap-2">
+                  <Target className="h-3.5 w-3.5" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Próximo veículo além do horizonte</span>
+                  <Selo tipo="estimativa" />
+                </div>
+                {crescimentoFoco.proximoVeiculo.possivel ? (
+                  <p className="text-sm">
+                    Veículo #{crescimentoFoco.proximoVeiculo.numero} estimado para o mês {crescimentoFoco.proximoVeiculo.mesEstimado} (capital necessário {formatMoeda(crescimentoFoco.proximoVeiculo.capitalNecessario)}, projetado disponível {formatMoeda(crescimentoFoco.proximoVeiculo.capitalDisponivelProjetado)}).
+                  </p>
+                ) : (
+                  <p className="text-sm text-neutral-500">
+                    Bloqueado: <span className="font-medium text-amber-600">{crescimentoFoco.proximoVeiculo.motivo}</span> — faltam {formatMoeda(crescimentoFoco.proximoVeiculo.gap)} do capital mínimo necessário ({formatMoeda(crescimentoFoco.proximoVeiculo.capitalNecessario)}).
+                  </p>
+                )}
+              </div>
+
+              {/* Audit trail — seção 18: só eventos reais (compra/venda) + transições de bloqueio, não uma linha idêntica repetida todo mês. */}
+              <div>
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Como chegamos aqui — eventos da projeção</h4>
+                <div className="max-h-72 space-y-1.5 overflow-y-auto rounded-xl border border-neutral-200 p-2 dark:border-white/10">
+                  {crescimentoFoco.eventos.length === 0 ? (
+                    <p className="p-2 text-sm text-neutral-400">Nenhum evento — capital insuficiente até para o primeiro veículo desta estratégia.</p>
+                  ) : (
+                    crescimentoFoco.eventos.map((ev, i) => (
+                      <div
+                        key={i}
+                        className={`rounded-lg px-2 py-1.5 text-xs ${
+                          ev.tipo === 'compra_autorizada'
+                            ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'
+                            : ev.tipo === 'venda'
+                              ? 'bg-sky-50 text-sky-800 dark:bg-sky-950/30 dark:text-sky-300'
+                              : 'bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300'
+                        }`}
+                      >
+                        <span className="font-semibold">Mês {ev.mes}</span> — {ev.descricao}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Mês a mês — seção 16/17 */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-neutral-200 text-left uppercase tracking-wide text-neutral-400 dark:border-white/10">
+                      <th className="py-1.5 pr-3">Mês</th>
+                      <th className="py-1.5 pr-3">Frota</th>
+                      <th className="py-1.5 pr-3">Compras</th>
+                      <th className="py-1.5 pr-3">Vendas</th>
+                      <th className="py-1.5 pr-3">Caixa</th>
+                      <th className="py-1.5 pr-3">Dívida</th>
+                      <th className="py-1.5 pr-3">Equity</th>
+                      <th className="py-1.5 pr-3">Patrimônio líquido</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {crescimentoFoco.meses.map((m) => (
+                      <tr key={m.mes} className={`border-b border-neutral-100 dark:border-white/5 ${m.veiculosComprados > 0 || m.veiculosVendidos > 0 ? 'bg-neutral-50 dark:bg-white/[0.03]' : ''}`}>
+                        <td className="py-1.5 pr-3">{m.mes}</td>
+                        <td className="py-1.5 pr-3">{m.frotaTotal}</td>
+                        <td className="py-1.5 pr-3">{m.veiculosComprados || '—'}</td>
+                        <td className="py-1.5 pr-3">{m.veiculosVendidos || '—'}</td>
+                        <td className="py-1.5 pr-3">{formatMoeda(m.caixaFinal)}</td>
+                        <td className="py-1.5 pr-3">{formatMoeda(m.dividaTotal)}</td>
+                        <td className="py-1.5 pr-3">{formatMoeda(m.equityTotal)}</td>
+                        <td className="py-1.5 pr-3 font-medium">{formatMoeda(m.patrimonioLiquido)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Gráficos — seção 21/22: linhas verticais marcam meses com compra (verde) ou venda (azul). */}
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <GraficoLinha titulo="Frota total (projetada)" data={chartDataCrescimento} linhas={[{ key: 'frota', nome: 'Veículos', cor: '#6366f1' }]} formatador={(v) => `${v}`} marcos={mesesComCompraOuVenda} />
+                <GraficoLinha titulo="Caixa" data={chartDataCrescimento} linhas={[{ key: 'caixa', nome: 'Caixa', cor: '#10b981' }]} />
+                <GraficoLinha titulo="Dívida" data={chartDataCrescimento} linhas={[{ key: 'divida', nome: 'Dívida', cor: '#ef4444' }]} />
+                <GraficoLinha titulo="Equity" data={chartDataCrescimento} linhas={[{ key: 'equity', nome: 'Equity', cor: '#f59e0b' }]} />
+                <GraficoLinha titulo="Patrimônio líquido" data={chartDataCrescimento} linhas={[{ key: 'patrimonio', nome: 'Patrimônio líquido', cor: '#0ea5e9' }]} />
+                <GraficoLinha titulo="Receita mensal" data={chartDataCrescimento} linhas={[{ key: 'receita', nome: 'Receita', cor: '#8b5cf6' }]} />
+                <GraficoLinha titulo="Fluxo de caixa mensal" data={chartDataCrescimento} linhas={[{ key: 'fluxoDeCaixa', nome: 'Fluxo de caixa', cor: '#14b8a6' }]} />
+                <GraficoLinha titulo="Compras × Vendas por mês" data={chartDataCrescimento} linhas={[{ key: 'compras', nome: 'Compras', cor: '#22c55e' }, { key: 'vendas', nome: 'Vendas', cor: '#0ea5e9' }]} formatador={(v) => `${v}`} />
+              </div>
+
+              {/* Comparação das 3 estratégias — seção 24 */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-400 dark:border-white/10">
+                      <th className="py-2 pr-4">Estratégia</th>
+                      <th className="py-2 pr-4">Frota final</th>
+                      <th className="py-2 pr-4">Compras</th>
+                      <th className="py-2 pr-4">Vendas</th>
+                      <th className="py-2 pr-4">Receita acumulada</th>
+                      <th className="py-2 pr-4">Caixa final</th>
+                      <th className="py-2 pr-4">Dívida final</th>
+                      <th className="py-2 pr-4">Equity final</th>
+                      <th className="py-2 pr-4">Patrimônio final</th>
+                      <th className="py-2 pr-4">Capital externo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {crescimentoComparacao && (Object.keys(crescimentoComparacao) as EstrategiaExpansao[]).map((chave) => {
+                      const r = crescimentoComparacao![chave];
+                      return (
+                        <tr
+                          key={chave}
+                          onClick={() => setEstrategiaFoco(chave)}
+                          className={`cursor-pointer border-b border-neutral-100 dark:border-white/5 ${chave === estrategiaFoco ? 'bg-neutral-50 dark:bg-white/[0.04]' : ''}`}
+                        >
+                          <td className="py-2 pr-4 font-medium" style={{ color: ESTRATEGIA_COR[chave] }}>{ESTRATEGIA_LABEL[chave]}</td>
+                          <td className="py-2 pr-4">{r.frotaFinal}</td>
+                          <td className="py-2 pr-4">{r.veiculosCompradosTotal}</td>
+                          <td className="py-2 pr-4">{r.veiculosVendidosTotal}</td>
+                          <td className="py-2 pr-4">{formatMoeda(r.receitaAcumulada)}</td>
+                          <td className="py-2 pr-4">{formatMoeda(r.caixaFinal)}</td>
+                          <td className="py-2 pr-4">{formatMoeda(r.dividaFinal)}</td>
+                          <td className="py-2 pr-4">{formatMoeda(r.equityFinal)}</td>
+                          <td className="py-2 pr-4 font-medium">{formatMoeda(r.patrimonioFinal)}</td>
+                          <td className="py-2 pr-4">{formatMoeda(r.capitalExternoNecessario)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -420,11 +674,14 @@ function GraficoLinha({
   data,
   linhas,
   formatador,
+  marcos,
 }: {
   titulo: string;
   data: { mes: number }[];
   linhas: { key: string; nome: string; cor: string }[];
   formatador?: (v: number) => string;
+  /** Seção 22 — marca meses com compra (verde) ou venda (azul) com uma linha vertical tracejada. */
+  marcos?: { mes: number; veiculosComprados: number; veiculosVendidos: number }[];
 }) {
   const fmt = formatador ?? ((v: number) => formatMoeda(v));
   return (
@@ -440,6 +697,15 @@ function GraficoLinha({
             <YAxis fontSize={11} tickFormatter={fmt} width={90} />
             <Tooltip formatter={(v) => fmt(Number(v))} labelFormatter={(v) => `Mês ${v}`} />
             <Legend />
+            {marcos?.map((m) => (
+              <ReferenceLine
+                key={m.mes}
+                x={m.mes}
+                stroke={m.veiculosComprados > 0 ? '#22c55e' : '#0ea5e9'}
+                strokeDasharray="4 4"
+                strokeOpacity={0.6}
+              />
+            ))}
             {linhas.map((l) => (
               <Line key={l.key} type="monotone" dataKey={l.key} name={l.nome} stroke={l.cor} dot={false} strokeWidth={2} />
             ))}
