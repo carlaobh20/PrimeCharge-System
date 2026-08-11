@@ -5,6 +5,7 @@ import { MasterPlanForm } from '../components/MasterPlanForm';
 import { GrowthTimeline } from '../components/GrowthTimeline';
 import { RoadmapAutomatico } from '../components/RoadmapAutomatico';
 import { SimulacaoEmpresarial } from '../components/SimulacaoEmpresarial';
+import { ExpansaoDaFrota } from '../expansao/components/ExpansaoDaFrota';
 
 // Épico 3 — "Central de Decisão Empresarial" (reconstrução completa, 2026-08-09): deixou de ser
 // um formulário com botão Simular — agora é um dashboard interativo, tudo recalcula em tempo
@@ -45,6 +46,7 @@ export function CentroDeEstrategiaPage() {
             ),
           },
           { value: 'capital', label: 'Capital Allocation Center', content: <CapitalAllocationCenter /> },
+          { value: 'expansao', label: 'Expansão da Frota', content: <ExpansaoDaFrota /> },
           { value: 'politicas', label: 'Políticas', content: <PoliticasForm /> },
         ]}
       />
