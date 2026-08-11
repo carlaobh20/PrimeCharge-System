@@ -13,8 +13,9 @@ import { formatarMoedaInput, digitosParaReais } from '@/shared/lib/moedaInput';
 import { extrairMensagemTecnicaDeErro } from '@/shared/lib/errors';
 import { useEstadoRealFrota } from '../hooks/useEstadoRealFrota';
 import { useCenariosExpansao, useCriarCenarioExpansao, useAtualizarCenarioExpansao } from '../hooks/useCenarioExpansao';
+import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { compararEstrategias } from '../intelligence/motor';
-import { compararCrescimentoComposto } from '../intelligence/crescimentoComposto';
+import { compararCrescimentoComposto, construirFrotaRealParaProjecao } from '../intelligence/crescimentoComposto';
 import { ESTRATEGIAS } from '../intelligence/estrategias';
 import {
   ESTRATEGIA_LABEL,
@@ -100,6 +101,9 @@ function Selo({ tipo }: { tipo: 'real' | 'premissa' | 'projecao' | 'estimativa' 
 export function ExpansaoDaFrota() {
   const { data: usuario } = useCurrentUsuario();
   const estadoRealResult = useEstadoRealFrota();
+  // Fase 2.1, Parte 2 — contratos ativos são a fonte da receita REAL de cada veículo real dentro
+  // da projeção (ver construirFrotaRealParaProjecao). Mesmo hook já usado em Contratos/Cockpit.
+  const qContratosAtivos = useContratos({ status: 'ativo' });
   const { data: cenarios, isLoading: carregandoCenarios } = useCenariosExpansao();
   const criar = useCriarCenarioExpansao(usuario?.empresa_id ?? undefined, usuario?.id);
   const atualizar = useAtualizarCenarioExpansao();
@@ -152,7 +156,7 @@ export function ExpansaoDaFrota() {
     setInput((prev) => (prev ? { ...prev, ...patch } : prev));
   }
 
-  if (estadoRealResult.isLoading || !inicializado || !input) {
+  if (estadoRealResult.isLoading || qContratosAtivos.isLoading || !inicializado || !input) {
     return (
       <div className="space-y-4">
         <div className="h-24 cockpit-shimmer rounded-2xl" />
@@ -171,7 +175,20 @@ export function ExpansaoDaFrota() {
     );
   }
 
+  if (qContratosAtivos.isError) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+        Não consegui carregar os contratos ativos (necessários para a receita real da frota na projeção).
+        <br />
+        Detalhe técnico: {extrairMensagemTecnicaDeErro(qContratosAtivos.error)}
+      </div>
+    );
+  }
+
   const { estadoReal, veiculos } = estadoRealResult;
+  // Fase 2.1, Parte 2 — a mesma frota real (`veiculos`) que já alimenta os KPIs "Estado real da
+  // frota" acima agora também entra dentro do motor de crescimento, mês a mês.
+  const frotaReal = construirFrotaRealParaProjecao(veiculos, qContratosAtivos.data ?? []);
   const cenarioCompleto = { ...input, id: cenarioIdRef.current ?? 'novo', empresa_id: usuario?.empresa_id ?? '', criado_por: null, criado_em: '', atualizado_em: '' };
   const comparacao = compararEstrategias(cenarioCompleto, veiculos);
   const foco = comparacao[estrategiaFoco];
@@ -193,7 +210,7 @@ export function ExpansaoDaFrota() {
   let crescimentoComparacao: ReturnType<typeof compararCrescimentoComposto> | null = null;
   let erroCrescimento: string | null = null;
   try {
-    crescimentoComparacao = compararCrescimentoComposto(cenarioCompleto, horizonteFoco);
+    crescimentoComparacao = compararCrescimentoComposto(cenarioCompleto, horizonteFoco, frotaReal);
   } catch (e) {
     erroCrescimento = e instanceof Error ? e.message : String(e);
   }
@@ -343,6 +360,21 @@ export function ExpansaoDaFrota() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Fase 2.1, Parte 2/3 — a frota real (mesma da seção "Estado real da frota" acima)
+              agora entra dentro desta projeção desde o mês 0, com dívida e receita reais, não só
+              como um número de caixa agregado. Rotulagem explícita (Parte 3/4): quantos veículos
+              reais entraram, e quantos deles não têm valor de mercado/FIPE/compra cadastrado — a
+              dívida desses ainda conta, mas o valor do ativo não (nunca inventado). */}
+          {crescimentoFoco && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:border-white/10 dark:bg-white/5 dark:text-neutral-400">
+              <Selo tipo="real" />
+              <span>
+                {crescimentoFoco.frotaRealIntegrada} veículo(s) real(is) integrado(s) desde o mês 0 (dívida e receita real de cada um simuladas mês a mês).
+                {crescimentoFoco.frotaRealSemValorConhecido > 0 &&
+                  ` ${crescimentoFoco.frotaRealSemValorConhecido} sem valor de mercado/FIPE/compra cadastrado — a dívida entra no cálculo, o valor do ativo não (informação não disponível, não inventada).`}
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-1">
               <Label className="text-xs text-neutral-500">Horizonte</Label>
