@@ -149,7 +149,7 @@ function saldoDevedorFimDoMes(v: VeiculoSimulado, mes: number): number {
  * Simula UM momento de venda candidato (ou `null` = nunca vender) para o veículo descrito em
  * `cenario`, mês a mês até `cenario.horizonteMeses`.
  */
-export function simularMomentoDeVenda(cenario: CenarioDecisaoVenda, mesVenda: number | null): ResultadoMomentoDeVenda {
+export function simularMomentoDeVenda(cenario: CenarioDecisaoVenda, mesVenda: number | null, reinvestir: boolean = true): ResultadoMomentoDeVenda {
   const valorFinanciadoOriginal = Math.max(0, cenario.precoVeiculo - cenario.entrada);
   const tabelaOriginal = gerarTabelaAmortizacao(valorFinanciadoOriginal, cenario.taxaJurosAmPct, cenario.prazoFinanciamentoMeses, cenario.sistemaAmortizacao);
   const custoMensal = custoOperacionalMensal(cenario);
@@ -182,8 +182,11 @@ export function simularMomentoDeVenda(cenario: CenarioDecisaoVenda, mesVenda: nu
 
       // 2) Reinvestimento — só neste mês (rodada única, ver cabeçalho do arquivo): compra, em
       // loop, quantos veículos idênticos couberem sem deixar o caixa abaixo da reserva mínima.
+      // Fase 2 (Épico 10, item 17 do brief) — `reinvestir=false` isola o EFEITO PURO da venda,
+      // sem reciclagem: parâmetro aditivo, default `true` preserva 100% o comportamento da Fase
+      // 1 (validado 63/63) para qualquer chamada existente que não passe o 3º argumento.
       const custoMinimoParaComprar = cenario.entrada + cenario.reservaMinima;
-      while (caixa + EPS >= custoMinimoParaComprar) {
+      while (reinvestir && caixa + EPS >= custoMinimoParaComprar) {
         caixa -= cenario.entrada;
         capitalRecicladoUsadoEmNovaAquisicao += cenario.entrada;
         const valorFinanciadoNovo = Math.max(0, cenario.precoVeiculo - cenario.entrada);
