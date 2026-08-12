@@ -18,6 +18,7 @@ import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { compararEstrategias } from '../intelligence/motor';
 import { compararCrescimentoComposto, construirFrotaRealParaProjecao } from '../intelligence/crescimentoComposto';
 import { ESTRATEGIAS } from '../intelligence/estrategias';
+import { IntelligenciaDeRenovacao } from './IntelligenciaDeRenovacao';
 import {
   ESTRATEGIA_LABEL,
   METODO_CRESCIMENTO_LABEL,
@@ -356,6 +357,13 @@ export function ExpansaoDaFrota() {
           <CampoPercentual label="DSCR mínimo de atenção" chave="dscr_minimo_atencao" input={input} onChange={atualizarCampo} sufixo="×" casas={2} />
         </CardContent>
       </Card>
+
+      {/* Épico 10, Fase 3 — Inteligência de Renovação: "quando vender pra reciclar capital e
+          maximizar o patrimônio?". Vive depois do Estado Real e das Premissas (mesmo `input`
+          desta tela, sem cenário duplicado) e antes da Projeção de Crescimento — Fase 2, exatamente
+          onde o brief pediu. Consome comparadorMomentosDeVenda.ts/analiseDecisaoVenda.ts (Fase
+          1/2, já validados 63/63 + 65/65); não recalcula nada aqui. */}
+      <IntelligenciaDeRenovacao input={input} />
 
       {/* Fase 2 — Crescimento Composto (seção 2 do brief): Horizonte / Estratégia / Método, e as
           premissas de "Renovação/Venda" (seção 11) — só relevantes quando o método usa venda. */}
