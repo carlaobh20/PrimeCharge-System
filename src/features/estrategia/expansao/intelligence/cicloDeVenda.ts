@@ -262,3 +262,52 @@ export function simularCicloDeVenda(cenario: CenarioDecisaoVenda, opcoes: Opcoes
 }
 
 const fmt = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// ---------------------------------------------------------------------------------------------
+// Épico 10 — Fase 2.1: GRADE COMPLETA de geração 1 × geração 2 (a Fase 2 só validou 1 par
+// representativo, M12→M24 — "primeiro validar o fluxo", item 13 da Fase 2). Mecânico a partir
+// daqui: só chama `simularCicloDeVenda` pra cada combinação temporalmente válida (2ª venda >
+// 1ª venda) — nenhuma matemática nova.
+// ---------------------------------------------------------------------------------------------
+
+export type PontoGrade = {
+  mesVendaGeracao1: number;
+  /** null = variante "geração 1 vende, geração 2 nunca vende" — incluída como baseline de
+   * comparação pra cada candidato de 1ª venda, não só os pares com 2ª venda. */
+  mesVendaGeracao2: number | null;
+  patrimonioFinalNoHorizonte: number;
+  frotaFinalUnidades: number;
+  frotaGeracao2Final: number;
+  capitalLiberadoTotal: number;
+  capitalUtilizadoTotal: number;
+  capitalOciosoFinal: number;
+};
+
+/**
+ * Varre todas as combinações temporalmente válidas (`mesVendaGeracao2 > mesVendaGeracao1`) entre
+ * `candidatosG1` e `candidatosG2`, mais 1 baseline "geração 2 nunca vende" por candidato de G1.
+ */
+export function varrerGradeDeVendas(cenario: CenarioDecisaoVenda, candidatosG1: number[], candidatosG2: number[], dscrMinimoAtencao: number): PontoGrade[] {
+  const resultados: PontoGrade[] = [];
+  const extrair = (r: ResultadoCicloDeVenda, m1: number, m2: number | null): PontoGrade => ({
+    mesVendaGeracao1: m1,
+    mesVendaGeracao2: m2,
+    patrimonioFinalNoHorizonte: r.patrimonioFinalNoHorizonte,
+    frotaFinalUnidades: r.frotaFinalUnidades,
+    frotaGeracao2Final: r.frotaGeracao2Final,
+    capitalLiberadoTotal: r.capitalLiberadoTotal,
+    capitalUtilizadoTotal: r.capitalUtilizadoTotal,
+    capitalOciosoFinal: r.capitalOciosoFinal,
+  });
+
+  for (const m1 of candidatosG1) {
+    const semVendaG2 = simularCicloDeVenda(cenario, { mesVendaGeracao1: m1, reinvestirGeracao1: true, mesVendaGeracao2: null, dscrMinimoAtencao });
+    resultados.push(extrair(semVendaG2, m1, null));
+    for (const m2 of candidatosG2) {
+      if (m2 <= m1) continue; // só combinações temporalmente válidas.
+      const r = simularCicloDeVenda(cenario, { mesVendaGeracao1: m1, reinvestirGeracao1: true, mesVendaGeracao2: m2, dscrMinimoAtencao });
+      resultados.push(extrair(r, m1, m2));
+    }
+  }
+  return resultados;
+}
