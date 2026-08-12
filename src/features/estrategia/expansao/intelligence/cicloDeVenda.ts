@@ -1,6 +1,7 @@
 import { gerarTabelaAmortizacao, type LinhaAmortizacao } from '@/shared/lib/amortizacao';
 import { SEMANAS_POR_MES } from '../../intelligence/simulacaoEmpresarial';
 import type { CenarioDecisaoVenda, MesDecisaoVenda } from './comparadorMomentosDeVenda';
+import { avaliarCapacidadeDeCompra } from './capacidadeDeCompra';
 
 // Épico 10 — Fase 2, itens 9-19: MULTICICLO. A Fase 1 (`comparadorMomentosDeVenda.ts`) só sabe
 // vender o veículo original 1 vez ("rodada única de reinvestimento", ver cabeçalho daquele
@@ -16,12 +17,13 @@ import type { CenarioDecisaoVenda, MesDecisaoVenda } from './comparadorMomentosD
 // deliberado em geração 3". Se surgir necessidade real de N gerações arbitrárias, esse é o
 // momento de unificar os dois num motor genérico — não antes, sem 3º caso concreto pedindo.
 //
-// DSCR (item 16): reutiliza o MESMO formato de gate de `crescimentoComposto.ts`
-// (`tentarComprar` — NOI/parcelasProjetadas, comparado contra `dscr_minimo_atencao`) — não um
-// import direto (a função lá é local ao closure daquele motor, não exportada), mas a mesma
-// fórmula, documentada aqui para ficar auditável lado a lado.
-
-const EPS = 1;
+// DSCR (item 16): usa a mesma trava de `crescimentoComposto.ts` (NOI/parcelasProjetadas, contra
+// `dscrMinimoAtencao`) — Fase 3.2 (2026-08-12): extraída pra `avaliarCapacidadeDeCompra`
+// (capacidadeDeCompra.ts), fonte única compartilhada com `crescimentoComposto.ts` e
+// `comparadorMomentosDeVenda.ts` (a auditoria da Fase 3.1 encontrou os 2 motores do Épico 10
+// divergindo por essa fórmula existir só aqui). O limite de DSCR agora vem de
+// `cenario.dscrMinimoAtencao` (não mais de `opcoes.dscrMinimoAtencao` — não fazia sentido 2
+// lugares pra configurar o mesmo número).
 
 export type OpcoesCicloDeVenda = {
   mesVendaGeracao1: number | null;
@@ -29,9 +31,6 @@ export type OpcoesCicloDeVenda = {
   reinvestirGeracao1: boolean;
   /** Só tem efeito se `reinvestirGeracao1` gerou pelo menos 1 veículo de geração 2. */
   mesVendaGeracao2: number | null;
-  /** Gate de dívida na compra de reposição — mesma fórmula de crescimentoComposto.ts. Default:
-   * `dscr_minimo_atencao` já usado em produção no Motor de Expansão (ExpansaoDaFrota.tsx). */
-  dscrMinimoAtencao: number;
 };
 
 export type EventoCiclo = {
@@ -118,19 +117,24 @@ export function simularCicloDeVenda(cenario: CenarioDecisaoVenda, opcoes: Opcoes
     return veiculos.filter((v) => !v.vendido);
   }
 
-  /** Mesma fórmula de gate de crescimentoComposto.ts (`tentarComprar`): reserva mínima + DSCR
-   * projetado do próximo mês incluindo o veículo candidato. */
+  /** Fase 3.2 — delega o gate (reserva + DSCR) pra `avaliarCapacidadeDeCompra`, a mesma função
+   * que `crescimentoComposto.ts` e `comparadorMomentosDeVenda.ts` agora chamam. */
   function podeComprar(mes: number): { pode: boolean; motivo?: 'reserva' | 'dscr'; dscrProjetado?: number } {
-    const custoMinimo = cenario.entrada + cenario.reservaMinima;
-    if (caixa + EPS < custoMinimo) return { pode: false, motivo: 'reserva' };
     const ativosAtuais = ativos();
     const parcelasAtivasProjetadas = ativosAtuais.reduce((s, v) => s + parcelaNoMes(v, mes + 1).parcela, 0);
     const parcelaPrimeiraDoNovo = tabelaPadrao()[0]?.parcela ?? 0;
     const noiAtual = ativosAtuais.length * (receitaMensal - custoMensal);
-    const noiProjetado = noiAtual + (receitaMensal - custoMensal);
-    const parcelasProjetadas = parcelasAtivasProjetadas + parcelaPrimeiraDoNovo;
-    const dscrProjetado = parcelasProjetadas > 0 ? noiProjetado / parcelasProjetadas : null;
-    if (dscrProjetado !== null && dscrProjetado < opcoes.dscrMinimoAtencao) return { pode: false, motivo: 'dscr', dscrProjetado };
+    const resultado = avaliarCapacidadeDeCompra({
+      caixa,
+      entrada: cenario.entrada,
+      reservaMinima: cenario.reservaMinima,
+      noiAtual,
+      noiMarginalCandidato: receitaMensal - custoMensal,
+      parcelasAtivasProjetadas,
+      parcelaCandidato: parcelaPrimeiraDoNovo,
+      dscrMinimoAtencao: cenario.dscrMinimoAtencao,
+    });
+    if (!resultado.pode) return resultado;
     return { pode: true };
   }
 
@@ -180,7 +184,7 @@ export function simularCicloDeVenda(cenario: CenarioDecisaoVenda, opcoes: Opcoes
               descricao:
                 check.motivo === 'reserva'
                   ? `Compra bloqueada no mês ${mes}: caixa (${fmt(caixa)}) não cobre entrada + reserva mínima (${fmt(cenario.entrada + cenario.reservaMinima)}).`
-                  : `Compra bloqueada no mês ${mes}: DSCR projetado (${check.dscrProjetado?.toFixed(2)}×) abaixo do mínimo de atenção (${opcoes.dscrMinimoAtencao.toFixed(2)}×).`,
+                  : `Compra bloqueada no mês ${mes}: DSCR projetado (${check.dscrProjetado?.toFixed(2)}×) abaixo do mínimo de atenção (${cenario.dscrMinimoAtencao.toFixed(2)}×).`,
             });
             break;
           }
@@ -287,7 +291,7 @@ export type PontoGrade = {
  * Varre todas as combinações temporalmente válidas (`mesVendaGeracao2 > mesVendaGeracao1`) entre
  * `candidatosG1` e `candidatosG2`, mais 1 baseline "geração 2 nunca vende" por candidato de G1.
  */
-export function varrerGradeDeVendas(cenario: CenarioDecisaoVenda, candidatosG1: number[], candidatosG2: number[], dscrMinimoAtencao: number): PontoGrade[] {
+export function varrerGradeDeVendas(cenario: CenarioDecisaoVenda, candidatosG1: number[], candidatosG2: number[]): PontoGrade[] {
   const resultados: PontoGrade[] = [];
   const extrair = (r: ResultadoCicloDeVenda, m1: number, m2: number | null): PontoGrade => ({
     mesVendaGeracao1: m1,
@@ -301,11 +305,11 @@ export function varrerGradeDeVendas(cenario: CenarioDecisaoVenda, candidatosG1: 
   });
 
   for (const m1 of candidatosG1) {
-    const semVendaG2 = simularCicloDeVenda(cenario, { mesVendaGeracao1: m1, reinvestirGeracao1: true, mesVendaGeracao2: null, dscrMinimoAtencao });
+    const semVendaG2 = simularCicloDeVenda(cenario, { mesVendaGeracao1: m1, reinvestirGeracao1: true, mesVendaGeracao2: null });
     resultados.push(extrair(semVendaG2, m1, null));
     for (const m2 of candidatosG2) {
       if (m2 <= m1) continue; // só combinações temporalmente válidas.
-      const r = simularCicloDeVenda(cenario, { mesVendaGeracao1: m1, reinvestirGeracao1: true, mesVendaGeracao2: m2, dscrMinimoAtencao });
+      const r = simularCicloDeVenda(cenario, { mesVendaGeracao1: m1, reinvestirGeracao1: true, mesVendaGeracao2: m2 });
       resultados.push(extrair(r, m1, m2));
     }
   }

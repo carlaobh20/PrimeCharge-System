@@ -30,14 +30,16 @@ import type { CenarioExpansaoInput } from '../types';
 // `venda_valor_estimado` quando existir, senão de `preco_veiculo`, sempre editável e rotulado
 // como PREMISSA.
 //
-// DECISÃO REGISTRADA #2 (escopo): só o motor de 1 geração (Fase 1/2) alimenta esta tela.
-// `cicloDeVenda.ts` (multiciclo geração 1→2, com trava de DSCR) fica FORA por ora — ver nota no
-// card "Por que" abaixo. Motivo: os dois motores têm estruturas de cenário e regras de trava
-// diferentes (o comparador de 1 geração não trava por DSCR, só por reserva mínima); misturar os
-// dois na mesma tela arriscava mostrar dois números de "patrimônio final" inconsistentes entre
-// si pro mesmo mês. Sem um caso de uso concreto pedido pra essa combinação ainda (Regra dos 3),
-// a escolha mais honesta é não modelar DSCR aqui e dizer isso explicitamente, em vez de inventar
-// um número ou misturar motores silenciosamente.
+// DECISÃO REGISTRADA #2 (escopo, ATUALIZADA na Fase 3.2): só o motor de 1 geração (Fase 1/2)
+// alimenta esta tela — `cicloDeVenda.ts` (multiciclo geração 1→2) continua FORA. Na Fase 3.1, a
+// auditoria (`relatorio-epico10-fase3.1-auditoria-2026-08-12.md`) encontrou os dois motores do
+// Épico 10 divergindo: o comparador de 1 geração só travava reinvestimento por reserva mínima,
+// nunca por DSCR, o que podia recomendar uma compra que o motor com DSCR bloquearia (achado
+// concreto: caixa terminando negativo num cenário de reserva baixa + economia marginal). Na Fase
+// 3.2, a MESMA trava de DSCR de `cicloDeVenda.ts`/`crescimentoComposto.ts` foi extraída pra
+// `capacidadeDeCompra.ts` (fonte única) e `comparadorMomentosDeVenda.ts` passou a chamá-la
+// também — esta tela agora respeita reserva mínima E DSCR, com o mesmo limite
+// (`dscr_minimo_atencao`) já editável em "Premissas do próximo veículo".
 
 const CANDIDATOS_MESES_PASSO = 3;
 const MAX_CANDIDATOS = 12;
@@ -57,6 +59,9 @@ function construirCenarioDecisaoVenda(input: CenarioExpansaoInput, valorVenda: n
     manutencaoPorKm: input.manutencao_por_km,
     kmMensal: input.km_mensal_por_veiculo,
     reservaMinima: input.reserva_minima,
+    // Fase 3.2 — mesmo limite de DSCR já editável em "Premissas do próximo veículo" (única fonte
+    // de verdade: nenhum limite novo/paralelo criado pra esta seção).
+    dscrMinimoAtencao: input.dscr_minimo_atencao,
     valorVenda,
     vendaCustosPct: input.venda_custos_pct,
     horizonteMeses: input.horizonte_meses,
@@ -313,7 +318,7 @@ function PorQueCard({
         </div>
         <p className="flex items-start gap-1.5 text-xs text-neutral-400">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          DSCR não é uma trava neste motor (comparador de 1 geração, Fase 1/2) — só o motor multiciclo (`cicloDeVenda.ts`, geração 1→2) aplica DSCR, com uma estrutura de cenário diferente. Não misturado nesta tela pra não gerar dois números de patrimônio inconsistentes.
+          "Novos veículos" já respeita reserva mínima E DSCR mínimo de atenção (mesmo limite de "Premissas do próximo veículo") — nenhuma nova aquisição aparece aqui se o DSCR projetado dela ficasse abaixo do mínimo, mesmo com caixa suficiente pra entrada.
         </p>
       </CardContent>
     </Card>

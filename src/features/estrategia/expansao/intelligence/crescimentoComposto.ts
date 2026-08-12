@@ -4,6 +4,7 @@ import { resolverValorAtualVeiculo } from '@/shared/lib/valorAtivo';
 import { calcularReceitaMensalEquivalente } from '@/shared/lib/receitaContrato';
 import { SEMANAS_POR_MES } from '../../intelligence/simulacaoEmpresarial';
 import { ESTRATEGIAS } from './estrategias';
+import { avaliarCapacidadeDeCompra } from './capacidadeDeCompra';
 import type { Veiculo } from '@/features/frota/types';
 import type { Contrato } from '@/features/contracts/types';
 import type {
@@ -165,43 +166,61 @@ export function calcularCrescimentoComposto(
   // mínima da estratégia e (2) capacidade de dívida projetada (DSCR do próximo mês, incluindo o
   // veículo novo, não pode furar dscr_minimo_atencao do cenário). Loop compra quanto couber no
   // mesmo mês (pode ser >1), cada compra decrementando o caixa — sempre termina porque entrada > 0.
+  //
+  // Fase 3.2 (Épico 10, 2026-08-12) — o gate em si (reserva, depois DSCR) foi extraído pra
+  // `avaliarCapacidadeDeCompra` (capacidadeDeCompra.ts), a mesma função que `cicloDeVenda.ts` e
+  // `comparadorMomentosDeVenda.ts` agora chamam (fonte única — auditoria
+  // `relatorio-epico10-fase3.1-auditoria-2026-08-12.md`). O que fica só aqui: como montar
+  // `noiAtual`/`parcelasAtivasProjetadas` a partir da frota REAL por veículo (Fase 2.1) e o
+  // desconto de `contador_mensal` — específico do modelo do Épico 9, a função compartilhada não
+  // sabe disso, só recebe o NOI já pronto. `epsilonCaixa: EPS` (1e-6) preserva a tolerância
+  // exata já validada deste motor (os outros 2 arquivos usam 1, o default da função).
   function tentarComprar(mes: number, veiculosAtivos: VeiculoProjetado[]) {
     for (;;) {
-      if (caixaExpansao + EPS < custoMinimoParaComprar) {
-        if (ultimoMotivoBloqueio !== 'reserva_insuficiente') {
-          eventos.push({
-            mes,
-            tipo: 'compra_bloqueada',
-            veiculoNumero: proximoNumero,
-            motivoBloqueio: 'reserva_insuficiente',
-            descricao: `Caixa disponível (${fmt(caixaExpansao)}) não cobre entrada + reserva mínima (${fmt(custoMinimoParaComprar)}).`,
-            numeros: { caixaDisponivel: caixaExpansao, entradaNecessaria: cenario.entrada_por_veiculo, reservaMinima: reservaAplicada, gap: custoMinimoParaComprar - caixaExpansao },
-          });
-          ultimoMotivoBloqueio = 'reserva_insuficiente';
-        }
-        return;
-      }
-
       const parcelasAtivasProjetadas = veiculosAtivos.reduce((soma, v) => soma + parcelaAtivaNoMes(v, mes + 1).parcela, 0);
       // Fase 2.1 — NOI por veículo (não mais uniforme): cada veículo real contribui sua própria
       // receita real (contrato ativo, ou 0) menos a mesma premissa de custo operacional; isso é
       // o que torna o DSCR de compra sensível à frota real de verdade, não só à projetada.
       const noiAtual = veiculosAtivos.reduce((soma, v) => soma + (v.receitaMensal - v.custoOperacionalMensal), 0) - cenario.contador_mensal;
-      const noiProjetado = noiAtual + (receitaUnitaria - custoOperacionalUnitario);
-      const parcelasProjetadas = parcelasAtivasProjetadas + parcelaPrimeiraMensal;
-      const dscrProjetado = parcelasProjetadas > 0 ? noiProjetado / parcelasProjetadas : null;
+      const resultado = avaliarCapacidadeDeCompra({
+        caixa: caixaExpansao,
+        entrada: cenario.entrada_por_veiculo,
+        reservaMinima: reservaAplicada,
+        noiAtual,
+        noiMarginalCandidato: receitaUnitaria - custoOperacionalUnitario,
+        parcelasAtivasProjetadas,
+        parcelaCandidato: parcelaPrimeiraMensal,
+        dscrMinimoAtencao: cenario.dscr_minimo_atencao,
+        epsilonCaixa: EPS,
+      });
 
-      if (dscrProjetado !== null && dscrProjetado < cenario.dscr_minimo_atencao) {
-        if (ultimoMotivoBloqueio !== 'limite_de_divida') {
-          eventos.push({
-            mes,
-            tipo: 'compra_bloqueada',
-            veiculoNumero: proximoNumero,
-            motivoBloqueio: 'limite_de_divida',
-            descricao: `DSCR projetado do próximo mês com este veículo (${dscrProjetado.toFixed(2)}×) ficaria abaixo do mínimo de atenção (${cenario.dscr_minimo_atencao.toFixed(2)}×). Caixa disponível, mas a dívida bloqueia.`,
-            numeros: { dscrProjetado, dscrMinimoAtencao: cenario.dscr_minimo_atencao, parcelasProjetadas, noiProjetado },
-          });
-          ultimoMotivoBloqueio = 'limite_de_divida';
+      if (!resultado.pode) {
+        if (resultado.motivo === 'reserva') {
+          if (ultimoMotivoBloqueio !== 'reserva_insuficiente') {
+            eventos.push({
+              mes,
+              tipo: 'compra_bloqueada',
+              veiculoNumero: proximoNumero,
+              motivoBloqueio: 'reserva_insuficiente',
+              descricao: `Caixa disponível (${fmt(caixaExpansao)}) não cobre entrada + reserva mínima (${fmt(custoMinimoParaComprar)}).`,
+              numeros: { caixaDisponivel: caixaExpansao, entradaNecessaria: cenario.entrada_por_veiculo, reservaMinima: reservaAplicada, gap: custoMinimoParaComprar - caixaExpansao },
+            });
+            ultimoMotivoBloqueio = 'reserva_insuficiente';
+          }
+        } else {
+          if (ultimoMotivoBloqueio !== 'limite_de_divida') {
+            const noiProjetado = noiAtual + (receitaUnitaria - custoOperacionalUnitario);
+            const parcelasProjetadas = parcelasAtivasProjetadas + parcelaPrimeiraMensal;
+            eventos.push({
+              mes,
+              tipo: 'compra_bloqueada',
+              veiculoNumero: proximoNumero,
+              motivoBloqueio: 'limite_de_divida',
+              descricao: `DSCR projetado do próximo mês com este veículo (${resultado.dscrProjetado.toFixed(2)}×) ficaria abaixo do mínimo de atenção (${cenario.dscr_minimo_atencao.toFixed(2)}×). Caixa disponível, mas a dívida bloqueia.`,
+              numeros: { dscrProjetado: resultado.dscrProjetado, dscrMinimoAtencao: cenario.dscr_minimo_atencao, parcelasProjetadas, noiProjetado },
+            });
+            ultimoMotivoBloqueio = 'limite_de_divida';
+          }
         }
         return;
       }

@@ -1,5 +1,6 @@
 import { gerarTabelaAmortizacao, type LinhaAmortizacao, type SistemaAmortizacao } from '@/shared/lib/amortizacao';
 import { SEMANAS_POR_MES } from '../../intelligence/simulacaoEmpresarial';
+import { avaliarCapacidadeDeCompra } from './capacidadeDeCompra';
 
 // Épico 10 — "Inteligência de Renovação e Reciclagem de Capital", Fase 1. Responde à pergunta
 // central pedida pelo Carlos: "quando vender um carro para reciclar capital e maximizar o
@@ -53,6 +54,11 @@ export type CenarioDecisaoVenda = {
   manutencaoPorKm: number;
   kmMensal: number;
   reservaMinima: number;
+  /** Fase 3.2 — trava de reinvestimento, mesma regra de `crescimentoComposto.ts`/`cicloDeVenda.ts`
+   * (auditoria: `relatorio-epico10-fase3.1-auditoria-2026-08-12.md`). Campo obrigatório desde a
+   * Fase 3.2 (antes deste campo, o reinvestimento só checava reserva mínima — o que permitia
+   * recomendar compras que o motor com DSCR bloquearia). */
+  dscrMinimoAtencao: number;
   /** PREMISSA do usuário (ou DADO REAL, se o veículo já foi vendido de fato) — nunca FIPE/mercado/IA nesta fase (DEC-022). */
   valorVenda: number;
   vendaCustosPct: number;
@@ -105,8 +111,6 @@ export type ResultadoMomentoDeVenda = {
   /** Seção 6 — RETORNO DO CAPITAL: patrimônio final / entrada. Mesma base de `crescimentoPatrimonialMultiplo` — ver nota nesse campo. */
   retornoDoCapitalMultiplo: number | null;
 };
-
-const EPS = 1;
 
 function custoOperacionalMensal(c: CenarioDecisaoVenda): number {
   return c.seguroMensalPorVeiculo + c.ipvaAnualPorVeiculo / 12 + c.rastreadorMensalPorVeiculo + c.manutencaoPorKm * c.kmMensal;
@@ -181,15 +185,31 @@ export function simularMomentoDeVenda(cenario: CenarioDecisaoVenda, mesVenda: nu
       veiculoOriginal = null;
 
       // 2) Reinvestimento — só neste mês (rodada única, ver cabeçalho do arquivo): compra, em
-      // loop, quantos veículos idênticos couberem sem deixar o caixa abaixo da reserva mínima.
-      // Fase 2 (Épico 10, item 17 do brief) — `reinvestir=false` isola o EFEITO PURO da venda,
-      // sem reciclagem: parâmetro aditivo, default `true` preserva 100% o comportamento da Fase
-      // 1 (validado 63/63) para qualquer chamada existente que não passe o 3º argumento.
-      const custoMinimoParaComprar = cenario.entrada + cenario.reservaMinima;
-      while (reinvestir && caixa + EPS >= custoMinimoParaComprar) {
+      // loop, quantos veículos idênticos couberem sem deixar o caixa abaixo da reserva mínima E
+      // sem furar o DSCR projetado. Fase 2 (item 17 do brief) — `reinvestir=false` isola o
+      // EFEITO PURO da venda, sem reciclagem. Fase 3.2 (auditoria
+      // `relatorio-epico10-fase3.1-auditoria-2026-08-12.md`, categoria C): até aqui só a reserva
+      // travava — o mesmo gate de `cicloDeVenda.ts`/`crescimentoComposto.ts` (extraído pra
+      // `avaliarCapacidadeDeCompra`, única fonte de verdade) agora também trava por DSCR, pra
+      // este motor nunca recomendar um reinvestimento que os outros dois bloqueariam.
+      const valorFinanciadoNovo = Math.max(0, cenario.precoVeiculo - cenario.entrada);
+      const parcelaCandidato = gerarTabelaAmortizacao(valorFinanciadoNovo, cenario.taxaJurosAmPct, cenario.prazoFinanciamentoMeses, cenario.sistemaAmortizacao)[0]?.parcela ?? 0;
+      while (reinvestir) {
+        const parcelasAtivasProjetadas = veiculosReinvestidos.reduce((s, v) => s + parcelaNoMes(v, mes + 1).parcela, 0);
+        const noiAtual = veiculosReinvestidos.length * (receitaMensal - custoMensal);
+        const check = avaliarCapacidadeDeCompra({
+          caixa,
+          entrada: cenario.entrada,
+          reservaMinima: cenario.reservaMinima,
+          noiAtual,
+          noiMarginalCandidato: receitaMensal - custoMensal,
+          parcelasAtivasProjetadas,
+          parcelaCandidato,
+          dscrMinimoAtencao: cenario.dscrMinimoAtencao,
+        });
+        if (!check.pode) break;
         caixa -= cenario.entrada;
         capitalRecicladoUsadoEmNovaAquisicao += cenario.entrada;
-        const valorFinanciadoNovo = Math.max(0, cenario.precoVeiculo - cenario.entrada);
         const tabelaNova = gerarTabelaAmortizacao(valorFinanciadoNovo, cenario.taxaJurosAmPct, cenario.prazoFinanciamentoMeses, cenario.sistemaAmortizacao);
         veiculosReinvestidos.push({ mesCompra: mes, tabela: tabelaNova });
         eventos.push({ tipo: 'reinvestimento', mes, entradaUtilizada: cenario.entrada });
