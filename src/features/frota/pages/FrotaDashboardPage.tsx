@@ -24,7 +24,12 @@ export function FrotaDashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-3">
-        <KpiCard icon={Car} label="Total de veículos" value={String(dash.totalVeiculos)} to="/veiculos" />
+        {/* ?tab=todos (não /veiculos puro): clicar aqui a partir do próprio Dashboard é uma
+            navegação pra URL IDÊNTICA se não houver querystring nenhuma — o React Router não
+            dispara nada nesse caso (achado ao testar ao vivo no Chrome), então o card parecia
+            não fazer nada. ?tab=todos sempre muda a URL, o que aciona o key={abaInicial} de
+            FrotaPage.tsx e troca a aba de verdade. */}
+        <KpiCard icon={Car} label="Total de veículos" value={String(dash.totalVeiculos)} to="/veiculos?tab=todos" />
         <KpiCard
           icon={Gauge}
           label="Health médio"
