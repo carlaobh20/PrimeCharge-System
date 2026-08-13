@@ -159,6 +159,20 @@ export const LABEL_ESTRATEGIA_AMORTIZACAO: Record<EstrategiaAmortizacao, string>
   manual: 'Amortização manual',
 };
 
+// Auditoria "Simulador Financeiro — Visão Executiva" (2026-08-13) — o sistema só tinha
+// entrada/financiado, sem jeito explícito de saber se o dono quis dizer "à vista" (preço cheio
+// digitado em Entrada, Financiado zerado) ou "financiado" de verdade. Numericamente os dois casos
+// já funcionavam sem essa coluna (preço = entrada + financiado sempre; capital próprio = entrada
+// sempre), mas a INTERFACE precisa saber qual bloco de campos mostrar, sem reprocessar isso toda
+// vez que o cenário é reaberto. Ver migration 0038 pra regra de compatibilidade com cenários
+// salvos antes desta coluna existir.
+export const FORMAS_AQUISICAO = ['avista', 'financiado'] as const;
+export type FormaAquisicao = (typeof FORMAS_AQUISICAO)[number];
+export const LABEL_FORMA_AQUISICAO: Record<FormaAquisicao, string> = {
+  avista: 'À vista',
+  financiado: 'Financiado',
+};
+
 export type CenarioSimulacao = {
   id: string;
   empresa_id: string;
@@ -167,6 +181,7 @@ export type CenarioSimulacao = {
   capital_disponivel: number;
   veiculos_iniciais: number;
 
+  forma_aquisicao: FormaAquisicao;
   valor_entrada_por_veiculo: number;
   valor_financiado_por_veiculo: number;
   taxa_juros_am_pct: number;

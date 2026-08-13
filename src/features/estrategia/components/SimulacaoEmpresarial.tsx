@@ -3,6 +3,7 @@ import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { PainelDePremissas } from './PainelDePremissas';
 import { VisaoExecutivaCard } from './VisaoExecutivaCard';
+import { AquisicaoInicialAlerta } from './AquisicaoInicialAlerta';
 import { FluxoDeCaixaChart } from './FluxoDeCaixaChart';
 import { SaldoDevedorPatrimonioChart } from './SaldoDevedorPatrimonioChart';
 import { LinhaDoTempo } from './LinhaDoTempo';
@@ -13,7 +14,6 @@ import { FluxoDetalhadoTable } from './FluxoDetalhadoTable';
 import { MargemDeSegurancaCard } from './MargemDeSegurancaCard';
 import { DinheiroDoBolsoCard } from './DinheiroDoBolsoCard';
 import { useCenarios, useCriarCenario, useAtualizarCenario } from '../hooks/useSimulacao';
-import { usePoliticasEstrategicas } from '../hooks/usePoliticas';
 import { useSimulacaoResultado } from '../hooks/useSimulacaoResultado';
 import { useMomentoDeCompra } from '../hooks/useMomentoDeCompra';
 import { calcularMargemDeSeguranca, calcularRunway } from '../intelligence/margemDeSeguranca';
@@ -23,6 +23,7 @@ const CENARIO_PADRAO: CenarioSimulacaoInput = {
   nome: 'Cenário principal',
   capital_disponivel: 50000,
   veiculos_iniciais: 1,
+  forma_aquisicao: 'financiado',
   valor_entrada_por_veiculo: 36000,
   valor_financiado_por_veiculo: 80000,
   taxa_juros_am_pct: 1.19,
@@ -67,7 +68,6 @@ function extrairInput(c: Record<string, unknown>): CenarioSimulacaoInput {
 export function SimulacaoEmpresarial() {
   const { data: usuario } = useCurrentUsuario();
   const { data: cenarios, isLoading: carregandoCenarios } = useCenarios();
-  const { data: politicas } = usePoliticasEstrategicas();
   const criar = useCriarCenario(usuario?.empresa_id ?? undefined, usuario?.id);
   const atualizar = useAtualizarCenario();
 
@@ -155,7 +155,8 @@ export function SimulacaoEmpresarial() {
       <PainelDePremissas valor={input} onChange={atualizarCampo} mesAtual={mesAtual} />
 
       <div className="min-w-0 space-y-4">
-        {mesAtual && <VisaoExecutivaCard mesAtual={mesAtual} alavancagemMaximaPct={politicas?.alavancagem_maxima_pct ?? null} />}
+        {resultado && <AquisicaoInicialAlerta aquisicaoInicial={resultado.aquisicaoInicial} />}
+        {mesAtual && resultado && <VisaoExecutivaCard mesAtual={mesAtual} payback={resultado.payback} />}
         {mesAtual && <DinheiroDoBolsoCard mesAtual={mesAtual} />}
         {/* Fluxo Detalhado (tabela ano a ano) vem antes do gráfico de Fluxo de Caixa — pedido
             explícito do Carlos: quem quer o número exato lê a tabela, quem quer a tendência olha

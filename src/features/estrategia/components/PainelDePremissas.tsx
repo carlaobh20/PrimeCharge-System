@@ -5,6 +5,7 @@ import { Label } from '@/shared/components/ui/label';
 import { formatMoeda } from '@/shared/lib/format';
 import { formatarMoedaInput, digitosParaReais } from '@/shared/lib/moedaInput';
 import { AmortizacaoCard } from './AmortizacaoCard';
+import { FormaAquisicaoCard } from './FormaAquisicaoCard';
 import type { MesSimulado } from '../intelligence/simulacaoEmpresarial';
 import type { CenarioSimulacaoInput } from '../types';
 
@@ -84,14 +85,12 @@ const GRUPOS: Grupo[] = [
     ],
   },
   {
+    // Auditoria 2026-08-13, Parte 2 — Entrada/Financiado/Prazo/Juros saíram daqui: agora moram no
+    // FormaAquisicaoCard (renderizado logo abaixo, mesmo truque de posição já usado pro
+    // AmortizacaoCard), porque quais desses campos aparecem depende da Forma de Aquisição — o
+    // grid genérico de GRUPOS não sabe mostrar/esconder campo condicionalmente.
     titulo: 'Compra',
-    campos: [
-      { chave: 'veiculos_iniciais', label: 'Veículos iniciais', sufixo: 'un.', tipo: 'inteiro' },
-      { chave: 'valor_entrada_por_veiculo', label: 'Entrada', sufixo: 'R$', tipo: 'moeda' },
-      { chave: 'valor_financiado_por_veiculo', label: 'Valor financiado', sufixo: 'R$', tipo: 'moeda' },
-      { chave: 'prazo_financiamento_meses', label: 'Prazo', sufixo: 'meses', tipo: 'inteiro' },
-      { chave: 'taxa_juros_am_pct', label: 'Juros', sufixo: '% a.m.' },
-    ],
+    campos: [{ chave: 'veiculos_iniciais', label: 'Veículos iniciais', sufixo: 'un.', tipo: 'inteiro' }],
   },
   {
     titulo: 'Receita',
@@ -203,10 +202,13 @@ export function PainelDePremissas({
             </CardContent>
           </Card>
 
-          {/* 2026-08-10 — pedido do Carlos: Amortização entra logo abaixo do card "Compra"
-              (Entrada/Financiado/Prazo/Juros), no HTML, pra cair na mesma coluna, logo em
-              seguida, no CSS multi-column abaixo — é a próxima decisão sobre a mesma dívida. */}
-          {grupo.titulo === 'Compra' && <AmortizacaoCard valor={valor} onChange={onChange} mesAtual={mesAtual} />}
+          {/* Auditoria 2026-08-13 — Forma de Aquisição entra logo abaixo do card "Compra"
+              (Veículos iniciais), mesma posição que Entrada/Financiado/Prazo/Juros ocupavam antes
+              de virarem condicionais. Amortização continua na sequência, mas só faz sentido
+              existir quando há dívida — escondida por completo na compra à vista (nada pra
+              amortizar quando o financiamento já nasce zerado). */}
+          {grupo.titulo === 'Compra' && <FormaAquisicaoCard valor={valor} onChange={onChange} />}
+          {grupo.titulo === 'Compra' && valor.forma_aquisicao !== 'avista' && <AmortizacaoCard valor={valor} onChange={onChange} mesAtual={mesAtual} />}
         </Fragment>
       ))}
 

@@ -75,14 +75,40 @@ export type MesSimulado = {
   comprasNoMes: number;
   valorDaEmpresa: number;
   roiAcumuladoPct: number | null;
+  /** Auditoria 2026-08-13, Parte 12 — lucro do mês ÷ capital próprio investido acumulado (mesma
+   * base do ROI acumulado, nunca patrimônio/equity — evita duas definições de "capital próprio"
+   * dentro do mesmo módulo). null quando não há capital próprio investido ainda (mostrar "—"). */
+  retornoMensalSobreCapitalPropioPct: number | null;
+};
+
+/** Auditoria 2026-08-13, Parte 13 — nasce no motor (nunca no componente React). 'recuperado' só
+ * quando o lucro acumulado alcança o capital próprio investido em algum mês; 'sem_capital' quando
+ * nenhum capital próprio jamais foi investido no horizonte (nada a recuperar); 'nao_recuperado'
+ * quando houve capital investido mas o lucro acumulado nunca o alcançou dentro do horizonte —
+ * nunca inventamos uma data nesse caso. */
+export type PaybackResultado = { estado: 'recuperado'; mes: number } | { estado: 'nao_recuperado' } | { estado: 'sem_capital' };
+
+/** Auditoria 2026-08-13, Parte 14/15 — o que aconteceu na tentativa de compra inicial (mês 0),
+ * sempre presente (não só quando dá errado) pra Visão Executiva poder mostrar "desejados vs.
+ * adquiridos" mesmo no caso feliz. */
+export type AquisicaoInicial = {
+  veiculosDesejados: number;
+  veiculosAdquiridos: number;
+  /** Caixa disponível antes de qualquer compra (já descontado custo_abertura_empresa). */
+  capitalDisponivel: number;
+  /** Custo mínimo do PRÓXIMO veículo que não coube (entrada + reserva de segurança) — null quando
+   * todos os veículos desejados foram adquiridos (não há "próximo" bloqueado). */
+  capitalNecessario: number | null;
+  /** max(0, capitalNecessario - capitalDisponivel) no momento exato do bloqueio. 0 quando não há bloqueio. */
+  capitalFaltante: number;
 };
 
 export type SimulacaoResultado = {
   meses: MesSimulado[];
   objetivoAlcancadoNoMes: number | null;
   frotaFinal: number;
-  /** true se o capital informado não cobriu nem as entradas dos veículos iniciais pedidos — a compra inicial parou antes do total desejado. */
-  avisoCapitalInicialInsuficiente: boolean;
+  aquisicaoInicial: AquisicaoInicial;
+  payback: PaybackResultado;
 };
 
 type VeiculoSimulado = {
@@ -182,7 +208,13 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       parcela: parcelaPadrao,
     });
     caixaDisponivel -= cenario.valor_entrada_por_veiculo;
-    capitalInvestidoAcumulado += custoTotalPorVeiculo;
+    // Auditoria 2026-08-13, achado A / Parte 4 — capital investido é CAPITAL PRÓPRIO (o que saiu
+    // do bolso), nunca o preço cheio do veículo. À vista, valor_entrada_por_veiculo JÁ é o preço
+    // cheio (financiado = 0 nesse caso); financiado, é só a entrada. A mesma linha cobre os dois
+    // casos sem precisar checar forma_aquisicao aqui — era exatamente esse o bug: somava
+    // custoTotalPorVeiculo (entrada + financiado), contando a dívida do banco como se fosse
+    // dinheiro do dono.
+    capitalInvestidoAcumulado += cenario.valor_entrada_por_veiculo;
     comprasPorMes.set(mes, (comprasPorMes.get(mes) ?? 0) + 1);
   }
 
@@ -193,15 +225,29 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
   // caixa livre têm que respeitar o mesmo piso, senão a reserva "vaza" por outro caminho.
   const custoMinimoParaComprar = cenario.valor_entrada_por_veiculo + cenario.reserva_de_seguranca;
 
+  // Auditoria 2026-08-13, Parte 14/15 — capturado ANTES do loop consumir caixaDisponivel, pra
+  // "capitalDisponivel" do relatório mostrar o caixa que realmente existia pra decidir a compra,
+  // não o que sobrou depois. capitalNecessario/capitalFaltante só ficam preenchidos se o loop
+  // parar antes do desejado (ver abaixo) — não inventamos um "faltante" quando não faltou nada.
+  const capitalDisponivelParaAquisicaoInicial = caixaDisponivel;
   const veiculosIniciaisDesejados = Math.min(cenario.veiculos_iniciais, cenario.objetivo_veiculos);
-  let avisoCapitalInicialInsuficiente = false;
+  let capitalNecessarioBloqueio: number | null = null;
+  let capitalFaltanteBloqueio = 0;
   for (let n = 0; n < veiculosIniciaisDesejados; n++) {
     if (caixaDisponivel < custoMinimoParaComprar) {
-      avisoCapitalInicialInsuficiente = true;
+      capitalNecessarioBloqueio = custoMinimoParaComprar;
+      capitalFaltanteBloqueio = Math.max(0, custoMinimoParaComprar - caixaDisponivel);
       break;
     }
     comprarVeiculo(0);
   }
+  const aquisicaoInicial: AquisicaoInicial = {
+    veiculosDesejados: veiculosIniciaisDesejados,
+    veiculosAdquiridos: veiculos.length,
+    capitalDisponivel: capitalDisponivelParaAquisicaoInicial,
+    capitalNecessario: capitalNecessarioBloqueio,
+    capitalFaltante: capitalFaltanteBloqueio,
+  };
 
   const meses: MesSimulado[] = [];
   let objetivoAlcancadoNoMes: number | null = veiculos.length >= cenario.objetivo_veiculos ? 0 : null;
@@ -304,6 +350,10 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
     }
     const patrimonioLiquido = valorTotalFrota - saldoDevedorTotal;
     const roiAcumuladoPct = capitalInvestidoAcumulado > 0 ? (lucroAcumulado / capitalInvestidoAcumulado) * 100 : null;
+    // Auditoria 2026-08-13, Parte 12 — mesma base do ROI acumulado (capital próprio investido),
+    // nunca patrimônio/equity: duas métricas de "retorno" com bases diferentes confundem mais do
+    // que ajudam. null (mostrado como "—") enquanto não há capital próprio investido.
+    const retornoMensalSobreCapitalPropioPct = capitalInvestidoAcumulado > 0 ? (lucroMensal / capitalInvestidoAcumulado) * 100 : null;
 
     meses.push({
       mes,
@@ -329,6 +379,7 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       comprasNoMes: comprasPorMes.get(mes) ?? 0,
       valorDaEmpresa: caixaDisponivel + patrimonioLiquido,
       roiAcumuladoPct,
+      retornoMensalSobreCapitalPropioPct,
     });
 
     if (objetivoAlcancadoNoMes === null && frota >= cenario.objetivo_veiculos) {
@@ -336,10 +387,24 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
     }
   }
 
+  // Auditoria 2026-08-13, Parte 13 — primeiro mês em que o lucro acumulado alcança o capital
+  // próprio investido ATÉ AQUELE MÊS (não o capital final): se um 2º veículo entra depois, o alvo
+  // sobe a partir daquele ponto, então "recuperado" só conta quando o lucro já superou o que
+  // estava investido NAQUELE momento. `capitalInvestidoAcumulado > 0` no find evita o caso
+  // degenerado de "recuperado" com zero capital investido (0 >= 0 seria vacuamente verdadeiro).
+  let payback: PaybackResultado;
+  if (capitalInvestidoAcumulado <= 0) {
+    payback = { estado: 'sem_capital' };
+  } else {
+    const mesRecuperado = meses.find((m) => m.capitalInvestidoAcumulado > 0 && m.lucroAcumulado >= m.capitalInvestidoAcumulado);
+    payback = mesRecuperado ? { estado: 'recuperado', mes: mesRecuperado.mes } : { estado: 'nao_recuperado' };
+  }
+
   return {
     meses,
     objetivoAlcancadoNoMes,
     frotaFinal: veiculos.length,
-    avisoCapitalInicialInsuficiente,
+    aquisicaoInicial,
+    payback,
   };
 }
