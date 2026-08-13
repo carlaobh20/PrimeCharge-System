@@ -79,6 +79,36 @@ export type MesSimulado = {
    * base do ROI acumulado, nunca patrimônio/equity — evita duas definições de "capital próprio"
    * dentro do mesmo módulo). null quando não há capital próprio investido ainda (mostrar "—"). */
   retornoMensalSobreCapitalPropioPct: number | null;
+  /** Fase 4.1 (2026-08-13) — movido de DinheiroDoBolsoCard.tsx. Lucro acumulado até este mês,
+   * travado entre 0 e o capital PRÓPRIO investido até aqui: nunca negativo (não faz sentido
+   * "recuperar menos que zero") e nunca acima do capital investido (acima disso não é mais
+   * "recuperação", é lucro de verdade — o que ROI/Payback já respondem). Mesma definição de
+   * `calcularCapitalRecuperado` em src/features/frota/intelligence/investmentSimulator.ts
+   * (Épico 4, veículo real) — domínio diferente (lá é um veículo real com lucro confirmado; aqui
+   * é o cenário hipotético inteiro, capital investido acumulado ao longo de N compras simuladas),
+   * mas a mesma fórmula, o que reforça que essa é a definição certa nesta base de código.
+   * null quando não há capital próprio investido ainda (nada a recuperar) — mesmo padrão de
+   * roiAcumuladoPct. */
+  capitalRecuperadoAcumulado: number | null;
+  /** capitalInvestidoAcumulado − capitalRecuperadoAcumulado — quanto do capital próprio ainda não
+   * voltou pro bolso do dono. null no mesmo caso acima. */
+  capitalAindaAEmpatado: number | null;
+  /** capitalRecuperadoAcumulado ÷ capitalInvestidoAcumulado × 100 — mesma base do ROI acumulado.
+   * null no mesmo caso acima. */
+  percentualRecuperadoPct: number | null;
+};
+
+/** Fase 4.1 (2026-08-13) — movido de AmortizacaoCard.tsx (Prioridade 7 da missão "copiloto
+ * financeiro", 2026-08-10). Não depende de nenhum mês específico da simulação (usa só os
+ * parâmetros do cenário) — por isso fica no nível raiz de SimulacaoResultado, ao lado de
+ * aquisicaoInicial/payback, não dentro de cada MesSimulado. */
+export type ComparacaoAmortizarVsComprar = {
+  valeAmortizar: boolean;
+  /** Quanto a.a. de juros deixa de ser pago amortizando (taxa do financiamento × 12). */
+  economiaAmortizarAaPct: number;
+  /** Quanto a.a. renderia o mesmo dinheiro comprando mais um veículo (receita líquida anual do
+   * próximo carro ÷ custo total dele). 0 quando o custo total é 0. */
+  retornoComprarAaPct: number;
 };
 
 /** Auditoria 2026-08-13, Parte 13 — nasce no motor (nunca no componente React). 'recuperado' só
@@ -110,6 +140,33 @@ export type SimulacaoResultado = {
   aquisicaoInicial: AquisicaoInicial;
   payback: PaybackResultado;
 };
+
+/** Fase 4.1 (2026-08-13, movida de AmortizacaoCard.tsx) — compara duas taxas anualizadas, não
+ * valores em R$: (a) juros que deixam de ser pagos ao amortizar (taxa do financiamento × 12)
+ * contra (b) o retorno que o mesmo dinheiro renderia comprando mais um veículo (receita líquida
+ * anual do próximo carro ÷ custo total dele). Simplificação assumida (DEC-022, preservada da
+ * versão original): não considera composição nem o efeito de crescer a frota mês a mês (o motor
+ * principal já faz essa conta completa — isso aqui é uma comparação rápida de ORDEM DE GRANDEZA,
+ * pensada pra responder "essa direção faz sentido", não pra substituir a simulação). Não duplica
+ * nenhuma função de amortização existente (PMT/Price/saldo devedor) — é um cálculo independente,
+ * baseado só em receita/despesa esperada por veículo e na taxa de juros do financiamento. */
+export function calcularComparacaoAmortizarVsComprar(cenario: CenarioSimulacaoInput): ComparacaoAmortizarVsComprar {
+  const aluguelMensalPorVeiculo = cenario.aluguel_esperado_semanal_por_veiculo * SEMANAS_POR_MES;
+  const ocupacao = cenario.ocupacao_esperada_pct / 100;
+  const inadimplencia = cenario.inadimplencia_esperada_pct / 100;
+  const receitaLiquidaPorVeiculo =
+    aluguelMensalPorVeiculo * ocupacao * (1 - inadimplencia) -
+    (cenario.seguro_mensal_por_veiculo +
+      cenario.ipva_anual_por_veiculo / 12 +
+      cenario.rastreador_mensal_por_veiculo +
+      cenario.lavagem_mensal_por_veiculo +
+      cenario.manutencao_mensal_por_veiculo +
+      cenario.licenciamento_anual_por_veiculo / 12);
+  const custoTotalPorVeiculo = cenario.valor_entrada_por_veiculo + cenario.valor_financiado_por_veiculo;
+  const retornoComprarAaPct = custoTotalPorVeiculo > 0 ? ((receitaLiquidaPorVeiculo * 12) / custoTotalPorVeiculo) * 100 : 0;
+  const economiaAmortizarAaPct = cenario.taxa_juros_am_pct * 12;
+  return { valeAmortizar: economiaAmortizarAaPct >= retornoComprarAaPct, economiaAmortizarAaPct, retornoComprarAaPct };
+}
 
 type VeiculoSimulado = {
   mesCompra: number;
@@ -354,6 +411,12 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
     // nunca patrimônio/equity: duas métricas de "retorno" com bases diferentes confundem mais do
     // que ajudam. null (mostrado como "—") enquanto não há capital próprio investido.
     const retornoMensalSobreCapitalPropioPct = capitalInvestidoAcumulado > 0 ? (lucroMensal / capitalInvestidoAcumulado) * 100 : null;
+    // Fase 4.1 (2026-08-13) — movido de DinheiroDoBolsoCard.tsx. Mesma base do ROI acumulado
+    // (capital PRÓPRIO investido); lucroAcumulado travado em [0, capitalInvestidoAcumulado] antes
+    // de virar "capital recuperado" — ver definição completa no comentário do campo em MesSimulado.
+    const capitalRecuperadoAcumulado = capitalInvestidoAcumulado > 0 ? Math.min(Math.max(0, lucroAcumulado), capitalInvestidoAcumulado) : null;
+    const capitalAindaAEmpatado = capitalRecuperadoAcumulado === null ? null : capitalInvestidoAcumulado - capitalRecuperadoAcumulado;
+    const percentualRecuperadoPct = capitalRecuperadoAcumulado === null ? null : (capitalRecuperadoAcumulado / capitalInvestidoAcumulado) * 100;
 
     meses.push({
       mes,
@@ -380,6 +443,9 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       valorDaEmpresa: caixaDisponivel + patrimonioLiquido,
       roiAcumuladoPct,
       retornoMensalSobreCapitalPropioPct,
+      capitalRecuperadoAcumulado,
+      capitalAindaAEmpatado,
+      percentualRecuperadoPct,
     });
 
     if (objetivoAlcancadoNoMes === null && frota >= cenario.objetivo_veiculos) {

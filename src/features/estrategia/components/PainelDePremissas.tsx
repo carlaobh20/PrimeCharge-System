@@ -6,7 +6,7 @@ import { formatMoeda } from '@/shared/lib/format';
 import { formatarMoedaInput, digitosParaReais } from '@/shared/lib/moedaInput';
 import { AmortizacaoCard } from './AmortizacaoCard';
 import { FormaAquisicaoCard } from './FormaAquisicaoCard';
-import type { MesSimulado } from '../intelligence/simulacaoEmpresarial';
+import type { ComparacaoAmortizarVsComprar, MesSimulado } from '../intelligence/simulacaoEmpresarial';
 import type { CenarioSimulacaoInput } from '../types';
 
 type CampoNumerico = Exclude<keyof CenarioSimulacaoInput, 'nome' | 'reinvestir_lucro' | 'amortizacao_estrategia' | 'amortizacao_valor_manual'>;
@@ -159,10 +159,13 @@ export function PainelDePremissas({
   valor,
   onChange,
   mesAtual,
+  comparacaoAmortizar,
 }: {
   valor: CenarioSimulacaoInput;
   onChange: (patch: Partial<CenarioSimulacaoInput>) => void;
   mesAtual?: MesSimulado;
+  /** Fase 4.1 (2026-08-13) — calculado no motor, só repassado até o AmortizacaoCard. */
+  comparacaoAmortizar: ComparacaoAmortizarVsComprar;
 }) {
   return (
     <div className="min-w-0 columns-1 gap-3 sm:columns-2 lg:columns-3">
@@ -208,7 +211,9 @@ export function PainelDePremissas({
               existir quando há dívida — escondida por completo na compra à vista (nada pra
               amortizar quando o financiamento já nasce zerado). */}
           {grupo.titulo === 'Compra' && <FormaAquisicaoCard valor={valor} onChange={onChange} />}
-          {grupo.titulo === 'Compra' && valor.forma_aquisicao !== 'avista' && <AmortizacaoCard valor={valor} onChange={onChange} mesAtual={mesAtual} />}
+          {grupo.titulo === 'Compra' && valor.forma_aquisicao !== 'avista' && (
+            <AmortizacaoCard valor={valor} onChange={onChange} mesAtual={mesAtual} comparacao={comparacaoAmortizar} />
+          )}
         </Fragment>
       ))}
 

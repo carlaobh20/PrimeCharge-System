@@ -17,6 +17,7 @@ import { useCenarios, useCriarCenario, useAtualizarCenario } from '../hooks/useS
 import { useSimulacaoResultado } from '../hooks/useSimulacaoResultado';
 import { useMomentoDeCompra } from '../hooks/useMomentoDeCompra';
 import { calcularMargemDeSeguranca, calcularRunway } from '../intelligence/margemDeSeguranca';
+import { calcularComparacaoAmortizarVsComprar } from '../intelligence/simulacaoEmpresarial';
 import type { CenarioSimulacaoInput } from '../types';
 
 const CENARIO_PADRAO: CenarioSimulacaoInput = {
@@ -152,7 +153,7 @@ export function SimulacaoEmpresarial() {
       {/* Layout mudou de "30% premissas à esquerda / 70% resultado à direita" pra "premissas em
           faixa larga no topo, resultado embaixo" (pedido do Carlos, 2026-08-09) — preenche as
           premissas primeiro, os gráficos vêm depois, sem coluna estreita competindo por espaço. */}
-      <PainelDePremissas valor={input} onChange={atualizarCampo} mesAtual={mesAtual} />
+      <PainelDePremissas valor={input} onChange={atualizarCampo} mesAtual={mesAtual} comparacaoAmortizar={calcularComparacaoAmortizarVsComprar(input)} />
 
       <div className="min-w-0 space-y-4">
         {resultado && <AquisicaoInicialAlerta aquisicaoInicial={resultado.aquisicaoInicial} />}

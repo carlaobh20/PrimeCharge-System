@@ -10,17 +10,22 @@ import type { MesSimulado } from '../intelligence/simulacaoEmpresarial';
 // "faltam 61 meses" e "36% recuperado, faltam R$74.000" comunicam a mesma coisa de jeitos
 // diferentes, e cada leitor entende um melhor.
 //
-// "Capital recuperado" = lucro acumulado até hoje, travado em [0, capital investido] — lucro
-// negativo não gera capital recuperado negativo (não faz sentido "recuperar menos que zero"),
-// e lucro acima do capital investido não estica a barra além de 100% (a partir daí você não está
-// mais "recuperando", está lucrando de verdade — outra pergunta, que o Payback/ROI já respondem).
+// Fase 4.1 (2026-08-13) — capitalRecuperado/capitalAindaEmpatado/pctRecuperado deixaram de ser
+// calculados aqui dentro (violava a regra "toda métrica financeira nasce no motor"); agora só
+// formatam capitalRecuperadoAcumulado/capitalAindaAEmpatado/percentualRecuperadoPct, que
+// `simularCrescimentoEmpresarial` já calcula. Definição completa (lucro acumulado travado em
+// [0, capital investido]) documentada no comentário do campo em MesSimulado
+// (simulacaoEmpresarial.ts).
 export function DinheiroDoBolsoCard({ mesAtual }: { mesAtual: MesSimulado }) {
-  const capitalInvestido = mesAtual.capitalInvestidoAcumulado;
-  const capitalRecuperado = capitalInvestido > 0 ? Math.min(Math.max(0, mesAtual.lucroAcumulado), capitalInvestido) : 0;
-  const capitalAindaEmpatado = Math.max(0, capitalInvestido - capitalRecuperado);
-  const pctRecuperado = capitalInvestido > 0 ? (capitalRecuperado / capitalInvestido) * 100 : 0;
+  if (mesAtual.capitalRecuperadoAcumulado === null) return null;
 
-  if (capitalInvestido <= 0) return null;
+  // O motor garante que os três campos abaixo são null juntos (mesma condição:
+  // capitalInvestidoAcumulado > 0) — o `?? 0` é só pra satisfazer o TypeScript depois do early
+  // return acima, nunca deve de fato cair no fallback.
+  const capitalInvestido = mesAtual.capitalInvestidoAcumulado;
+  const capitalRecuperado = mesAtual.capitalRecuperadoAcumulado ?? 0;
+  const capitalAindaEmpatado = mesAtual.capitalAindaAEmpatado ?? 0;
+  const pctRecuperado = mesAtual.percentualRecuperadoPct ?? 0;
 
   return (
     <Card>
