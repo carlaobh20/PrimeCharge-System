@@ -41,7 +41,13 @@ export function FrotaPage() {
       </div>
 
       <div className="mt-6">
+        {/* key={abaInicial}: Tabs guarda a aba ativa num useState interno lido só no mount
+            (defaultValue), então mudar a querystring SEM remontar o componente (ex.: clicar
+            num card "por status" do próprio Dashboard, que já está dentro desta árvore montada)
+            mudava a URL mas não trocava a aba visível. Forçar remount quando abaInicial muda
+            resolve isso — achado durante a auditoria antes de tornar os cards clicáveis. */}
         <Tabs
+          key={abaInicial}
           defaultValue={abaInicial}
           items={[
             { value: 'dashboard', label: 'Dashboard da Frota', content: <FrotaDashboardPage /> },

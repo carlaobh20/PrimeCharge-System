@@ -1,4 +1,5 @@
 import { Car, Gauge, Wallet, Activity } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { KpiCard } from '@/shared/components/ui/kpi-card';
 import { formatMoeda } from '@/shared/lib/format';
 import { useFrotaDashboard } from '../hooks/useFrotaDashboard';
@@ -23,7 +24,7 @@ export function FrotaDashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-3">
-        <KpiCard icon={Car} label="Total de veículos" value={String(dash.totalVeiculos)} />
+        <KpiCard icon={Car} label="Total de veículos" value={String(dash.totalVeiculos)} to="/veiculos" />
         <KpiCard
           icon={Gauge}
           label="Health médio"
@@ -50,13 +51,14 @@ export function FrotaDashboardPage() {
           {dash.porStatus
             .filter((s) => s.total > 0)
             .map((s) => (
-              <div
+              <Link
                 key={s.status}
-                className="flex min-w-[120px] flex-1 flex-col gap-1 rounded-xl border border-neutral-200 bg-white p-3 dark:border-white/10 dark:bg-white/[0.03]"
+                to={`/veiculos?status=${s.status}`}
+                className="flex min-w-[120px] flex-1 flex-col gap-1 rounded-xl border border-neutral-200 bg-white p-3 transition-colors hover:border-emerald-300 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-emerald-800"
               >
                 <span className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">{s.total}</span>
                 <span className="text-[11px] text-neutral-500">{s.label}</span>
-              </div>
+              </Link>
             ))}
         </div>
       </section>
