@@ -17,6 +17,9 @@ export type Usuario = {
   role: UserRole;
   ativo: boolean;
   criado_em: string;
+  /** Épico 11 — só preenchido quando role = 'motorista'; liga esta conta de login a um
+   * registro de `motoristas`. Staff nunca tem esse campo preenchido. */
+  motorista_id: string | null;
 };
 
 export const USER_ROLE_LABEL: Record<UserRole, string> = {

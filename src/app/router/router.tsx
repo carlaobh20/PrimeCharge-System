@@ -23,8 +23,12 @@ import { ContasBancariasPage } from '@/features/financeiro/pages/ContasBancarias
 import { CentrosCustoPage } from '@/features/financeiro/pages/CentrosCustoPage';
 import { AcoesListPage } from '@/features/operacoes/pages/AcoesListPage';
 import { CentroDeEstrategiaPage } from '@/features/estrategia/pages/CentroDeEstrategiaPage';
+import { AppLayoutMotorista } from '@/features/motorista-app/components/AppLayoutMotorista';
+import { MeuContratoPage } from '@/features/motorista-app/pages/MeuContratoPage';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RequireOwner } from './RequireOwner';
+import { RequireStaff } from './RequireStaff';
+import { RequireMotorista } from './RequireMotorista';
 
 // Command Center foi a Home da Sprint 5 até o Épico 1 (Operação Perfeita) — Dashboard
 // continua fora do índice, rota analítica separada (DEC-024, ainda válida). Centro de
@@ -43,34 +47,50 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
-        path: '/',
-        element: <AppLayout />,
+        path: '/motorista',
+        element: <RequireMotorista />,
         children: [
-          { index: true, element: <CentroDeOperacoesPage /> },
-          { path: 'dashboard', element: <DashboardPage /> },
-          { path: 'veiculos', element: <FrotaPage /> },
-          { path: 'veiculos/novo', element: <VeiculoCreatePage /> },
-          { path: 'veiculos/:id', element: <VeiculoDetailPage /> },
-          { path: 'veiculos/:id/editar', element: <VeiculoEditPage /> },
-          { path: 'motoristas', element: <MotoristasPage /> },
-          { path: 'motoristas/novo', element: <MotoristaCreatePage /> },
-          { path: 'motoristas/:id', element: <MotoristaDetailPage /> },
-          { path: 'motoristas/:id/editar', element: <MotoristaEditPage /> },
-          { path: 'contratos', element: <ContratosListPage /> },
-          { path: 'contratos/novo', element: <ContratoCreatePage /> },
-          { path: 'contratos/:id', element: <ContratoDetailPage /> },
-          { path: 'contratos/:id/editar', element: <ContratoEditPage /> },
-          { path: 'financeiro/lancamentos', element: <LancamentosListPage /> },
-          { path: 'financeiro/pagamentos', element: <PagamentosPage /> },
-          { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },
-          { path: 'financeiro/centros-custo', element: <CentrosCustoPage /> },
-          { path: 'operacoes/acoes', element: <AcoesListPage /> },
           {
-            path: 'estrategia',
-            element: <RequireOwner />,
-            children: [{ index: true, element: <CentroDeEstrategiaPage /> }],
+            element: <AppLayoutMotorista />,
+            children: [{ index: true, element: <MeuContratoPage /> }],
           },
-          { path: 'usuarios', element: <UsuariosPage /> },
+        ],
+      },
+      {
+        path: '/',
+        element: <RequireStaff />,
+        children: [
+          {
+            path: '/',
+            element: <AppLayout />,
+            children: [
+              { index: true, element: <CentroDeOperacoesPage /> },
+              { path: 'dashboard', element: <DashboardPage /> },
+              { path: 'veiculos', element: <FrotaPage /> },
+              { path: 'veiculos/novo', element: <VeiculoCreatePage /> },
+              { path: 'veiculos/:id', element: <VeiculoDetailPage /> },
+              { path: 'veiculos/:id/editar', element: <VeiculoEditPage /> },
+              { path: 'motoristas', element: <MotoristasPage /> },
+              { path: 'motoristas/novo', element: <MotoristaCreatePage /> },
+              { path: 'motoristas/:id', element: <MotoristaDetailPage /> },
+              { path: 'motoristas/:id/editar', element: <MotoristaEditPage /> },
+              { path: 'contratos', element: <ContratosListPage /> },
+              { path: 'contratos/novo', element: <ContratoCreatePage /> },
+              { path: 'contratos/:id', element: <ContratoDetailPage /> },
+              { path: 'contratos/:id/editar', element: <ContratoEditPage /> },
+              { path: 'financeiro/lancamentos', element: <LancamentosListPage /> },
+              { path: 'financeiro/pagamentos', element: <PagamentosPage /> },
+              { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },
+              { path: 'financeiro/centros-custo', element: <CentrosCustoPage /> },
+              { path: 'operacoes/acoes', element: <AcoesListPage /> },
+              {
+                path: 'estrategia',
+                element: <RequireOwner />,
+                children: [{ index: true, element: <CentroDeEstrategiaPage /> }],
+              },
+              { path: 'usuarios', element: <UsuariosPage /> },
+            ],
+          },
         ],
       },
     ],

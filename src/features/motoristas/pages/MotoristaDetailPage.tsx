@@ -25,6 +25,7 @@ import { AdicionarDocumentoDialog } from '../components/dialogs/AdicionarDocumen
 import { AlterarStatusDialog } from '../components/dialogs/AlterarStatusDialog';
 import { NovoComentarioDialog } from '../components/dialogs/NovoComentarioDialog';
 import { NovaTagDialog } from '../components/dialogs/NovaTagDialog';
+import { CriarAcessoMotoristaDialog } from '../components/dialogs/CriarAcessoMotoristaDialog';
 
 import { useDeleteMotorista, useUpdateMotoristaStatus, useMotorista } from '../hooks/useMotoristas';
 import { useDriverIntelligence } from '../hooks/useDriverIntelligence';
@@ -239,6 +240,11 @@ export function MotoristaDetailPage() {
         open={activeAction === 'ocorrencia'}
         onOpenChange={(open) => setActiveAction(open ? 'ocorrencia' : null)}
         motoristaId={motorista.id}
+      />
+      <CriarAcessoMotoristaDialog
+        open={activeAction === 'acesso-portal'}
+        onOpenChange={(open) => setActiveAction(open ? 'acesso-portal' : null)}
+        motorista={motorista}
       />
       <ConfirmDialog
         open={activeAction === 'bloquear'}

@@ -10,6 +10,9 @@ export type Convite = {
   aceito: boolean;
   criado_em: string;
   expira_em: string;
+  /** Épico 11 — só preenchido em convites de role='motorista', gerados a partir do Cockpit do
+   * Motorista (não do fluxo genérico "Convidar pessoa"). */
+  motorista_id: string | null;
 };
 
 // Só os convites ainda em aberto (não aceitos) — um convite aceito vira uma linha em
@@ -25,10 +28,10 @@ export async function listConvitesPendentesPorEmpresa() {
   return data as Convite[];
 }
 
-export async function createConvite(empresaId: string, payload: { email: string; role: UserRole }) {
+export async function createConvite(empresaId: string, payload: { email: string; role: UserRole; motoristaId?: string }) {
   const { data, error } = await supabase
     .from('convites')
-    .insert({ empresa_id: empresaId, email: payload.email, role: payload.role })
+    .insert({ empresa_id: empresaId, email: payload.email, role: payload.role, motorista_id: payload.motoristaId ?? null })
     .select()
     .single();
   if (error) throw error;
