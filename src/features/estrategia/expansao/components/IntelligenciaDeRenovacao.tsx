@@ -543,13 +543,32 @@ function DetalheDecisao({ cenario, resultado }: { cenario: CenarioDecisaoVenda; 
           </li>
           {resultado.eventos.map((e, i) => (
             <li key={i} className="flex items-start gap-2 text-sm">
-              <span className="mt-0.5 shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-500 dark:bg-white/10">M{e.mes}</span>
-              {e.tipo === 'venda' ? (
+              <span
+                className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  e.tipo === 'bloqueio_reserva' || e.tipo === 'bloqueio_dscr'
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
+                    : 'bg-neutral-100 text-neutral-500 dark:bg-white/10'
+                }`}
+              >
+                M{e.mes}
+              </span>
+              {e.tipo === 'venda' && (
                 <span>
                   Venda por {formatMoeda(e.valorVenda)} — saldo devedor {formatMoeda(e.saldoDevedor)}, custos de venda {formatMoeda(e.custosVenda)} → capital líquido liberado {formatMoeda(e.liquido)}.
                 </span>
-              ) : (
+              )}
+              {e.tipo === 'reinvestimento' && (
                 <span>Nova aquisição — entrada de {formatMoeda(e.entradaUtilizada)} usada do capital liberado.</span>
+              )}
+              {e.tipo === 'bloqueio_reserva' && (
+                <span>
+                  Reinvestimento parou aqui — caixa disponível ({formatMoeda(e.caixaDisponivel)}) não cobre entrada + reserva mínima ({formatMoeda(e.custoMinimo)}).
+                </span>
+              )}
+              {e.tipo === 'bloqueio_dscr' && (
+                <span>
+                  Reinvestimento parou aqui — DSCR projetado do próximo veículo ({e.dscrProjetado.toFixed(2)}×) ficaria abaixo do mínimo de atenção ({e.dscrMinimoAtencao.toFixed(2)}×), mesmo com caixa disponível.
+                </span>
               )}
             </li>
           ))}

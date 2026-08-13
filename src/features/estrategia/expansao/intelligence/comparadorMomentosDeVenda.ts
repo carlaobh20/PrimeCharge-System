@@ -80,7 +80,9 @@ export type MesDecisaoVenda = {
 
 export type EventoDecisaoVenda =
   | { tipo: 'venda'; mes: number; valorVenda: number; saldoDevedor: number; custosVenda: number; liquido: number }
-  | { tipo: 'reinvestimento'; mes: number; entradaUtilizada: number };
+  | { tipo: 'reinvestimento'; mes: number; entradaUtilizada: number }
+  | { tipo: 'bloqueio_reserva'; mes: number; caixaDisponivel: number; custoMinimo: number }
+  | { tipo: 'bloqueio_dscr'; mes: number; dscrProjetado: number; dscrMinimoAtencao: number };
 
 export type ResultadoMomentoDeVenda = {
   /** null = "manter até o fim do horizonte" (nunca vender). */
@@ -207,7 +209,14 @@ export function simularMomentoDeVenda(cenario: CenarioDecisaoVenda, mesVenda: nu
           parcelaCandidato,
           dscrMinimoAtencao: cenario.dscrMinimoAtencao,
         });
-        if (!check.pode) break;
+        if (!check.pode) {
+          eventos.push(
+            check.motivo === 'reserva'
+              ? { tipo: 'bloqueio_reserva', mes, caixaDisponivel: caixa, custoMinimo: cenario.entrada + cenario.reservaMinima }
+              : { tipo: 'bloqueio_dscr', mes, dscrProjetado: check.dscrProjetado, dscrMinimoAtencao: cenario.dscrMinimoAtencao }
+          );
+          break;
+        }
         caixa -= cenario.entrada;
         capitalRecicladoUsadoEmNovaAquisicao += cenario.entrada;
         const tabelaNova = gerarTabelaAmortizacao(valorFinanciadoNovo, cenario.taxaJurosAmPct, cenario.prazoFinanciamentoMeses, cenario.sistemaAmortizacao);
