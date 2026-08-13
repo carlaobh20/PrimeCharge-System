@@ -36,9 +36,9 @@ export function SaldoDevedorPatrimonioChart({ meses }: { meses: MesSimulado[] })
             <YAxis tickFormatter={(v) => formatMoeda(v)} fontSize={10} width={90} />
             <Tooltip formatter={(v) => formatMoeda(Number(v))} labelFormatter={(v) => `Mês ${v}`} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Line type="monotone" dataKey="Valor do veículo" stroke="#8b5cf6" dot={false} strokeWidth={2} />
-            <Line type="monotone" dataKey="Saldo devedor" stroke="#ef4444" dot={false} strokeWidth={2} />
-            <Line type="monotone" dataKey="Patrimônio líquido" stroke="#10b981" dot={false} strokeWidth={2.5} />
+            <Line type="monotone" dataKey="Valor do veículo" stroke="#8b5cf6" dot={false} strokeWidth={2} isAnimationActive={false} />
+            <Line type="monotone" dataKey="Saldo devedor" stroke="#ef4444" dot={false} strokeWidth={2} isAnimationActive={false} />
+            <Line type="monotone" dataKey="Patrimônio líquido" stroke="#10b981" dot={false} strokeWidth={2.5} isAnimationActive={false} />
             {/* Sempre montado (nunca {cond && <.../>}) — incluir/remover filho do LineChart entre
                 renders é o gatilho clássico do Recharts pro erro "insertBefore" no React quando o
                 cenário recalcula em tempo real. Sem cruzamento, só fica com raio 0 (invisível). */}

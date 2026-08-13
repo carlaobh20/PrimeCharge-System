@@ -26,6 +26,7 @@ export function FluxoDeCaixaChart({ meses }: { meses: MesSimulado[] }) {
     Saldo: Math.round(m.caixaDisponivel),
   }));
   const comprasNoHorizonte = meses.filter((m) => m.comprasNoMes > 0);
+  const temCompras = comprasNoHorizonte.length > 0;
 
   // 2026-08-10 (missão "copiloto financeiro", Prioridade 7) — "nenhum indicador deve terminar
   // apenas em um número": o gráfico já é visual, mas fecha com uma frase de conclusão sobre a
@@ -48,29 +49,42 @@ export function FluxoDeCaixaChart({ meses }: { meses: MesSimulado[] }) {
             <YAxis tickFormatter={(v) => formatMoeda(v)} fontSize={10} width={90} />
             <Tooltip formatter={(v) => formatMoeda(Number(v))} labelFormatter={(v) => `Mês ${v}`} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Line type="monotone" dataKey="Receita" stroke="#10b981" dot={false} strokeWidth={2} />
-            <Line type="monotone" dataKey="Custos" stroke="#f59e0b" dot={false} strokeWidth={2} />
-            <Line type="monotone" dataKey="Parcela" stroke="#ef4444" dot={false} strokeWidth={2} />
-            <Line type="monotone" dataKey="Lucro" stroke="#3b82f6" dot={false} strokeWidth={2} />
-            <Line type="monotone" dataKey="Saldo" stroke="#8b5cf6" dot={false} strokeWidth={2.5} />
-            {comprasNoHorizonte.map((m) => (
+            <Line type="monotone" dataKey="Receita" stroke="#10b981" dot={false} strokeWidth={2} isAnimationActive={false} />
+            <Line type="monotone" dataKey="Custos" stroke="#f59e0b" dot={false} strokeWidth={2} isAnimationActive={false} />
+            <Line type="monotone" dataKey="Parcela" stroke="#ef4444" dot={false} strokeWidth={2} isAnimationActive={false} />
+            <Line type="monotone" dataKey="Lucro" stroke="#3b82f6" dot={false} strokeWidth={2} isAnimationActive={false} />
+            <Line type="monotone" dataKey="Saldo" stroke="#8b5cf6" dot={false} strokeWidth={2.5} isAnimationActive={false} />
+            {/* 2026-08-13 — fix do "insertBefore" que travou este card em produção: antes, este
+                map() rodava sobre `comprasNoHorizonte` (só os meses COM compra) — a quantidade de
+                <ReferenceLine> nascia e morria a cada recálculo (cada tecla no formulário de
+                premissas muda quais meses têm compra). O próprio repositório do Recharts confirma
+                esse padrão como a causa raiz: renderizar/desmontar elementos do gráfico
+                condicionalmente entre renders quebra a reconciliação interna dele (issue #1723 —
+                "conditional rendering... disrupts the diffing algorithm", recomendação oficial é
+                manter os elementos sempre montados e variar o DADO, não a lista de filhos).
+                Por isso agora o map() roda sobre `meses` inteiro — sempre a MESMA quantidade de
+                <ReferenceLine> em todo render (um por mês do horizonte) — e cada uma decide sozinha,
+                pelo dado (`m.comprasNoMes`), se aparece (opacity 0.6) ou fica invisível (opacity 0)
+                e sem rótulo. Mesma receita já usada no ReferenceDot do SaldoDevedorPatrimonioChart
+                e no ReferenceLine/Area do EvolucaoDoCaixaChart — só que agora aplicada certo, pra
+                N itens, não só pra 1. */}
+            {meses.map((m) => (
               <ReferenceLine
                 key={m.mes}
                 x={m.mes}
                 stroke="#0ea5e9"
                 strokeDasharray="2 2"
-                strokeOpacity={0.6}
-                label={{
-                  value: m.comprasNoMes > 1 ? `+${m.comprasNoMes} veíc.` : '+1 veíc.',
-                  position: 'top',
-                  fontSize: 9,
-                  fill: '#0ea5e9',
-                }}
+                strokeOpacity={m.comprasNoMes > 0 ? 0.6 : 0}
+                label={
+                  m.comprasNoMes > 0
+                    ? { value: m.comprasNoMes > 1 ? `+${m.comprasNoMes} veíc.` : '+1 veíc.', position: 'top', fontSize: 9, fill: '#0ea5e9' }
+                    : undefined
+                }
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
-        {comprasNoHorizonte.length > 0 && (
+        {temCompras && (
           <p className="mt-1 text-[11px] text-neutral-400">As linhas verticais tracejadas marcam os meses em que um veículo foi comprado.</p>
         )}
         <p className="mt-2 text-xs text-neutral-500">

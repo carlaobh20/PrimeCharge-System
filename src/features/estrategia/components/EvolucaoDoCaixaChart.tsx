@@ -41,15 +41,24 @@ export function EvolucaoDoCaixaChart({ meses, reservaMinima }: { meses: MesSimul
             <YAxis tickFormatter={(v) => formatMoeda(v)} fontSize={10} width={90} />
             <Tooltip formatter={(v) => formatMoeda(Number(v))} labelFormatter={(v) => `Mês ${v}`} />
             {/* Sempre montado (nunca {cond && <.../>}) — ver comentário equivalente no
-                SaldoDevedorPatrimonioChart sobre o erro de reconciliação do Recharts. */}
+                SaldoDevedorPatrimonioChart sobre o erro de reconciliação do Recharts.
+                2026-08-13 — a ReferenceArea + ReferenceLine da reserva mínima estavam atrás de
+                `{reservaMinima > 0 && (<>...</>)}`, ou seja: montavam/desmontavam 2 elementos
+                juntos toda vez que a reserva de segurança ia de 0 pra >0 (ou vice-versa) — o
+                mesmo padrão que travou o Card 2 (Fluxo de Caixa) com "insertBefore" (recharts
+                issue #1723: variar a lista de filhos entre renders quebra a reconciliação interna
+                dele). Agora os dois ficam sempre montados; quando reservaMinima é 0, só ficam
+                com opacidade 0 e sem rótulo — invisíveis, mas presentes. */}
             <ReferenceLine y={0} stroke="#ef4444" strokeOpacity={menorSaldo < 0 ? 1 : 0} strokeDasharray="4 4" />
-            {reservaMinima > 0 && (
-              <>
-                <ReferenceArea y1={menorSaldoOuReserva} y2={reservaMinima} fill="#ef4444" fillOpacity={0.08} />
-                <ReferenceLine y={reservaMinima} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: 'Reserva mínima', position: 'insideTopLeft', fontSize: 10, fill: '#f59e0b' }} />
-              </>
-            )}
-            <Area type="monotone" dataKey="Caixa" stroke="#3b82f6" strokeWidth={2.5} fill="url(#corCaixa)" />
+            <ReferenceArea y1={menorSaldoOuReserva} y2={reservaMinima} fill="#ef4444" fillOpacity={reservaMinima > 0 ? 0.08 : 0} />
+            <ReferenceLine
+              y={reservaMinima}
+              stroke="#f59e0b"
+              strokeOpacity={reservaMinima > 0 ? 1 : 0}
+              strokeDasharray="4 4"
+              label={reservaMinima > 0 ? { value: 'Reserva mínima', position: 'insideTopLeft', fontSize: 10, fill: '#f59e0b' } : undefined}
+            />
+            <Area type="monotone" dataKey="Caixa" stroke="#3b82f6" strokeWidth={2.5} fill="url(#corCaixa)" isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
         {menorSaldo < 0 ? (
