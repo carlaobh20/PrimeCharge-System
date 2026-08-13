@@ -20,7 +20,7 @@ export function FluxoDeCaixaChart({ meses }: { meses: MesSimulado[] }) {
   const dados = reamostrar(meses, 60).map((m) => ({
     mes: m.mes,
     Receita: Math.round(m.receitaMensal),
-    Custos: Math.round(m.despesaMensal - m.despesaBreakdown.parcelas),
+    Custos: Math.round(m.despesaSemParcelaMensal),
     Parcela: Math.round(m.despesaBreakdown.parcelas),
     Lucro: Math.round(m.lucroMensal),
     Saldo: Math.round(m.caixaDisponivel),

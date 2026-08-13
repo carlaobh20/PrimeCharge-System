@@ -29,8 +29,17 @@ export type MargemDeSeguranca = {
   margemFinanceiraPct: number | null;
   receitaAtual: number;
   receitaMinima: number;
+  /** Fase 4.2 (2026-08-13) — movido de MargemDeSegurancaCard.tsx, que calculava isso na hora:
+   * (receitaAtual − receitaMinima) ÷ receitaMinima × 100. Mesma fórmula de margemOcupacaoPct e
+   * margemFinanceiraPct acima, só que em cima da receita em vez de ocupação/aluguel. null quando
+   * receitaMinima <= 0 (break-even indefinido — sem despesa não há "mínimo" pra comparar). */
+  margemReceitaPct: number | null;
   caixaAtual: number;
   reservaMinima: number;
+  /** Fase 4.2 (2026-08-13) — movido de MargemDeSegurancaCard.tsx: (caixaAtual − reservaMinima) ÷
+   * reservaMinima × 100. null quando reservaMinima <= 0 (sem reserva configurada, não há "mínimo"
+   * pra comparar). */
+  margemCaixaPct: number | null;
   lucroAtual: number;
   lucroMinimo: number;
   nivel: NivelDeSeguranca;
@@ -120,6 +129,14 @@ export function calcularMargemDeSeguranca(cenario: CenarioSimulacaoInput, mesAtu
     motivo = `folga de ${margemOcupacaoPct !== null ? margemOcupacaoPct.toFixed(0) + ' pontos acima do break-even de ocupação' : 'caixa'} e caixa confortavelmente acima da reserva.`;
   }
 
+  // Fase 4.2 (2026-08-13) — movidos de MargemDeSegurancaCard.tsx (mesma fórmula que já era usada
+  // lá, só centralizada aqui, ao lado de margemOcupacaoPct/margemFinanceiraPct que já viviam no
+  // motor).
+  const caixaAtual = mesAtual.caixaDisponivel;
+  const reservaMinima = cenario.reserva_de_seguranca;
+  const margemReceitaPct = receitaMinima > 0 ? ((mesAtual.receitaMensal - receitaMinima) / receitaMinima) * 100 : null;
+  const margemCaixaPct = reservaMinima > 0 ? ((caixaAtual - reservaMinima) / reservaMinima) * 100 : null;
+
   return {
     frotaAtual: frota,
     ocupacaoAtualPct,
@@ -131,8 +148,10 @@ export function calcularMargemDeSeguranca(cenario: CenarioSimulacaoInput, mesAtu
     margemFinanceiraPct,
     receitaAtual: mesAtual.receitaMensal,
     receitaMinima,
-    caixaAtual: mesAtual.caixaDisponivel,
-    reservaMinima: cenario.reserva_de_seguranca,
+    margemReceitaPct,
+    caixaAtual,
+    reservaMinima,
+    margemCaixaPct,
     lucroAtual: mesAtual.lucroMensal,
     lucroMinimo: 0,
     nivel,

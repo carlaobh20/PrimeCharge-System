@@ -48,8 +48,13 @@ export function agruparFluxoPorAno(meses: MesSimulado[]): FluxoAnual[] {
     if (mesesDoAno.length === 0) continue;
 
     const entrada = mesesDoAno.reduce((acc, m) => acc + m.receitaMensal, 0);
-    const despesas = mesesDoAno.reduce((acc, m) => acc + (m.despesaMensal - m.despesaBreakdown.parcelas), 0);
-    const amortizacaoDaDivida = mesesDoAno.reduce((acc, m) => acc + m.amortizacaoProgramadaMensal + m.amortizacaoExtraMensal, 0);
+    // Fase 4.2 (2026-08-13) — despesaSemParcelaMensal/amortizacaoTotalMensal passaram a nascer no
+    // motor (MesSimulado), exatamente com a mesma conta que já estava aqui — a auditoria dessa
+    // fase achou que FluxoDetalhadoTable.tsx/FluxoDeCaixaChart.tsx recalculavam isso de novo, cada
+    // um por conta própria, em vez de reusar o que este arquivo já fazia. Agora os 3 lugares somam
+    // o mesmo campo, em vez de cada um refazer a subtração/soma à sua maneira.
+    const despesas = mesesDoAno.reduce((acc, m) => acc + m.despesaSemParcelaMensal, 0);
+    const amortizacaoDaDivida = mesesDoAno.reduce((acc, m) => acc + m.amortizacaoTotalMensal, 0);
     const lucroLiquido = mesesDoAno.reduce((acc, m) => acc + m.lucroMensal, 0);
     const saldoDaDivida = mesesDoAno[mesesDoAno.length - 1].saldoDevedorTotal;
     const anoIncompleto = mesesDoAno.length < 12;

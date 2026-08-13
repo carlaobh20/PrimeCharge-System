@@ -96,6 +96,26 @@ export type MesSimulado = {
   /** capitalRecuperadoAcumulado ÷ capitalInvestidoAcumulado × 100 — mesma base do ROI acumulado.
    * null no mesmo caso acima. */
   percentualRecuperadoPct: number | null;
+  /** Fase 4.2 (2026-08-13) — movido de FluxoDetalhadoTable.tsx/FluxoDeCaixaChart.tsx, que
+   * recalculavam isso cada um por conta própria (`despesaMensal - despesaBreakdown.parcelas`).
+   * `fluxoAnual.ts` (motor) já fazia exatamente essa mesma conta pra agregar por ano — a auditoria
+   * da Fase 4.2 achou essa duplicação e centralizou aqui: despesa operacional pura (seguro, IPVA,
+   * rastreador, lavagem, manutenção, licenciamento, contador), SEM a parcela do financiamento —
+   * mesma definição de "Despesas"/"Custos" já usada na tabela e no gráfico. */
+  despesaSemParcelaMensal: number;
+  /** Fase 4.2 (2026-08-13) — mesma origem do campo acima: `amortizacaoProgramadaMensal +
+   * amortizacaoExtraMensal`, que FluxoDetalhadoTable.tsx e fluxoAnual.ts recalculavam cada um por
+   * conta própria. Parte da parcela (+ eventual amortização extra) que reduziu o principal da
+   * dívida neste mês — não é despesa (despesa é só o juros, já embutido em despesaBreakdown.parcelas). */
+  amortizacaoTotalMensal: number;
+  /** Fase 4.2 (2026-08-13) — movido de EvolucaoPatrimonioCard.tsx. patrimonioLiquido ÷
+   * capitalInvestidoAcumulado × 100: quanto do patrimônio construído nos carros representa, em
+   * proporção, o capital PRÓPRIO que entrou. Conceito DIFERENTE de roiAcumuladoPct (que usa LUCRO,
+   * não patrimônio) e de percentualRecuperadoPct (que usa lucro travado em [0, capital investido],
+   * não patrimônio) — os três dividem por capitalInvestidoAcumulado, mas o numerador de cada um
+   * responde uma pergunta diferente. null quando não há capital próprio investido ainda (mesmo
+   * padrão dos outros percentuais desta lista). */
+  patrimonioSobreCapitalInvestidoPct: number | null;
 };
 
 /** Fase 4.1 (2026-08-13) — movido de AmortizacaoCard.tsx (Prioridade 7 da missão "copiloto
@@ -166,6 +186,19 @@ export function calcularComparacaoAmortizarVsComprar(cenario: CenarioSimulacaoIn
   const retornoComprarAaPct = custoTotalPorVeiculo > 0 ? ((receitaLiquidaPorVeiculo * 12) / custoTotalPorVeiculo) * 100 : 0;
   const economiaAmortizarAaPct = cenario.taxa_juros_am_pct * 12;
   return { valeAmortizar: economiaAmortizarAaPct >= retornoComprarAaPct, economiaAmortizarAaPct, retornoComprarAaPct };
+}
+
+/** Fase 4.2 (2026-08-13, movida de PainelDePremissas.tsx) — "dá pra comprar quantos veículos
+ * agora", com o capital_disponivel BRUTO do cenário (não o caixa já simulado mês a mês — é uma
+ * pergunta sobre o presente, respondida antes de rodar qualquer mês). Mesma regra de sempre:
+ * capital menos a reserva de segurança, dividido pela entrada por veículo, arredondado pra baixo
+ * (não dá pra comprar "meio carro"), nunca negativo. Retorna 0 quando a entrada é 0 (divisão por
+ * zero não faz sentido aqui — "entrada 0" geralmente significa forma de aquisição ainda não
+ * configurada, não "carro de graça"). Reproduz exatamente o comportamento anterior — nenhum
+ * arredondamento, reserva ou tratamento de capital insuficiente foi alterado. */
+export function calcularVeiculosDisponiveisAgora(cenario: CenarioSimulacaoInput): number {
+  if (cenario.valor_entrada_por_veiculo <= 0) return 0;
+  return Math.max(0, Math.floor((cenario.capital_disponivel - cenario.reserva_de_seguranca) / cenario.valor_entrada_por_veiculo));
 }
 
 type VeiculoSimulado = {
@@ -417,6 +450,14 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
     const capitalRecuperadoAcumulado = capitalInvestidoAcumulado > 0 ? Math.min(Math.max(0, lucroAcumulado), capitalInvestidoAcumulado) : null;
     const capitalAindaAEmpatado = capitalRecuperadoAcumulado === null ? null : capitalInvestidoAcumulado - capitalRecuperadoAcumulado;
     const percentualRecuperadoPct = capitalRecuperadoAcumulado === null ? null : (capitalRecuperadoAcumulado / capitalInvestidoAcumulado) * 100;
+    // Fase 4.2 (2026-08-13) — movidos de FluxoDetalhadoTable.tsx/FluxoDeCaixaChart.tsx (ver
+    // comentário do campo em MesSimulado — mesma conta que fluxoAnual.ts já fazia pra agregar por
+    // ano, agora com uma única origem).
+    const despesaSemParcelaMensal = despesaMensal - despesaBreakdown.parcelas;
+    const amortizacaoTotalMensal = amortizacaoProgramadaDoMes + amortizacaoExtraMensal;
+    // Fase 4.2 (2026-08-13) — movido de EvolucaoPatrimonioCard.tsx (ver comentário do campo em
+    // MesSimulado pra diferença em relação a roiAcumuladoPct/percentualRecuperadoPct).
+    const patrimonioSobreCapitalInvestidoPct = capitalInvestidoAcumulado > 0 ? (patrimonioLiquido / capitalInvestidoAcumulado) * 100 : null;
 
     meses.push({
       mes,
@@ -446,6 +487,9 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       capitalRecuperadoAcumulado,
       capitalAindaAEmpatado,
       percentualRecuperadoPct,
+      despesaSemParcelaMensal,
+      amortizacaoTotalMensal,
+      patrimonioSobreCapitalInvestidoPct,
     });
 
     if (objetivoAlcancadoNoMes === null && frota >= cenario.objetivo_veiculos) {

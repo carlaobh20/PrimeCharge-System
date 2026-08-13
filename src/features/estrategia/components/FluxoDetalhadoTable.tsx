@@ -30,8 +30,8 @@ function linhaMensal(m: MesSimulado) {
   return {
     rotulo: `Mês ${m.mes}`,
     entrada: m.receitaMensal,
-    despesas: m.despesaMensal - m.despesaBreakdown.parcelas,
-    amortizacaoDaDivida: m.amortizacaoProgramadaMensal + m.amortizacaoExtraMensal,
+    despesas: m.despesaSemParcelaMensal,
+    amortizacaoDaDivida: m.amortizacaoTotalMensal,
     saldoDaDivida: m.saldoDevedorTotal,
     jurosInvestimento: m.jurosInvestimentoMensal,
     ir: m.irMensal,

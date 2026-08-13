@@ -52,8 +52,8 @@ export function EvolucaoPatrimonioCard({ meses }: { meses: MesSimulado[] }) {
         <p className="mt-3 text-xs text-neutral-500">
           Em resumo: {fim.patrimonioLiquido >= inicio.patrimonioLiquido ? 'o patrimônio líquido cresce' : 'o patrimônio líquido cai'} de{' '}
           {formatMoeda(inicio.patrimonioLiquido)} para {formatMoeda(fim.patrimonioLiquido)} ao longo do período simulado
-          {inicio.capitalInvestidoAcumulado > 0 &&
-            ` — hoje o patrimônio já é ${((inicio.patrimonioLiquido / inicio.capitalInvestidoAcumulado) * 100).toFixed(0)}% do total investido`}
+          {inicio.patrimonioSobreCapitalInvestidoPct !== null &&
+            ` — hoje o patrimônio já é ${inicio.patrimonioSobreCapitalInvestidoPct.toFixed(0)}% do total investido`}
           .
         </p>
       </CardContent>

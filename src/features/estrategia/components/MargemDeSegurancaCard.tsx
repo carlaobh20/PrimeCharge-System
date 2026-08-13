@@ -86,18 +86,8 @@ export function MargemDeSegurancaCard({ margem, runway }: { margem: MargemDeSegu
               minimo={margem.aluguelSemanalMinimo !== null ? formatMoeda(margem.aluguelSemanalMinimo) : '—'}
               margemPct={margem.margemFinanceiraPct}
             />
-            <LinhaMargem
-              label="Receita do mês"
-              atual={formatMoeda(margem.receitaAtual)}
-              minimo={formatMoeda(margem.receitaMinima)}
-              margemPct={margem.receitaMinima > 0 ? ((margem.receitaAtual - margem.receitaMinima) / margem.receitaMinima) * 100 : null}
-            />
-            <LinhaMargem
-              label="Caixa"
-              atual={formatMoeda(margem.caixaAtual)}
-              minimo={formatMoeda(margem.reservaMinima)}
-              margemPct={margem.reservaMinima > 0 ? ((margem.caixaAtual - margem.reservaMinima) / margem.reservaMinima) * 100 : null}
-            />
+            <LinhaMargem label="Receita do mês" atual={formatMoeda(margem.receitaAtual)} minimo={formatMoeda(margem.receitaMinima)} margemPct={margem.margemReceitaPct} />
+            <LinhaMargem label="Caixa" atual={formatMoeda(margem.caixaAtual)} minimo={formatMoeda(margem.reservaMinima)} margemPct={margem.margemCaixaPct} />
           </div>
         )}
 

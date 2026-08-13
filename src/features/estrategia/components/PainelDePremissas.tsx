@@ -143,29 +143,23 @@ const GRUPOS: Grupo[] = [
 // sem esperar a linha toda "fechar". `break-inside-avoid` evita que o conteúdo de um card seja
 // cortado ao meio entre duas colunas.
 //
-// reserva_de_seguranca + indicador "dá pra comprar N agora" (2026-08-10, pedido do Carlos:
-// "o sistema tem que ser inteligente... deixe mais interativo"). Mesma conta que o motor de
-// simulação usa pra liberar compra (simulacaoEmpresarial.ts): compra N veículos enquanto
-// capital - N×entrada continuar >= reserva, ou seja N = floor((capital - reserva) / entrada).
-// Fica no card Capital, direto abaixo dos dois campos que alimentam essa conta — não precisa
-// olhar o gráfico/tabela lá embaixo pra saber "quantos dá pra comprar hoje", o número já
-// aparece enquanto digita.
-function calcularVeiculosDisponiveisAgora(valor: CenarioSimulacaoInput): number {
-  if (valor.valor_entrada_por_veiculo <= 0) return 0;
-  return Math.max(0, Math.floor((valor.capital_disponivel - valor.reserva_de_seguranca) / valor.valor_entrada_por_veiculo));
-}
-
 export function PainelDePremissas({
   valor,
   onChange,
   mesAtual,
   comparacaoAmortizar,
+  veiculosDisponiveisAgora,
 }: {
   valor: CenarioSimulacaoInput;
   onChange: (patch: Partial<CenarioSimulacaoInput>) => void;
   mesAtual?: MesSimulado;
   /** Fase 4.1 (2026-08-13) — calculado no motor, só repassado até o AmortizacaoCard. */
   comparacaoAmortizar: ComparacaoAmortizarVsComprar;
+  /** Fase 4.2 (2026-08-13) — calculado no motor (calcularVeiculosDisponiveisAgora), nunca mais
+   * aqui dentro. "reserva_de_seguranca + indicador 'dá pra comprar N agora'" (2026-08-10, pedido
+   * do Carlos: "o sistema tem que ser inteligente... deixe mais interativo") — fica no card
+   * Capital, direto abaixo dos dois campos que alimentam essa conta. */
+  veiculosDisponiveisAgora: number;
 }) {
   return (
     <div className="min-w-0 columns-1 gap-3 sm:columns-2 lg:columns-3">
@@ -194,9 +188,7 @@ export function PainelDePremissas({
                   ) : (
                     <>
                       Dá pra comprar{' '}
-                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">
-                        {calcularVeiculosDisponiveisAgora(valor)} veículo(s)
-                      </span>{' '}
+                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">{veiculosDisponiveisAgora} veículo(s)</span>{' '}
                       agora, mantendo a reserva de {formatMoeda(valor.reserva_de_seguranca)}.
                     </>
                   )}
