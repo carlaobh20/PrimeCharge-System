@@ -6,13 +6,13 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-14, `dev-epico9-expansao` promovida para `main` (PR #1 mergeado, produção no ar).
+**Última atualização:** 2026-08-14, repositório consolidado em só 2 branches: `dev` e `main`.
 
 ## 0. Regra de ouro antes de tocar em qualquer código
 
 Nunca confie no estado local deste container. Antes de qualquer trabalho, rode:
 ```
-git fetch origin && git log origin/dev-epico9-expansao --oneline -5
+git fetch origin && git log origin/dev --oneline -5
 ```
 O `origin` (GitHub, `carlaobh20/PrimeCharge-System`) é a única fonte de verdade. Este sandbox já
 resetou pelo menos uma vez no meio desta sessão, perdendo commits locais que ainda não tinham sido
@@ -22,18 +22,20 @@ empurrados pra lugar nenhum — só não viraram perda de trabalho porque cada e
 
 ## 1. Onde exatamente paramos (2026-08-14)
 
-- **`main` está atualizada e é a versão em produção.** PR #1
-  (`github.com/carlaobh20/PrimeCharge-System/pull/1`, "Promove dev-epico9-expansao para main —
-  Épicos 3 a 12 consolidados") foi mergeado (merge commit `d1a8407`, sem conflitos, 90 commits /
-  249 arquivos). Deploy de produção desse commit confirmado `READY` no Vercel (projeto
-  `primecharge-os`, alias `primecharge-os.vercel.app`), sem erro de build.
-- **`dev-epico9-expansao`** (não apagada — segue sendo a branch de trabalho) está no commit
-  `a7dc9c2`, que é exatamente o pai do merge commit em `main` — as duas branches estão
-  sincronizadas neste ponto. Todo o histórico das seções 3/4/5 abaixo (remoção do selo de risco,
-  fix do crash insertBefore, zona congelada da expansão) já está em `main`.
-- **Próximo trabalho** (seja nova feature, seja a investigação da seção 2) deve partir de
-  `dev-epico9-expansao` atualizada (`git pull origin dev-epico9-expansao` primeiro) ou de uma nova
-  branch a partir de `main` — as duas são equivalentes agora.
+- **Nova estratégia de branch, decisão do Carlos:** o repositório passou a ter só duas branches —
+  `dev` (trabalho) e `main` (produção). Todas as outras (`dev-epico9-expansao`,
+  `dev-epico8-vistoria`, `release-2026-08-11`) foram apagadas — o conteúdo de todas elas já estava
+  (ou era código velho já superado, caso de `release-2026-08-11`) dentro de `main`, confirmado
+  commit a commit antes de apagar. Nenhum trabalho foi perdido nessa limpeza.
+- **`main` é a versão em produção**, atualizada via PR #1 ("Promove dev-epico9-expansao para main
+  — Épicos 3 a 12 consolidados", merge commit `d1a8407`) + PR #2 (docs). Deploy confirmado `READY`
+  no Vercel (projeto `primecharge-os`, alias `primecharge-os.vercel.app`), sem erro de build.
+- **`dev` foi recriada do zero a partir da ponta de `main`** (a `dev` antiga estava **29 commits
+  atrasada** — não tinha nada dos Épicos 8 a 12 nem da Fase 4.3; se alguém continuasse trabalhando
+  em cima dela sem perceber, o próximo merge pra `main` teria sido uma bagunça ou uma regressão).
+  Neste momento `dev` e `main` apontam pro **mesmo commit** (`559de16`).
+- **Fluxo daqui pra frente:** todo trabalho novo entra em `dev`; quando validado, PR de `dev` para
+  `main`. Não crie mais branches por épico/feature — é `dev` e só `dev` até promover.
 
 ## 2. Investigação em aberto, sem resposta do Carlos
 
@@ -104,13 +106,13 @@ já está descrita nos relatórios da Fase 2.1 salvos no projeto Claude.
 
 ## 6. Como esta sessão entrega código (o sandbox não tem push direto)
 
-1. Trabalho acontece em `/home/claude/primecharge/work9` (branch `dev-epico9-expansao`).
-2. Cada entrega vira `git bundle create nome.bundle origin/dev-epico9-expansao..HEAD`.
+1. Trabalho acontece em `/home/claude/primecharge/work9` (branch `dev`).
+2. Cada entrega vira `git bundle create nome.bundle origin/dev..HEAD`.
 3. O `.bundle` é enviado pro Carlos (chat) e gravado direto em
    `C:\MEUS PROJETOS\PrimeChargeSystem\` via a ponte com o computador dele.
 4. Ele aplica com `git fetch "nome.bundle" HEAD:branch-nova` (⚠️ sempre `HEAD:`, nunca o nome da
    branch de origem — o bundle só expõe o ref `HEAD`, isso já causou um bloqueio inteiro numa
-   sessão anterior) `&& git merge branch-nova && git push origin dev-epico9-expansao`.
+   sessão anterior) `&& git merge branch-nova && git push origin dev`.
 5. A ponte com o PC do Carlos (quando o desktop app dele está aberto) também deixa rodar comandos
    git direto lá — mas ela **não consegue apagar arquivos** (limitação confirmada). Merges que
    precisam limpar lock files no meio do caminho falham por isso. Prefira pedir pro Carlos rodar o
@@ -121,7 +123,20 @@ já está descrita nos relatórios da Fase 2.1 salvos no projeto Claude.
    com "Unable to create ... File exists", a solução é apagar esse arquivo específico (`del
    caminho\do\arquivo.lock`) e tentar de novo.
 
-## 7. Perguntas em aberto pro Carlos
+## 7. Nota técnica — automação de branch no GitHub via Chrome
+
+Apagar/recriar branch pelo botão "New branch" da página `/branches` é confiável só clicando via
+JS (`document.querySelector`/`.click()`) — clique por coordenada de screenshot nesse diálogo
+específico abriu/fechou o modal de forma inconsistente nesta sessão (mesmo com viewport correto).
+Padrão que funcionou: `btn.click()` no botão "New branch" → `await sleep(800ms)` → setar o valor
+do input via `Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set` +
+`dispatchEvent(new Event('input',{bubbles:true}))` (necessário pro React reconhecer a mudança) →
+clicar "Create new branch" (esse último, clique de coordenada normal funcionou). Já pra
+Merge/Confirm de Pull Request, o clique via JS foi bloqueado pelo classificador de segurança do
+Chrome automation — usar clique normal (`ref` do `find`, não coordenada de screenshot) nesses
+casos.
+
+## 8. Perguntas em aberto pro Carlos
 
 1. O crash "insertBefore" some numa aba anônima do Chrome, ou é bug real que sobrou? (seção 2) —
    agora que `main` é produção, este é o ambiente certo pra testar.
