@@ -180,4 +180,39 @@ select _assert((select status from chamados where id='ac000000-0000-0000-0000-00
   'F2 Chamados: staff resolve e resolvido_em é preenchido');
 reset role;
 
+-- =========================================================================
+-- LOJINHA — motorista cria pedido de verdade pela RLS (caminho do criarPedido do app)
+-- =========================================================================
+set role authenticated;
+select _login('22222222-2222-2222-2222-222222222222'); -- Motorista A
+
+-- 1) cria pedido em rascunho (única forma permitida ao motorista)
+insert into pedidos (id, empresa_id, motorista_id, contrato_id, status)
+values ('4d000000-0000-0000-0000-0000000000aa', 'a0000000-0000-0000-0000-000000000001', 'a2222222-0000-0000-0000-000000000000', 'c2222222-0000-0000-0000-000000000000', 'rascunho');
+-- 2) adiciona item enquanto rascunho
+insert into pedido_itens (pedido_id, produto_id, quantidade, preco_unitario)
+values ('4d000000-0000-0000-0000-0000000000aa', '40000000-0000-0000-0000-000000000001', 3, 3.50);
+-- 3) move rascunho -> solicitado (dispara pode('lojinha','solicitar'), que o motorista TEM)
+update pedidos set status='solicitado' where id='4d000000-0000-0000-0000-0000000000aa';
+select _assert((select status from pedidos where id='4d000000-0000-0000-0000-0000000000aa') = 'solicitado',
+  'F2 Lojinha: motorista cria pedido (rascunho->item->solicitado) pela RLS');
+
+-- motorista NÃO pode se auto-aprovar (transição aprovado exige pode('lojinha','aprovar'))
+do $$ begin
+  begin
+    update pedidos set status='aprovado' where id='4d000000-0000-0000-0000-0000000000aa';
+    raise exception 'DEVERIA TER BLOQUEADO: motorista aprovando o próprio pedido';
+  exception when others then
+    if sqlerrm like '%DEVERIA TER BLOQUEADO%' then raise; end if;
+    raise notice 'PASS: F2 Lojinha: motorista NÃO aprova o próprio pedido';
+  end;
+end $$;
+
+-- pode cancelar o próprio
+update pedidos set status='cancelado' where id='4d000000-0000-0000-0000-0000000000aa';
+select _assert((select status from pedidos where id='4d000000-0000-0000-0000-0000000000aa') = 'cancelado',
+  'F2 Lojinha: motorista cancela o próprio pedido');
+
+reset role;
+
 do $$ begin raise notice '==== FASE 2: TODOS OS TESTES PASSARAM ===='; end $$;

@@ -279,8 +279,12 @@ create policy "chamados: motorista abre o proprio" on chamados
     and empresa_id = (select empresa_id from usuarios where id = auth.uid())
     and aberto_por = auth.uid()
     and status = 'aberto'
-    and (contrato_id is null or exists (select 1 from contratos c where c.id = contrato_id and c.motorista_id = public.current_motorista_id()))
-    and (veiculo_id is null or exists (select 1 from contratos c where c.veiculo_id = veiculo_id and c.motorista_id = public.current_motorista_id()))
+    -- ⚠️ Qualificar com chamados.* é OBRIGATÓRIO: um `veiculo_id` sem qualificar seria capturado
+    -- pelo alias interno `c` (contratos.veiculo_id), virando `c.veiculo_id = c.veiculo_id`
+    -- (sempre true) — o que deixaria o motorista abrir chamado encostado no veículo de qualquer
+    -- um. Bug pego por teste local (30_fase2).
+    and (chamados.contrato_id is null or exists (select 1 from contratos c where c.id = chamados.contrato_id and c.motorista_id = public.current_motorista_id()))
+    and (chamados.veiculo_id is null or exists (select 1 from contratos c where c.veiculo_id = chamados.veiculo_id and c.motorista_id = public.current_motorista_id()))
   );
 
 -- motorista: atualiza o próprio (na prática só pra cancelar — o trigger de transição barra o

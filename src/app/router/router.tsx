@@ -1,60 +1,74 @@
+import { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '@/app/layout/AppLayout';
-import { LoginPage } from '@/features/auth/pages/LoginPage';
-import { AceitarConvitePage } from '@/features/auth/pages/AceitarConvitePage';
-import { RecuperarSenhaPage } from '@/features/auth/pages/RecuperarSenhaPage';
-import { RedefinirSenhaPage } from '@/features/auth/pages/RedefinirSenhaPage';
-import { UsuariosPage } from '@/features/auth/pages/UsuariosPage';
-import { CentroDeOperacoesPage } from '@/features/command-center/pages/CentroDeOperacoesPage';
-import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
-import { FrotaPage } from '@/features/frota/pages/FrotaPage';
-import { VeiculoDetailPage } from '@/features/frota/pages/VeiculoDetailPage';
-import { VeiculoCreatePage } from '@/features/frota/pages/VeiculoCreatePage';
-import { VeiculoEditPage } from '@/features/frota/pages/VeiculoEditPage';
-import { MotoristasPage } from '@/features/motoristas/pages/MotoristasPage';
-import { MotoristaDetailPage } from '@/features/motoristas/pages/MotoristaDetailPage';
-import { MotoristaCreatePage } from '@/features/motoristas/pages/MotoristaCreatePage';
-import { MotoristaEditPage } from '@/features/motoristas/pages/MotoristaEditPage';
-import { ContratosListPage } from '@/features/contracts/pages/ContratosListPage';
-import { ContratoDetailPage } from '@/features/contracts/pages/ContratoDetailPage';
-import { ContratoCreatePage } from '@/features/contracts/pages/ContratoCreatePage';
-import { ContratoEditPage } from '@/features/contracts/pages/ContratoEditPage';
-import { LancamentosListPage } from '@/features/financeiro/pages/LancamentosListPage';
-import { PagamentosPage } from '@/features/financeiro/pages/PagamentosPage';
-import { ContasBancariasPage } from '@/features/financeiro/pages/ContasBancariasPage';
-import { CentrosCustoPage } from '@/features/financeiro/pages/CentrosCustoPage';
-import { AcoesListPage } from '@/features/operacoes/pages/AcoesListPage';
-import { CentroDeEstrategiaPage } from '@/features/estrategia/pages/CentroDeEstrategiaPage';
 import { AppLayoutMotorista } from '@/features/motorista-app/components/AppLayoutMotorista';
-import { MeuContratoPage } from '@/features/motorista-app/pages/MeuContratoPage';
+import { NaoEncontradoPage } from './NaoEncontradoPage';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RequireOwner } from './RequireOwner';
 import { RequireStaff } from './RequireStaff';
 import { RequireMotorista } from './RequireMotorista';
 
-// Command Center foi a Home da Sprint 5 até o Épico 1 (Operação Perfeita) — Dashboard
-// continua fora do índice, rota analítica separada (DEC-024, ainda válida). Centro de
-// Operações ABSORVE a Central de Comando (mesmo useCommandCenter por baixo, ver
-// CentroDeOperacoesPage.tsx) em vez de virar rota nova ao lado — só troca o que é a Home.
+// Code-splitting (Fase 2, achado nº1 da auditoria pra mobile): antes tudo era import estático
+// e o bundle era um único arquivo de ~1,7 MB — o motorista baixava o ERP inteiro (Recharts,
+// dnd-kit, simulador financeiro) só pra ver o próprio contrato. Agora cada PÁGINA é um chunk
+// lazy: o ramo /motorista e o ramo administrativo viram bundles separados, e cada role só
+// baixa o seu. Os guards, layouts e a tela 404 ficam eager (são leves e sempre necessários).
+// Suspense fica dentro de cada layout, em volta do <Outlet/> (ver AppLayout / AppLayoutMotorista).
+const named = <T extends Record<string, unknown>>(factory: () => Promise<T>, name: keyof T) =>
+  lazy(async () => ({ default: (await factory())[name] as React.ComponentType<unknown> }));
+
+// --- públicas / auth ---
+const LoginPage = named(() => import('@/features/auth/pages/LoginPage'), 'LoginPage');
+const AceitarConvitePage = named(() => import('@/features/auth/pages/AceitarConvitePage'), 'AceitarConvitePage');
+const RecuperarSenhaPage = named(() => import('@/features/auth/pages/RecuperarSenhaPage'), 'RecuperarSenhaPage');
+const RedefinirSenhaPage = named(() => import('@/features/auth/pages/RedefinirSenhaPage'), 'RedefinirSenhaPage');
+
+// --- portal do motorista ---
+const MotoristaHomePage = named(() => import('@/features/motorista-app/pages/MotoristaHomePage'), 'MotoristaHomePage');
+const MeuCarroPage = named(() => import('@/features/motorista-app/pages/MeuCarroPage'), 'MeuCarroPage');
+const MeuContratoPage = named(() => import('@/features/motorista-app/pages/MeuContratoPage'), 'MeuContratoPage');
+const MeusPagamentosPage = named(() => import('@/features/motorista-app/pages/MeusPagamentosPage'), 'MeusPagamentosPage');
+const CobrancaDetalhePage = named(() => import('@/features/motorista-app/pages/CobrancaDetalhePage'), 'CobrancaDetalhePage');
+const LojinhaPage = named(() => import('@/features/motorista-app/pages/LojinhaPage'), 'LojinhaPage');
+const CarrinhoPage = named(() => import('@/features/motorista-app/pages/CarrinhoPage'), 'CarrinhoPage');
+const MeusPedidosPage = named(() => import('@/features/motorista-app/pages/MeusPedidosPage'), 'MeusPedidosPage');
+const MeusDocumentosPage = named(() => import('@/features/motorista-app/pages/MeusDocumentosPage'), 'MeusDocumentosPage');
+const MinhasVistoriasPage = named(() => import('@/features/motorista-app/pages/MinhasVistoriasPage'), 'MinhasVistoriasPage');
+const VistoriaDetalhePage = named(() => import('@/features/motorista-app/pages/VistoriaDetalhePage'), 'VistoriaDetalhePage');
+const SuportePage = named(() => import('@/features/motorista-app/pages/SuportePage'), 'SuportePage');
+const PerfilPage = named(() => import('@/features/motorista-app/pages/PerfilPage'), 'PerfilPage');
+const MaisPage = named(() => import('@/features/motorista-app/pages/MaisPage'), 'MaisPage');
+
+// --- administrativo ---
+const CentroDeOperacoesPage = named(() => import('@/features/command-center/pages/CentroDeOperacoesPage'), 'CentroDeOperacoesPage');
+const DashboardPage = named(() => import('@/features/dashboard/pages/DashboardPage'), 'DashboardPage');
+const FrotaPage = named(() => import('@/features/frota/pages/FrotaPage'), 'FrotaPage');
+const VeiculoDetailPage = named(() => import('@/features/frota/pages/VeiculoDetailPage'), 'VeiculoDetailPage');
+const VeiculoCreatePage = named(() => import('@/features/frota/pages/VeiculoCreatePage'), 'VeiculoCreatePage');
+const VeiculoEditPage = named(() => import('@/features/frota/pages/VeiculoEditPage'), 'VeiculoEditPage');
+const MotoristasPage = named(() => import('@/features/motoristas/pages/MotoristasPage'), 'MotoristasPage');
+const MotoristaDetailPage = named(() => import('@/features/motoristas/pages/MotoristaDetailPage'), 'MotoristaDetailPage');
+const MotoristaCreatePage = named(() => import('@/features/motoristas/pages/MotoristaCreatePage'), 'MotoristaCreatePage');
+const MotoristaEditPage = named(() => import('@/features/motoristas/pages/MotoristaEditPage'), 'MotoristaEditPage');
+const ContratosListPage = named(() => import('@/features/contracts/pages/ContratosListPage'), 'ContratosListPage');
+const ContratoDetailPage = named(() => import('@/features/contracts/pages/ContratoDetailPage'), 'ContratoDetailPage');
+const ContratoCreatePage = named(() => import('@/features/contracts/pages/ContratoCreatePage'), 'ContratoCreatePage');
+const ContratoEditPage = named(() => import('@/features/contracts/pages/ContratoEditPage'), 'ContratoEditPage');
+const LancamentosListPage = named(() => import('@/features/financeiro/pages/LancamentosListPage'), 'LancamentosListPage');
+const PagamentosPage = named(() => import('@/features/financeiro/pages/PagamentosPage'), 'PagamentosPage');
+const ContasBancariasPage = named(() => import('@/features/financeiro/pages/ContasBancariasPage'), 'ContasBancariasPage');
+const CentrosCustoPage = named(() => import('@/features/financeiro/pages/CentrosCustoPage'), 'CentrosCustoPage');
+const AcoesListPage = named(() => import('@/features/operacoes/pages/AcoesListPage'), 'AcoesListPage');
+const CentroDeEstrategiaPage = named(() => import('@/features/estrategia/pages/CentroDeEstrategiaPage'), 'CentroDeEstrategiaPage');
+const UsuariosPage = named(() => import('@/features/auth/pages/UsuariosPage'), 'UsuariosPage');
+
 export const router = createBrowserRouter([
-  {
-    path: '/login',
-    element: <LoginPage />,
-  },
-  {
-    path: '/aceitar-convite',
-    element: <AceitarConvitePage />,
-  },
-  {
-    path: '/recuperar-senha',
-    element: <RecuperarSenhaPage />,
-  },
-  {
-    // Pública de propósito: o link do e-mail de recuperação autentica sozinho (supabase-js
-    // processa o token da URL); a própria página nega quando não há sessão.
-    path: '/redefinir-senha',
-    element: <RedefinirSenhaPage />,
-  },
+  { path: '/login', element: <LoginPage /> },
+  { path: '/aceitar-convite', element: <AceitarConvitePage /> },
+  { path: '/recuperar-senha', element: <RecuperarSenhaPage /> },
+  // Pública de propósito: o link do e-mail de recuperação autentica sozinho (supabase-js
+  // processa o token da URL); a própria página nega quando não há sessão.
+  { path: '/redefinir-senha', element: <RedefinirSenhaPage /> },
   {
     element: <ProtectedRoute />,
     children: [
@@ -64,7 +78,22 @@ export const router = createBrowserRouter([
         children: [
           {
             element: <AppLayoutMotorista />,
-            children: [{ index: true, element: <MeuContratoPage /> }],
+            children: [
+              { index: true, element: <MotoristaHomePage /> },
+              { path: 'carro', element: <MeuCarroPage /> },
+              { path: 'contrato', element: <MeuContratoPage /> },
+              { path: 'pagamentos', element: <MeusPagamentosPage /> },
+              { path: 'pagamentos/:id', element: <CobrancaDetalhePage /> },
+              { path: 'lojinha', element: <LojinhaPage /> },
+              { path: 'lojinha/carrinho', element: <CarrinhoPage /> },
+              { path: 'lojinha/pedidos', element: <MeusPedidosPage /> },
+              { path: 'documentos', element: <MeusDocumentosPage /> },
+              { path: 'vistorias', element: <MinhasVistoriasPage /> },
+              { path: 'vistorias/:id', element: <VistoriaDetalhePage /> },
+              { path: 'suporte', element: <SuportePage /> },
+              { path: 'perfil', element: <PerfilPage /> },
+              { path: 'mais', element: <MaisPage /> },
+            ],
           },
         ],
       },
@@ -107,4 +136,6 @@ export const router = createBrowserRouter([
       },
     ],
   },
+  // 404 — qualquer rota desconhecida (achado da auditoria: antes renderizava tela em branco).
+  { path: '*', element: <NaoEncontradoPage /> },
 ]);

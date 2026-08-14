@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { BarChart3, Car, ClipboardList, Compass, FileSignature, Landmark, PieChart, Radar, LogOut, Receipt, Search, Users, UserCog, Wallet } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
@@ -118,7 +119,9 @@ export function AppLayout() {
           verificar a Fase 1 do Kanban em produção — corrigido na raiz (aqui) em vez de em cada
           componente que algum dia tiver uma faixa de rolagem própria. */}
       <main className="min-w-0 flex-1">
-        <Outlet />
+        <Suspense fallback={<div className="p-8 text-sm text-neutral-500">Carregando…</div>}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* Achado da Fase 9 (auditoria geral): antes ficava sempre montada, então
