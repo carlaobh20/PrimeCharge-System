@@ -24,11 +24,18 @@ import type {
 // (ver engine/priorityEngine.ts). Desde a Sprint 6 (DEC-025), Opportunity/Risk também são
 // tipos de base compartilhados — cada feature (Veículos, Motoristas...) calcula sua própria
 // versão na sua intelligence/, o Command Center só consolida e prioriza.
-export type PrioritizedAlerta = Alerta & PriorityMeta;
-export type PrioritizedInsight = Insight & PriorityMeta;
+// Achado da auditoria do Épico 1 (Operação Perfeita, achado #1 — "cockpits burros"): Alerta/
+// Insight/Oportunidade/Risco chegavam ao Command Center como <div> sem link algum, apesar de
+// cada EntityIntelligenceSnapshot já carregar `hrefBase` (o mesmo dado que actionEngine.ts
+// e acoesOperacionaisAdapter.ts sempre usaram pra montar o href de PrioritizedAction). Os
+// quatro engines de consolidarX em engine/ agora repassam esse hrefBase como `href` — sem
+// isso, "Prioridades do Dia" (PriorityFeedItemCard, que já sabia renderizar <Link> quando
+// item.href existe) nunca tinha link pra alerta/risco/oportunidade, só para ação.
+export type PrioritizedAlerta = Alerta & PriorityMeta & { href: string };
+export type PrioritizedInsight = Insight & PriorityMeta & { href: string };
 export type PrioritizedAction = NextAction & PriorityMeta & { href: string };
-export type PrioritizedOpportunity = Opportunity & PriorityMeta;
-export type PrioritizedRisk = Risk & PriorityMeta;
+export type PrioritizedOpportunity = Opportunity & PriorityMeta & { href: string };
+export type PrioritizedRisk = Risk & PriorityMeta & { href: string };
 
 // Sprint 7 (Contratos, ver DEC-038): os cinco engines de priorização deixam de conhecer
 // "Veículo" — passam a consumir este formato genérico. Cada feature que alimenta o Command

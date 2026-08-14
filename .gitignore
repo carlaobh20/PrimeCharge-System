@@ -30,3 +30,7 @@ dist-ssr
 
 # Vercel
 .vercel/
+
+# Backups de produção — contêm dado real (PII de usuários, linhas de tabela completas).
+# Gerados sob demanda antes de operações destrutivas em produção; nunca versionar.
+backup_pre_migrations_*/

@@ -8,7 +8,10 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { Button } from '@/shared/components/ui/button';
 import { toast } from '@/shared/components/ui/toast';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
+import { useContratos } from '@/features/contracts/hooks/useContratos';
 import { useCentrosCusto } from '../hooks/useCentrosCusto';
+import { usePlanoContas } from '../hooks/usePlanoContas';
+import { useCentrosResultado } from '../hooks/useCentrosResultado';
 import { useCreateLancamento } from '../hooks/useLancamentos';
 import { lancamentoSchema, type LancamentoFormInput, type LancamentoFormValues } from '../schemas/lancamento.schema';
 import { LANCAMENTO_TIPO_LABEL } from '../types';
@@ -26,17 +29,33 @@ export function LancamentoFormDialog({
 }) {
   const { data: usuario } = useCurrentUsuario();
   const { data: centrosCusto } = useCentrosCusto();
+  const { data: planoContas } = usePlanoContas();
+  const { data: centrosResultado } = useCentrosResultado();
+  // Sem filtro de status aqui de propósito — cobre qualquer contrato (rascunho a encerrado);
+  // vincular um lançamento a um contrato que não está mais ativo ainda é um vínculo válido.
+  const { data: contratos } = useContratos();
   const createLancamento = useCreateLancamento();
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<LancamentoFormInput, unknown, LancamentoFormValues>({
     resolver: zodResolver(lancamentoSchema),
     defaultValues: { tipo: 'despesa', ...defaultValues },
   });
+
+  // Contrato já traz veiculo_id/motorista_id (join de useContratos) — ao selecionar um
+  // contrato, propaga essas duas FKs automaticamente (campos ocultos, sem Select próprio).
+  // Limpar o contrato limpa as duas junto.
+  function handleContratoChange(contratoId: string) {
+    setValue('contrato_id', contratoId || undefined);
+    const contrato = contratos?.find((c) => c.id === contratoId);
+    setValue('veiculo_id', contrato?.veiculo_id ?? undefined);
+    setValue('motorista_id', contrato?.motorista_id ?? undefined);
+  }
 
   function handleClose() {
     reset();
@@ -57,6 +76,8 @@ export function LancamentoFormDialog({
           contrato_id: values.contrato_id ?? null,
           veiculo_id: values.veiculo_id ?? null,
           motorista_id: values.motorista_id ?? null,
+          conta_contabil_id: values.conta_contabil_id ?? null,
+          centro_resultado_id: values.centro_resultado_id ?? null,
           data_prevista: values.data_prevista,
           observacoes: values.observacoes ?? null,
         },
@@ -105,6 +126,49 @@ export function LancamentoFormDialog({
               {centrosCusto?.map((cc) => (
                 <option key={cc.id} value={cc.id}>
                   {cc.nome}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+
+        <div>
+          <Label>Contrato</Label>
+          <Select
+            {...register('contrato_id', { onChange: (e) => handleContratoChange(e.target.value) })}
+          >
+            <option value="">Nenhum contrato</option>
+            {contratos?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.veiculo?.placa ?? '—'} · {c.motorista?.nome_completo ?? '—'}
+              </option>
+            ))}
+          </Select>
+          {/* veiculo_id/motorista_id não têm Select próprio — vêm do contrato selecionado
+              acima (handleContratoChange), campos ocultos só para entrar no payload. */}
+          <input type="hidden" {...register('veiculo_id')} />
+          <input type="hidden" {...register('motorista_id')} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Conta contábil</Label>
+            <Select {...register('conta_contabil_id')}>
+              <option value="">Automático</option>
+              {planoContas?.map((pc) => (
+                <option key={pc.id} value={pc.id}>
+                  {pc.nome}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Centro de resultado</Label>
+            <Select {...register('centro_resultado_id')}>
+              <option value="">Automático</option>
+              {centrosResultado?.map((cr) => (
+                <option key={cr.id} value={cr.id}>
+                  {cr.nome}
                 </option>
               ))}
             </Select>

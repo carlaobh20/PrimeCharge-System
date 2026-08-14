@@ -1,12 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  concluirVistoria,
   createChecklist,
+  createVistoria,
   getChecklist,
+  getVistoriaComComparacao,
   listChecklistsPorEmpresa,
   listChecklistsPorEntidade,
+  removeFotoItem,
   responderChecklistItem,
   updateChecklistStatus,
+  updateVistoriaCampos,
+  uploadAssinaturaVistoria,
+  uploadFotoItem,
   type ChecklistInput,
+  type VistoriaInput,
 } from '../api/checklists';
 import type { ChecklistStatus } from '../types';
 
@@ -63,8 +71,81 @@ export function useUpdateChecklistStatus() {
 export function useResponderChecklistItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ itemId, payload }: { itemId: string; payload: { resposta: boolean; observacao?: string | null } }) =>
-      responderChecklistItem(itemId, payload),
+    mutationFn: ({
+      itemId,
+      payload,
+    }: {
+      itemId: string;
+      payload: { resposta: boolean | null; observacao?: string | null; aplicavel?: boolean };
+    }) => responderChecklistItem(itemId, payload),
     onSuccess: () => invalidateChecklists(queryClient),
+  });
+}
+
+// ============================================================
+// Épico 8 — Vistoria real
+// ============================================================
+
+export function useCreateVistoria() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ empresaId, input }: { empresaId: string; input: VistoriaInput }) => createVistoria(empresaId, input),
+    onSuccess: (data) => invalidateChecklists(queryClient, 'veiculo', data.entidade_id),
+  });
+}
+
+export function useUpdateVistoriaCampos() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateVistoriaCampos>[1] }) =>
+      updateVistoriaCampos(id, payload),
+    onSuccess: (data) => invalidateChecklists(queryClient, 'veiculo', data.entidade_id),
+  });
+}
+
+export function useUploadFotoItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: Parameters<typeof uploadFotoItem>[0]) => uploadFotoItem(params),
+    onSuccess: () => invalidateChecklists(queryClient),
+  });
+}
+
+export function useRemoveFotoItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, fotoUrl }: { itemId: string; fotoUrl: string }) => removeFotoItem(itemId, fotoUrl),
+    onSuccess: () => invalidateChecklists(queryClient),
+  });
+}
+
+export function useUploadAssinaturaVistoria() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: Parameters<typeof uploadAssinaturaVistoria>[0]) => uploadAssinaturaVistoria(params),
+    onSuccess: (data) => invalidateChecklists(queryClient, 'veiculo', data.entidade_id),
+  });
+}
+
+export function useConcluirVistoria() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof concluirVistoria>[1] }) => concluirVistoria(id, payload),
+    onSuccess: (data) => {
+      invalidateChecklists(queryClient, 'veiculo', data.entidade_id);
+      // Vistoria concluída propaga pro contrato/veículo no banco (trigger) — invalida os dois
+      // pra a UI de fora do painel de checklist (cockpit do contrato, ficha do veículo) refletir.
+      queryClient.invalidateQueries({ queryKey: ['contratos'] });
+      queryClient.invalidateQueries({ queryKey: ['veiculos'] });
+      queryClient.invalidateQueries({ queryKey: ['sinistros'] });
+    },
+  });
+}
+
+export function useVistoriaComComparacao(id: string | undefined) {
+  return useQuery({
+    queryKey: ['checklists', 'comparacao', id],
+    queryFn: () => getVistoriaComComparacao(id!),
+    enabled: !!id,
   });
 }

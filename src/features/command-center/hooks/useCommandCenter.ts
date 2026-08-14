@@ -19,9 +19,11 @@ import { adaptarAcoesOperacionaisParaFeed } from '../engine/acoesOperacionaisAda
 import type { CommandCenterFeedItem, EntityIntelligenceSnapshot } from '../types';
 
 export type UseCommandCenterResult =
-  | { isLoading: true }
+  | { isLoading: true; isError: false }
+  | { isLoading: false; isError: true; error: unknown }
   | {
       isLoading: false;
+      isError: false;
       alertas: ReturnType<typeof consolidarAlertas>;
       insights: ReturnType<typeof consolidarInsights>;
       acoes: ReturnType<typeof consolidarAcoes>;
@@ -44,23 +46,35 @@ export type UseCommandCenterResult =
 // frota") continua exclusivamente sobre Veículos — não fazia parte do pedido desta sprint e
 // mistura mal com Motorista/Contrato (é sobre estado físico de ativo).
 export function useCommandCenter(): UseCommandCenterResult {
-  const { data: frota, isLoading: loadingFrota } = useVeiculos();
-  const { data: motoristas, isLoading: loadingMotoristas } = useMotoristas();
-  const { data: contratos, isLoading: loadingContratos } = useContratos();
+  const qFrota = useVeiculos();
+  const qMotoristas = useMotoristas();
+  const qContratos = useContratos();
   // Lançamentos/Pagamentos buscados UMA vez aqui e repassados aos três coletores — antes,
   // cada coletor (fleet/driver/contract) buscava a própria cópia (3x lançamentos, 3x
   // pagamentos, 2x contratos numa única carga da Home). Achado da auditoria de CTO
   // (2026-08-06, ver DECISION_LOG.md) — furava o objetivo original da DEC-024 ("sempre N
   // consultas fixas, não uma por origem") sem que ninguém tivesse decidido isso de propósito.
-  const { data: lancamentos, isLoading: loadingLancamentos } = useLancamentosPorEmpresa();
-  const { data: pagamentosPendentes, isLoading: loadingPagamentos } = usePagamentosPendentesPorEmpresa();
+  const qLancamentos = useLancamentosPorEmpresa();
+  const qPagamentos = usePagamentosPendentesPorEmpresa();
   // Missão 4 (Fase 3, achado #2 da auditoria de jornada) — fila real de Ações Operacionais
   // entra no mesmo feed que Alerta/Risco/Oportunidade/"Próxima Ação", ver
   // engine/acoesOperacionaisAdapter.ts.
-  const { data: acoesOperacionais, isLoading: loadingAcoesOperacionais } = useAcoesPorEmpresa();
+  const qAcoesOperacionais = useAcoesPorEmpresa();
 
-  const loadingBase =
-    loadingFrota || loadingMotoristas || loadingContratos || loadingLancamentos || loadingPagamentos || loadingAcoesOperacionais;
+  const frota = qFrota.data;
+  const motoristas = qMotoristas.data;
+  const contratos = qContratos.data;
+  const lancamentos = qLancamentos.data;
+  const pagamentosPendentes = qPagamentos.data;
+  const acoesOperacionais = qAcoesOperacionais.data;
+
+  const baseQueries = [qFrota, qMotoristas, qContratos, qLancamentos, qPagamentos, qAcoesOperacionais];
+  const loadingBase = baseQueries.some((q) => q.isLoading);
+  // Achado de campo (2026-08-09): mesmo bug de useFilasDeTrabalho.ts corrigido aqui — usar
+  // `!data` como proxy de "carregando" trava a Home pra sempre se qualquer consulta base
+  // falhar (RLS, rede). `isError` real garante que um erro vira mensagem, não esqueleto
+  // eterno.
+  const erroBase = baseQueries.find((q) => q.isError);
   const crossFeatureDeps = {
     contratos: contratos ?? [],
     lancamentos: lancamentos ?? [],
@@ -68,7 +82,9 @@ export function useCommandCenter(): UseCommandCenterResult {
     veiculos: frota ?? [],
   };
 
-  const { data: snapshotsFrota, isLoading: loadingIntelFrota } = useQuery({
+  const semErroBase = !erroBase;
+
+  const qSnapshotsFrota = useQuery({
     queryKey: [
       'command-center',
       'fleet-intelligence',
@@ -78,10 +94,10 @@ export function useCommandCenter(): UseCommandCenterResult {
       crossFeatureDeps.pagamentosPendentes.length,
     ],
     queryFn: () => coletarInteligenciaDaFrota(frota ?? [], crossFeatureDeps),
-    enabled: !loadingBase,
+    enabled: !loadingBase && semErroBase,
   });
 
-  const { data: snapshotsMotoristas, isLoading: loadingIntelMotoristas } = useQuery({
+  const qSnapshotsMotoristas = useQuery({
     queryKey: [
       'command-center',
       'driver-intelligence',
@@ -92,10 +108,10 @@ export function useCommandCenter(): UseCommandCenterResult {
       crossFeatureDeps.veiculos.length,
     ],
     queryFn: () => coletarInteligenciaDosMotoristas(motoristas ?? [], crossFeatureDeps),
-    enabled: !loadingBase,
+    enabled: !loadingBase && semErroBase,
   });
 
-  const { data: snapshotsContratos, isLoading: loadingIntelContratos } = useQuery({
+  const qSnapshotsContratos = useQuery({
     queryKey: [
       'command-center',
       'contract-intelligence',
@@ -104,20 +120,24 @@ export function useCommandCenter(): UseCommandCenterResult {
       crossFeatureDeps.pagamentosPendentes.length,
     ],
     queryFn: () => coletarInteligenciaDosContratos(contratos ?? [], crossFeatureDeps),
-    enabled: !loadingBase,
+    enabled: !loadingBase && semErroBase,
   });
 
-  const isLoading =
-    loadingBase ||
-    loadingIntelFrota ||
-    loadingIntelMotoristas ||
-    loadingIntelContratos ||
-    !snapshotsFrota ||
-    !snapshotsMotoristas ||
-    !snapshotsContratos;
+  const snapshotsFrota = qSnapshotsFrota.data;
+  const snapshotsMotoristas = qSnapshotsMotoristas.data;
+  const snapshotsContratos = qSnapshotsContratos.data;
+
+  const intelQueries = [qSnapshotsFrota, qSnapshotsMotoristas, qSnapshotsContratos];
+  const isLoading = loadingBase || (semErroBase && intelQueries.some((q) => q.isLoading));
+  const erroIntel = intelQueries.find((q) => q.isError);
+  const erro = erroBase ?? erroIntel;
 
   if (isLoading) {
-    return { isLoading: true };
+    return { isLoading: true, isError: false };
+  }
+
+  if (erro || !snapshotsFrota || !snapshotsMotoristas || !snapshotsContratos) {
+    return { isLoading: false, isError: true, error: erro?.error };
   }
 
   const entidades: EntityIntelligenceSnapshot[] = [
@@ -142,5 +162,5 @@ export function useCommandCenter(): UseCommandCenterResult {
   ];
   const prioridadesDoDia = selecionarPrioridadesDoDia(feed);
 
-  return { isLoading: false, alertas, insights, acoes, oportunidades, riscos, resumoFrota, prioridadesDoDia };
+  return { isLoading: false, isError: false, alertas, insights, acoes, oportunidades, riscos, resumoFrota, prioridadesDoDia };
 }

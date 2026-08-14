@@ -32,6 +32,15 @@ export function VeiculoCreatePage() {
           valor_mercado: values.valor_mercado ?? null,
           valor_residual_estimado: values.valor_residual_estimado ?? null,
           observacoes: values.observacoes ?? null,
+          // Épico 4, Parte 1 (2026-08-10).
+          fornecedor: values.fornecedor ?? null,
+          banco: values.banco ?? null,
+          valor_entrada: values.valor_entrada ?? null,
+          valor_financiado: values.valor_financiado ?? null,
+          taxa_juros_am_pct: values.taxa_juros_am_pct ?? null,
+          prazo_financiamento_meses: values.prazo_financiamento_meses ?? null,
+          sistema_amortizacao: values.sistema_amortizacao ?? null,
+          primeiro_vencimento_financiamento: values.primeiro_vencimento_financiamento ?? null,
           // Só preenchidos pelo fluxo de venda (VenderVeiculoDialog, Missão 4) — nunca no
           // cadastro inicial.
           comprador: null,

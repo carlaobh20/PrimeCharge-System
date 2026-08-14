@@ -23,6 +23,30 @@ export type Arquivo = {
   criado_em: string;
 };
 
+// Épico 6, Fase 1.2 (migration 0027) — registro de conversas. Distinta de Comentario: aqui
+// `ocorrida_em` é quando a conversa ACONTECEU (pode ser retroativa), não quando foi digitada.
+export type InteracaoCanal = 'ligacao' | 'whatsapp' | 'email' | 'presencial' | 'outro';
+
+export const INTERACAO_CANAL_LABEL: Record<InteracaoCanal, string> = {
+  ligacao: 'Ligação',
+  whatsapp: 'WhatsApp',
+  email: 'E-mail',
+  presencial: 'Presencial',
+  outro: 'Outro',
+};
+
+export type Interacao = {
+  id: string;
+  empresa_id: string;
+  entidade_tipo: string;
+  entidade_id: string;
+  ocorrida_em: string;
+  canal: InteracaoCanal;
+  conteudo: string;
+  usuario_id: string | null;
+  criado_em: string;
+};
+
 export type Comentario = {
   id: string;
   empresa_id: string;

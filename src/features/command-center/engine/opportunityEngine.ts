@@ -5,7 +5,7 @@ import { calcularPrioridade } from './priorityEngine';
 // em cada features/<x>/intelligence/opportunities.ts). Só consolida o que cada entidade já
 // calculou e prioriza. Desde a Sprint 7 (DEC-038), formato genérico — ver alertEngine.ts.
 export function consolidarOportunidades(entidades: EntityIntelligenceSnapshot[]): PrioritizedOpportunity[] {
-  return entidades.flatMap(({ origemTipo, origemId, origemLabel, oportunidades }) =>
+  return entidades.flatMap(({ origemTipo, origemId, origemLabel, hrefBase, oportunidades }) =>
     oportunidades.map((oportunidade) => {
       const impacto = 'alto';
       const urgencia = 'baixa';
@@ -18,6 +18,7 @@ export function consolidarOportunidades(entidades: EntityIntelligenceSnapshot[])
         origem: origemTipo,
         origemId,
         origemLabel,
+        href: hrefBase,
       } satisfies PrioritizedOpportunity;
     })
   );

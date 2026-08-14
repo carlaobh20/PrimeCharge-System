@@ -10,12 +10,20 @@ import {
   Users,
   IdCard,
   ListChecks,
+  Zap,
+  Store,
+  Code,
+  Building2,
+  Boxes,
+  Landmark,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { KpiCard } from '@/shared/components/ui/kpi-card';
 import { formatMoeda } from '@/shared/lib/format';
 import { useEmpresaHealth } from '../hooks/useEmpresaHealth';
+import { usePatrimonioEmpresa } from '../hooks/usePatrimonioEmpresa';
 import { MetasPanel } from '../components/MetasPanel';
+import { PatrimonioEmpresaCard } from '../components/PatrimonioEmpresaCard';
 
 // Missão 5 (Fase 2 — Business Operating System) redesenha o papel desta página. Até aqui
 // (DEC-024) era "exclusivamente analítico — tendência/histórico", em oposição ao Command
@@ -29,6 +37,7 @@ import { MetasPanel } from '../components/MetasPanel';
 // como emenda à DEC-024 em DEC-110 (ver DECISION_LOG.md), não como revogação silenciosa.
 export function DashboardPage() {
   const health = useEmpresaHealth();
+  const patrimonio = usePatrimonioEmpresa();
 
   return (
     <div className="space-y-6 p-8">
@@ -37,7 +46,7 @@ export function DashboardPage() {
         <p className="mt-2 text-sm text-neutral-500">
           Placar agregado da operação — para a fila de trabalho do dia (o que fazer agora, item por item), use a{' '}
           <Link to="/" className="underline underline-offset-2 hover:text-neutral-700 dark:hover:text-neutral-300">
-            Central de Comando
+            Centro de Operações
           </Link>
           .
         </p>
@@ -95,6 +104,26 @@ export function DashboardPage() {
 
       <section>
         <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <Landmark className="h-3.5 w-3.5" />
+          Ativos
+        </h2>
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          <KpiCard
+            icon={Car}
+            label="Veículos"
+            value={health.isLoading ? '' : formatMoeda(health.ativos.valorTotalVeiculos)}
+            pending={health.isLoading}
+          />
+          <KpiCard icon={Zap} label="Wallbox" value="" pending />
+          <KpiCard icon={Store} label="Loja" value="" pending />
+          <KpiCard icon={Code} label="Software" value="" pending />
+          <KpiCard icon={Building2} label="Imóveis" value="" pending />
+          <KpiCard icon={Boxes} label="Outros" value="" pending />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
           <FileText className="h-3.5 w-3.5" />
           Saúde dos Contratos
         </h2>
@@ -136,6 +165,8 @@ export function DashboardPage() {
           />
         </div>
       </section>
+
+      <PatrimonioEmpresaCard patrimonio={patrimonio} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>

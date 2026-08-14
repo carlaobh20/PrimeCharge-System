@@ -15,8 +15,13 @@ const SELECT_COM_RELACOES_INNER =
 
 type FiltroEntidade = { veiculoId?: string; motoristaId?: string; contratoId?: string };
 
+// Achado da auditoria do Épico 1 (Operação Perfeita, achado #2): esta tela é o único lugar da
+// aplicação onde "pagar" acontece de verdade, mas não existia fila de atraso — ordenação era
+// mais-recente-primeiro (o oposto do que uma tela de cobrança precisa) e não havia como filtrar
+// só o que está vencido. `data_prevista` ascendente põe o mais atrasado no topo por padrão;
+// PagamentosPage soma o filtro "Atrasados" (pendente + vencido) em cima disto, em memória.
 export async function listPagamentos(filters?: { status?: PagamentoStatus | 'todos'; lancamentoId?: string }) {
-  let query = supabase.from('pagamentos').select(SELECT_COM_RELACOES).order('data_prevista', { ascending: false });
+  let query = supabase.from('pagamentos').select(SELECT_COM_RELACOES).order('data_prevista', { ascending: true });
 
   if (filters?.status && filters.status !== 'todos') query = query.eq('status', filters.status);
   if (filters?.lancamentoId) query = query.eq('lancamento_id', filters.lancamentoId);

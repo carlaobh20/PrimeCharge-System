@@ -10,6 +10,11 @@ import type { Contrato } from '../../types';
 // mesmo o alerta "devolvido com carga baixa" (contracts/intelligence/alerts.ts) já depender
 // desse dado. Sem esses dois campos, o fechamento do ciclo de vida do ativo era impossível
 // pela interface — só via SQL direto.
+//
+// Achado da auditoria do Épico 1 (Operação Perfeita): o campo de KM final vinha pré-preenchido
+// com o km_inicial do contrato — se o operador só clicasse "Encerrar" sem reparar, gravava 0 km
+// rodados, errado e silencioso (a validação só exige km_final >= km_inicial, então valores
+// iguais passavam sem aviso). Corrigido: o campo nasce vazio, forçando digitação deliberada.
 export function EncerrarContratoDialog({
   open,
   onOpenChange,
@@ -28,10 +33,10 @@ export function EncerrarContratoDialog({
 
   useEffect(() => {
     if (open) {
-      setKmFinal(contrato.km_inicial != null ? String(contrato.km_inicial) : '');
+      setKmFinal('');
       setCargaFinalPct('');
     }
-  }, [open, contrato.km_inicial]);
+  }, [open]);
 
   const kmValido = kmFinal !== '' && Number(kmFinal) >= (contrato.km_inicial ?? 0);
   const cargaValida = cargaFinalPct !== '' && Number(cargaFinalPct) >= 0 && Number(cargaFinalPct) <= 100;

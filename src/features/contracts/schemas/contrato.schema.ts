@@ -15,6 +15,19 @@ export const contratoSchema = z.object({
   km_inicial: optionalNumber(),
   carga_inicial_pct: optionalNumber(),
   observacoes: optionalString(),
+  dia_vencimento: optionalNumber(),
+  data_reajuste: optionalString(),
+  indice_reajuste: optionalString(),
+  forma_pagamento: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.enum(['pix', 'boleto', 'cartao', 'dinheiro', 'transferencia']).optional()
+  ),
+  tipo_garantia: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.enum(['caucao', 'fiador', 'seguro_fianca', 'nenhuma']).optional()
+  ),
+  percentual_multa_atraso: optionalNumber(),
+  percentual_juros_atraso: optionalNumber(),
 });
 
 // z.transform faz input (o que o form escreve) e output (o que é enviado à API) divergirem de

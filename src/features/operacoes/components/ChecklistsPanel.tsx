@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, ClipboardCheck, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, ClipboardCheck, GitCompare, Plus } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
 import { Select } from '@/shared/components/ui/select';
@@ -8,7 +8,14 @@ import { toast } from '@/shared/components/ui/toast';
 import { formatDataRelativa } from '@/shared/lib/format';
 import { useChecklistsPorEntidade, useResponderChecklistItem, useUpdateChecklistStatus } from '../hooks/useChecklists';
 import { NovoChecklistDialog } from './NovoChecklistDialog';
-import { CHECKLIST_STATUS_LABEL, CHECKLIST_STATUS_TRANSITIONS, type ChecklistComItens, type ChecklistStatus } from '../types';
+import { VistoriaComparacaoDialog } from './VistoriaComparacaoDialog';
+import {
+  CHECKLIST_STATUS_LABEL,
+  CHECKLIST_STATUS_TRANSITIONS,
+  CHECKLIST_TIPO_LABEL,
+  type ChecklistComItens,
+  type ChecklistStatus,
+} from '../types';
 
 const STATUS_BADGE: Record<ChecklistStatus, 'warning' | 'success' | 'secondary'> = {
   aberto: 'warning',
@@ -18,6 +25,7 @@ const STATUS_BADGE: Record<ChecklistStatus, 'warning' | 'success' | 'secondary'>
 
 function ChecklistCard({ checklist }: { checklist: ChecklistComItens }) {
   const [expandido, setExpandido] = useState(checklist.status === 'aberto');
+  const [comparacaoAberta, setComparacaoAberta] = useState(false);
   const responder = useResponderChecklistItem();
   const updateStatus = useUpdateChecklistStatus();
 
@@ -25,6 +33,7 @@ function ChecklistCard({ checklist }: { checklist: ChecklistComItens }) {
   const respondidos = checklist.itens.filter((i) => i.resposta !== null).length;
   const progresso = totalItens === 0 ? 0 : Math.round((respondidos / totalItens) * 100);
   const transicoes = CHECKLIST_STATUS_TRANSITIONS[checklist.status];
+  const ehVistoria = checklist.tipo === 'entrega' || checklist.tipo === 'devolucao';
 
   return (
     <div className="rounded-xl border border-neutral-200 dark:border-white/10">
@@ -36,10 +45,13 @@ function ChecklistCard({ checklist }: { checklist: ChecklistComItens }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">{checklist.titulo}</p>
+            {checklist.tipo && <Badge variant="info">{CHECKLIST_TIPO_LABEL[checklist.tipo]}</Badge>}
             <Badge variant={STATUS_BADGE[checklist.status]}>{CHECKLIST_STATUS_LABEL[checklist.status]}</Badge>
           </div>
           <p className="mt-0.5 text-xs text-neutral-500">
             {respondidos}/{totalItens} itens respondidos ({progresso}%) · criado {formatDataRelativa(checklist.criado_em)}
+            {ehVistoria && checklist.odometro_km !== null && ` · ${checklist.odometro_km} km`}
+            {ehVistoria && checklist.carga_pct !== null && ` · ${checklist.carga_pct}% bateria`}
           </p>
         </div>
         {expandido ? <ChevronUp className="h-4 w-4 shrink-0 text-neutral-400" /> : <ChevronDown className="h-4 w-4 shrink-0 text-neutral-400" />}
@@ -47,6 +59,19 @@ function ChecklistCard({ checklist }: { checklist: ChecklistComItens }) {
 
       {expandido && (
         <div className="border-t border-neutral-100 px-4 py-3 dark:border-white/5">
+          {checklist.tipo === 'devolucao' && checklist.status === 'concluido' && (
+            <div className="mb-3 flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2 dark:bg-white/5">
+              <p className="text-xs text-neutral-500">
+                Destino: <span className="font-medium text-neutral-700 dark:text-neutral-300">{checklist.destino_veiculo ?? '—'}</span>
+                {checklist.houve_sinistro && <span className="ml-2 text-red-600">Sinistro identificado</span>}
+              </p>
+              <Button type="button" variant="outline" size="sm" onClick={() => setComparacaoAberta(true)}>
+                <GitCompare className="h-3.5 w-3.5" />
+                Comparar com a entrega
+              </Button>
+              <VistoriaComparacaoDialog open={comparacaoAberta} onOpenChange={setComparacaoAberta} devolucaoId={checklist.id} />
+            </div>
+          )}
           <div className="space-y-1.5">
             {checklist.itens.map((item) => {
               const reprovado = item.resposta === false;

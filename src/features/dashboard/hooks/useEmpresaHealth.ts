@@ -6,6 +6,7 @@ import { useLancamentosPorEmpresa } from '@/features/financeiro/hooks/useLancame
 import { usePagamentosPorEmpresa } from '@/features/financeiro/hooks/usePagamentos';
 import { useAcoesPorEmpresa } from '@/features/operacoes/hooks/useAcoes';
 import { calcularResumoFinanceiro, type ResumoFinanceiro } from '@/features/financeiro/intelligence';
+import { resolverValorAtualVeiculo } from '@/shared/lib/valorAtivo';
 import { diasAte } from '@/shared/lib/format';
 import type { VeiculoStatus } from '@/features/frota/types';
 import type { ContratoStatus } from '@/features/contracts/types';
@@ -38,6 +39,13 @@ export type EmpresaHealthResult =
       filaOperacional: {
         total: number;
         porPrioridade: Partial<Record<AcaoPrioridade, number>>;
+      };
+      // Épico 4, Parte 8 — só "Veículos" tem dado real hoje. Wallbox/Loja/Software/Imóveis/
+      // Outros aparecem na tela sempre zerados (`pending`, mesma convenção de KpiCard já usada
+      // pra "módulo ainda não existe") — o objetivo é mudar a mentalidade ("a empresa tem mais
+      // de um tipo de ativo"), não fingir que já existe dado que não existe.
+      ativos: {
+        valorTotalVeiculos: number;
       };
     };
 
@@ -116,9 +124,12 @@ export function useEmpresaHealth(): EmpresaHealthResult {
       valorPendenteAtrasado: pendentesAtrasados.reduce((soma, p) => soma + p.valor, 0),
     },
     frota: {
-      total: commandCenter.isLoading ? 0 : commandCenter.resumoFrota.totalVeiculos,
-      healthMedio: commandCenter.isLoading ? null : commandCenter.resumoFrota.healthMedio,
-      criticos: commandCenter.isLoading ? 0 : commandCenter.resumoFrota.veiculosCriticos.length,
+      // Épico 1: useCommandCenter agora também pode devolver isError (ver comentário lá) —
+      // mesmo fallback "sem dado" que já existia pra isLoading, dado que aqui é só o placar
+      // da empresa (Dashboard), não vale travar a tela inteira por causa disso.
+      total: commandCenter.isLoading || commandCenter.isError ? 0 : commandCenter.resumoFrota.totalVeiculos,
+      healthMedio: commandCenter.isLoading || commandCenter.isError ? null : commandCenter.resumoFrota.healthMedio,
+      criticos: commandCenter.isLoading || commandCenter.isError ? 0 : commandCenter.resumoFrota.veiculosCriticos.length,
       porStatus: contarPorStatus(veiculos ?? []),
     },
     contratos: {
@@ -136,6 +147,14 @@ export function useEmpresaHealth(): EmpresaHealthResult {
     filaOperacional: {
       total: acoesAbertas.length,
       porPrioridade: contarPorStatus(acoesAbertas.map((a) => ({ status: a.prioridade }))),
+    },
+    ativos: {
+      // 'encerrado' é o único status realmente terminal (venda concluída e baixada) — um
+      // veículo 'venda' (anunciado, ainda não vendido) continua sendo patrimônio da empresa até
+      // a venda de fato acontecer, por isso entra na soma.
+      valorTotalVeiculos: (veiculos ?? [])
+        .filter((v) => v.status !== 'encerrado')
+        .reduce((soma, v) => soma + (resolverValorAtualVeiculo(v) ?? 0), 0),
     },
   };
 }

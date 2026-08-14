@@ -16,8 +16,13 @@ function invalidateConvites(queryClient: ReturnType<typeof useQueryClient>) {
 export function useCreateConvite() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ empresaId, payload }: { empresaId: string; payload: { email: string; role: UserRole } }) =>
-      createConvite(empresaId, payload),
+    mutationFn: ({
+      empresaId,
+      payload,
+    }: {
+      empresaId: string;
+      payload: { email: string; role: UserRole; motoristaId?: string };
+    }) => createConvite(empresaId, payload),
     onSuccess: () => invalidateConvites(queryClient),
   });
 }

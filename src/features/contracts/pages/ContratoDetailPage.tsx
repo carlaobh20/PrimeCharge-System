@@ -9,6 +9,9 @@ import { HistoricoPanel } from '@/shared/capabilities/components/HistoricoPanel'
 import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { PlaceholderActionDialog } from '@/shared/components/ui/placeholder-action-dialog';
 import { toast } from '@/shared/components/ui/toast';
+import { LancamentoFormDialog } from '@/features/financeiro/components/LancamentoFormDialog';
+import { VistoriaDialog } from '@/features/operacoes/components/VistoriaDialog';
+import { useChecklistsPorEntidade } from '@/features/operacoes/hooks/useChecklists';
 
 import { ContratoCockpitHeader } from '../components/ContratoCockpitHeader';
 import { ContratoKpiBand } from '../components/ContratoKpiBand';
@@ -17,28 +20,25 @@ import { ContratoCommandActions } from '../components/ContratoCommandActions';
 import { DadosGeraisTab } from '../components/tabs/DadosGeraisTab';
 import { ArquivosTab } from '../components/tabs/ArquivosTab';
 import { IndicadoresTab } from '../components/tabs/IndicadoresTab';
-import { EventosTab } from '../components/tabs/EventosTab';
 import { ConfiguracoesTab } from '../components/tabs/ConfiguracoesTab';
 
 import { AlterarStatusDialog } from '../components/dialogs/AlterarStatusDialog';
-import { AtivarContratoDialog } from '../components/dialogs/AtivarContratoDialog';
-import { EncerrarContratoDialog } from '../components/dialogs/EncerrarContratoDialog';
 import { RenovarContratoDialog } from '../components/dialogs/RenovarContratoDialog';
 import { AdicionarDocumentoDialog } from '../components/dialogs/AdicionarDocumentoDialog';
 import { NovoComentarioDialog } from '../components/dialogs/NovoComentarioDialog';
 import { NovaTagDialog } from '../components/dialogs/NovaTagDialog';
 
-import {
-  useAtivarContrato,
-  useContrato,
-  useDeleteContrato,
-  useEncerrarContrato,
-  useRenovarContrato,
-  useUpdateContratoStatus,
-} from '../hooks/useContratos';
+import { useContrato, useDeleteContrato, useRenovarContrato, useUpdateContratoStatus } from '../hooks/useContratos';
 import { useContractIntelligence } from '../hooks/useContractIntelligence';
 import { PLACEHOLDER_DESCRIPTIONS, type ActionKey } from '../lib/actions';
 import { CONTRATO_STATUS_LABEL, CONTRATO_STATUS_TRANSITIONS, type ContratoStatus } from '../types';
+
+// Épico 8 — "Ativar"/"Encerrar" contrato deixaram de ser um UPDATE direto de 2 campos
+// (AtivarContratoDialog/EncerrarContratoDialog, mantidos no repo mas não usados mais aqui —
+// não apaguei os arquivos, só parei de importá-los, ver relatório da sessão). Agora é a
+// VISTORIA (VistoriaDialog) que captura km/carga/checklist/fotos/assinatura e, ao ser
+// concluída, é o próprio banco (fn_propagar_status_vistoria, migration 0030) quem ativa ou
+// encerra o contrato — não o client.
 
 const CAMPOS_LABEL: Record<string, string> = {
   status: 'Status',
@@ -53,6 +53,13 @@ const CAMPOS_LABEL: Record<string, string> = {
   carga_inicial_pct: 'Carga na entrega',
   carga_final_pct: 'Carga na devolução',
   observacoes: 'Observações',
+  dia_vencimento: 'Dia de vencimento',
+  data_reajuste: 'Data de reajuste',
+  indice_reajuste: 'Índice de reajuste',
+  forma_pagamento: 'Forma de pagamento',
+  tipo_garantia: 'Garantia',
+  percentual_multa_atraso: 'Multa por atraso',
+  percentual_juros_atraso: 'Juros por atraso',
 };
 
 function CockpitSkeleton() {
@@ -75,8 +82,6 @@ export function ContratoDetailPage() {
   const { data: contrato, isLoading } = useContrato(id);
   const { data: usuario } = useCurrentUsuario();
   const updateStatus = useUpdateContratoStatus();
-  const ativar = useAtivarContrato();
-  const encerrar = useEncerrarContrato();
   const renovar = useRenovarContrato();
   const deleteContrato = useDeleteContrato();
   const intelligence = useContractIntelligence(contrato);
@@ -89,49 +94,30 @@ export function ContratoDetailPage() {
   const [cancelarIndisponivel, setCancelarIndisponivel] = useState(false);
   const [renovarIndisponivel, setRenovarIndisponivel] = useState(false);
 
+  // Vistoria de entrega/devolução concluída (VistoriaDialog + fn_propagar_status_vistoria,
+  // migration 0030) é o que ativa/encerra o contrato agora — precisa da entrega já concluída
+  // pra linkar `checklist_anterior_id` na devolução (ver ETAPA 5, comparação entrega×devolução).
+  const { data: checklistsDoVeiculo } = useChecklistsPorEntidade('veiculo', contrato?.veiculo_id ?? '');
+  const vistoriaEntregaConcluida = checklistsDoVeiculo?.find(
+    (c) => c.tipo === 'entrega' && c.contrato_id === contrato?.id && c.status === 'concluido'
+  );
+
   if (isLoading || !contrato) {
     return <CockpitSkeleton />;
   }
 
   function handleTransition(status: ContratoStatus) {
     if (!id || !contrato) return;
-    // Entrega real do veículo (achado da auditoria de jornada da Missão 4): a transição
-    // assinado→ativo é o momento físico da entrega. Se km_inicial/carga_inicial_pct ainda não
-    // foram capturados (fluxo normal — foram deixados em branco na criação), abre o dialog em
-    // vez de ativar sem esse dado; se já foram preenchidos (fluxo antigo), segue direto.
-    if (status === 'ativo' && (contrato.km_inicial === null || contrato.carga_inicial_pct === null)) {
+    // Entrega real do veículo (achado da auditoria de jornada da Missão 4, endurecido no
+    // Épico 8): assinado→ativo só acontece através da vistoria de entrega agora — nunca mais
+    // um UPDATE direto de 2 campos, mesmo que km/carga já estejam preenchidos.
+    if (status === 'ativo') {
       setActiveAction('ativar');
       return;
     }
     updateStatus.mutate(
       { id, status },
       { onSuccess: () => toast.success(`Status alterado para "${CONTRATO_STATUS_LABEL[status]}"`) }
-    );
-  }
-
-  function handleAtivar(kmInicial: number, cargaInicialPct: number) {
-    if (!id) return;
-    ativar.mutate(
-      { id, kmInicial, cargaInicialPct },
-      {
-        onSuccess: () => {
-          toast.success('Entrega registrada — contrato ativo');
-          setActiveAction(null);
-        },
-      }
-    );
-  }
-
-  function handleEncerrar(kmFinal: number, cargaFinalPct: number) {
-    if (!id) return;
-    encerrar.mutate(
-      { id, kmFinal, cargaFinalPct },
-      {
-        onSuccess: () => {
-          toast.success('Contrato encerrado');
-          setActiveAction(null);
-        },
-      }
     );
   }
 
@@ -272,7 +258,6 @@ export function ContratoDetailPage() {
                 label: 'Indicadores',
                 content: <IndicadoresTab resultado={intelligence} contratoId={contrato.id} onAction={handleAction} />,
               },
-              { value: 'eventos', label: 'Eventos', content: <EventosTab onAction={handleAction} /> },
               {
                 value: 'historico',
                 label: 'Histórico',
@@ -322,18 +307,33 @@ export function ContratoDetailPage() {
         empresaId={usuario?.empresa_id ?? undefined}
         usuarioId={usuario?.id}
       />
-      <AtivarContratoDialog
+      <LancamentoFormDialog
+        open={activeAction === 'lancamento'}
+        onOpenChange={(open) => setActiveAction(open ? 'lancamento' : null)}
+        defaultValues={{ contrato_id: contrato.id, veiculo_id: contrato.veiculo_id, motorista_id: contrato.motorista_id, tipo: 'receita' }}
+      />
+      <VistoriaDialog
         open={activeAction === 'ativar'}
         onOpenChange={(open) => setActiveAction(open ? 'ativar' : null)}
-        onConfirm={handleAtivar}
-        isPending={ativar.isPending}
+        tipo="entrega"
+        empresaId={usuario?.empresa_id ?? undefined}
+        veiculoId={contrato.veiculo_id}
+        veiculoLabel={contrato.veiculo.placa}
+        contratoId={contrato.id}
+        motoristaId={contrato.motorista_id}
+        motoristaLabel={contrato.motorista.nome_completo}
       />
-      <EncerrarContratoDialog
+      <VistoriaDialog
         open={activeAction === 'encerrar'}
         onOpenChange={(open) => setActiveAction(open ? 'encerrar' : null)}
-        contrato={contrato}
-        onConfirm={handleEncerrar}
-        isPending={encerrar.isPending}
+        tipo="devolucao"
+        empresaId={usuario?.empresa_id ?? undefined}
+        veiculoId={contrato.veiculo_id}
+        veiculoLabel={contrato.veiculo.placa}
+        contratoId={contrato.id}
+        motoristaId={contrato.motorista_id}
+        motoristaLabel={contrato.motorista.nome_completo}
+        checklistAnteriorId={vistoriaEntregaConcluida?.id ?? null}
       />
       <ConfirmDialog
         open={activeAction === 'cancelar'}

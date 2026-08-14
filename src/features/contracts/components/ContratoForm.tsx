@@ -8,7 +8,7 @@ import { Select } from '@/shared/components/ui/select';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Button } from '@/shared/components/ui/button';
 import { contratoSchema, type ContratoFormInput, type ContratoFormValues } from '../schemas/contrato.schema';
-import { CONTRATO_PERIODICIDADE_LABEL } from '../types';
+import { CONTRATO_PERIODICIDADE_LABEL, CONTRATO_FORMA_PAGAMENTO_LABEL, CONTRATO_TIPO_GARANTIA_LABEL } from '../types';
 
 export function ContratoForm({
   defaultValues,
@@ -111,6 +111,54 @@ export function ContratoForm({
           <div>
             <Label>Caução (R$)</Label>
             <Input type="number" step="0.01" min="0" {...register('valor_caucao')} />
+          </div>
+          <div>
+            <Label>Dia de vencimento</Label>
+            <Input type="number" min="1" max="31" {...register('dia_vencimento')} />
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Financeiro</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <Label>Forma de pagamento</Label>
+            <Select {...register('forma_pagamento')}>
+              <option value="">Selecione…</option>
+              {Object.entries(CONTRATO_FORMA_PAGAMENTO_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Garantia</Label>
+            <Select {...register('tipo_garantia')}>
+              <option value="">Selecione…</option>
+              {Object.entries(CONTRATO_TIPO_GARANTIA_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Data de reajuste</Label>
+            <Input type="date" {...register('data_reajuste')} />
+          </div>
+          <div>
+            <Label>Índice de reajuste</Label>
+            <Input type="text" placeholder="Ex.: IGPM" {...register('indice_reajuste')} />
+          </div>
+          <div>
+            <Label>Multa por atraso (%)</Label>
+            <Input type="number" step="0.01" min="0" {...register('percentual_multa_atraso')} />
+          </div>
+          <div>
+            <Label>Juros por atraso (% a.m.)</Label>
+            <Input type="number" step="0.01" min="0" {...register('percentual_juros_atraso')} />
           </div>
         </div>
       </section>

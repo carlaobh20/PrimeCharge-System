@@ -25,6 +25,13 @@ export function ContratoEditPage() {
           km_inicial: values.km_inicial ?? null,
           carga_inicial_pct: values.carga_inicial_pct ?? null,
           observacoes: values.observacoes ?? null,
+          dia_vencimento: values.dia_vencimento ?? null,
+          data_reajuste: values.data_reajuste ?? null,
+          indice_reajuste: values.indice_reajuste ?? null,
+          forma_pagamento: values.forma_pagamento ?? null,
+          tipo_garantia: values.tipo_garantia ?? null,
+          percentual_multa_atraso: values.percentual_multa_atraso ?? null,
+          percentual_juros_atraso: values.percentual_juros_atraso ?? null,
         },
       },
       { onSuccess: () => navigate(`/contratos/${id}`) }
@@ -56,6 +63,13 @@ export function ContratoEditPage() {
             km_inicial: contrato.km_inicial ?? undefined,
             carga_inicial_pct: contrato.carga_inicial_pct ?? undefined,
             observacoes: contrato.observacoes ?? '',
+            dia_vencimento: contrato.dia_vencimento ?? undefined,
+            data_reajuste: contrato.data_reajuste ?? '',
+            indice_reajuste: contrato.indice_reajuste ?? '',
+            forma_pagamento: contrato.forma_pagamento ?? undefined,
+            tipo_garantia: contrato.tipo_garantia ?? undefined,
+            percentual_multa_atraso: contrato.percentual_multa_atraso ?? undefined,
+            percentual_juros_atraso: contrato.percentual_juros_atraso ?? undefined,
           }}
           onSubmit={handleSubmit}
           isSubmitting={updateContrato.isPending}

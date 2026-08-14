@@ -25,7 +25,10 @@ export async function getMotorista(id: string) {
   return data as Motorista;
 }
 
-export type MotoristaInput = Omit<Motorista, 'id' | 'empresa_id' | 'criado_em' | 'atualizado_em'>;
+// `etapa_funil_desde` fica fora do Input — é mantido só por trigger (fn_motorista_etapa_funil,
+// migration 0025), a aplicação nunca escreve nele diretamente (mesmo raciocínio de
+// criado_em/atualizado_em).
+export type MotoristaInput = Omit<Motorista, 'id' | 'empresa_id' | 'criado_em' | 'atualizado_em' | 'etapa_funil_desde'>;
 
 export async function createMotorista(empresaId: string, payload: MotoristaInput) {
   const { data, error } = await supabase
@@ -49,6 +52,9 @@ export async function updateMotoristaStatus(id: string, status: MotoristaStatus)
   return data as Motorista;
 }
 
+// Exclusão física — já existia desde a migration 0004 (pode_excluir_motorista, gated a
+// super_admin/owner/admin via RLS). `contratos.motorista_id` é `on delete restrict`: motorista
+// com qualquer contrato já não pode ser excluído, o Postgres barra antes de chegar aqui.
 export async function deleteMotorista(id: string) {
   const { data, error } = await supabase.from('motoristas').delete().eq('id', id).select('id');
   if (error) throw error;

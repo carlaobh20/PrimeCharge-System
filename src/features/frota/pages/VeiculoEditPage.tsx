@@ -25,6 +25,14 @@ export function VeiculoEditPage() {
           valor_mercado: values.valor_mercado ?? null,
           valor_residual_estimado: values.valor_residual_estimado ?? null,
           observacoes: values.observacoes ?? null,
+          fornecedor: values.fornecedor ?? null,
+          banco: values.banco ?? null,
+          valor_entrada: values.valor_entrada ?? null,
+          valor_financiado: values.valor_financiado ?? null,
+          taxa_juros_am_pct: values.taxa_juros_am_pct ?? null,
+          prazo_financiamento_meses: values.prazo_financiamento_meses ?? null,
+          sistema_amortizacao: values.sistema_amortizacao ?? null,
+          primeiro_vencimento_financiamento: values.primeiro_vencimento_financiamento ?? null,
         },
       },
       { onSuccess: () => navigate(`/veiculos/${id}`) }
@@ -64,6 +72,14 @@ export function VeiculoEditPage() {
             valor_mercado: veiculo.valor_mercado ?? undefined,
             valor_residual_estimado: veiculo.valor_residual_estimado ?? undefined,
             observacoes: veiculo.observacoes ?? '',
+            fornecedor: veiculo.fornecedor ?? '',
+            banco: veiculo.banco ?? '',
+            valor_entrada: veiculo.valor_entrada ?? undefined,
+            valor_financiado: veiculo.valor_financiado ?? undefined,
+            taxa_juros_am_pct: veiculo.taxa_juros_am_pct ?? undefined,
+            prazo_financiamento_meses: veiculo.prazo_financiamento_meses ?? undefined,
+            sistema_amortizacao: veiculo.sistema_amortizacao ?? undefined,
+            primeiro_vencimento_financiamento: veiculo.primeiro_vencimento_financiamento ?? '',
           }}
           onSubmit={handleSubmit}
           isSubmitting={updateVeiculo.isPending}

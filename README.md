@@ -2,9 +2,20 @@
 
 Sistema de gestão (ERP) para empresas de locação de veículos elétricos.
 
-## Status atual: Fase 1 — Sprint 6 (Cockpit do Motorista)
+## Status atual (2026-08-14)
 
-Fundação (auth/tenancy/auditoria) e módulo Veículos completo (Sprint 1: cadastro, listagem, detalhe, edição). Sprint 2 transformou a ficha do veículo em "Cockpit do Ativo" (DEC-021). Sprint 3 deu ao veículo uma camada de inteligência operacional própria — `src/features/frota/intelligence/`: Health Score (5 categorias), Insights, Alertas, Próximas Ações e Comparativo com a frota, tudo desacoplado da UI (DEC-022). Sprint 4 formalizou "Intelligence First" como princípio de plataforma e componentizou os Cards de exibição em `src/shared/components/intelligence/` (DEC-023). Sprint 5 criou o **Command Center** (`src/features/command-center/`) — nova Home do sistema, com 6 Engines (Alert/Insight/Opportunity/Risk/Priority/Action) que consolidam a inteligência de toda a frota em blocos de decisão (Prioridades do Dia, Alertas, Oportunidades, Riscos, Próximas Ações, Insights, Resumo da Frota, Veículos Críticos/Destaque). O Dashboard (`/dashboard`) deixou de ser a tela inicial e virou exclusivamente analítico — ver DEC-024. Sprint 6 construiu o **Cockpit do Motorista** (`src/features/motoristas/`) — segundo Cockpit da plataforma, no mesmo padrão do Veículo: Header/KPIs/Abas/Sidebar/Command Actions, e uma **Driver Intelligence** própria (`src/features/motoristas/intelligence/`) espelhando Vehicle Intelligence. Confirmou DEC-006 (Motorista = Cliente final, Modelo A) e consolidou o padrão de hoisting pra `shared/` (KpiCard, ConfirmDialog, PlaceholderActionDialog, useCopyPageLink, Opportunity/Risk, gerarRiscos) — ver DEC-025.
+> Este resumo fica desatualizado rápido — a referência viva de "onde paramos exatamente" (commit
+> exato, o que está pendente de aplicar, o que está em investigação, o que está congelado) é o
+> **[`CLAUDE.md`](CLAUDE.md)**. Leia ele antes de continuar qualquer trabalho nesta branch.
+
+Branch de trabalho: `dev-epico9-expansao`. Módulos entregues até aqui (histórico, não exaustivo):
+Fundação (auth/tenancy/auditoria), Veículos com Cockpit do Ativo e Vehicle Intelligence, Command
+Center (Home com 6 Engines de decisão), Cockpit do Motorista com Driver Intelligence e CRM
+(Kanban), Contratos, Controladoria, Épico 8 (Vistoria), Épico 9 (Motor de Expansão da Frota —
+**parcialmente congelado, ver CLAUDE.md**), Épico 10 (Inteligência de Renovação), Épico 11
+(fundação do App do Motorista), Épico 12 (Lojinha/Estoque). Trabalho mais recente: Épico 3 —
+Central de Decisão Empresarial (`src/features/estrategia/`), Fases 4.1 a 4.3 (centralização de
+fórmulas financeiras no motor + remoção de toda classificação subjetiva de risco da tela).
 
 - [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) — arquitetura, modelagem de domínio, mapa de telas e roadmap completo.
 - [`FOUNDATION_PRINCIPLES.md`](FOUNDATION_PRINCIPLES.md), [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md), [`DECISION_LOG.md`](DECISION_LOG.md), [`PRODUCT_VISION.md`](PRODUCT_VISION.md), [`NORTH_STAR.md`](NORTH_STAR.md), [`VALUE_ENGINE.md`](VALUE_ENGINE.md) — documentos de fundação da plataforma.

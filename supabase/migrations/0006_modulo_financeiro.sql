@@ -271,7 +271,7 @@ create policy "pagamentos: update por empresa" on pagamentos
 -- ============================================================
 
 insert into permissoes (role, modulo, acao, permitido)
-select role, 'financeiro', acao, true
+select role::user_role, 'financeiro', acao, true
 from (values ('super_admin'), ('owner'), ('admin')) as r(role)
 cross join (values
   ('ver'),('criar'),('editar'),('confirmar'),('cancelar'),('excluir'),

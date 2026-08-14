@@ -21,7 +21,7 @@ export function OportunidadesWidget({ oportunidades }: { oportunidades: Prioriti
         <ul className="mt-3 space-y-1.5">
           {oportunidades.map((oportunidade) => (
             <li key={oportunidade.id}>
-              <OpportunityCard oportunidade={oportunidade} />
+              <OpportunityCard oportunidade={oportunidade} href={oportunidade.href} />
               <span className="mt-0.5 block text-[11px] text-neutral-400">{oportunidade.origemLabel}</span>
             </li>
           ))}

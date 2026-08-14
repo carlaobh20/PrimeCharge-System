@@ -11,6 +11,11 @@ export const lancamentoSchema = z.object({
   contrato_id: optionalString(),
   veiculo_id: optionalString(),
   motorista_id: optionalString(),
+  // Épico 7 (migration 0028) — opcionais: deixar em branco permite que o trigger de
+  // classificação automática decida (ou que o lançamento fique sem classificação, se nenhuma
+  // regra casar). Seleção manual aqui sempre vence a regra.
+  conta_contabil_id: optionalString(),
+  centro_resultado_id: optionalString(),
   data_prevista: z.string().min(1, 'Data prevista obrigatória'),
   observacoes: optionalString(),
 });

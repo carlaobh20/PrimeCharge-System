@@ -18,7 +18,7 @@ export function RiscosWidget({ riscos }: { riscos: PrioritizedRisk[] }) {
         <ul className="mt-3 space-y-1.5">
           {riscos.map((risco) => (
             <li key={risco.id}>
-              <RiskCard risco={risco} />
+              <RiskCard risco={risco} href={risco.href} />
               <span className="mt-0.5 block text-[11px] text-neutral-400">{risco.origemLabel}</span>
             </li>
           ))}

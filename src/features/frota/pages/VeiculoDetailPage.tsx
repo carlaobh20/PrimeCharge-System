@@ -17,10 +17,12 @@ import { VeiculoKpiBand } from '../components/VeiculoKpiBand';
 import { VeiculoSidebar } from '../components/VeiculoSidebar';
 import { VeiculoCommandActions } from '../components/VeiculoCommandActions';
 import { DadosGeraisTab } from '../components/tabs/DadosGeraisTab';
+import { AquisicaoTab } from '../components/tabs/AquisicaoTab';
+import { ContratosHistoricoTab } from '../components/ContratosHistoricoTab';
+import { MotoristasHistoricoTab } from '../components/MotoristasHistoricoTab';
 import { ArquivosTab } from '../components/tabs/ArquivosTab';
 import { FinanceiroTab } from '../components/tabs/FinanceiroTab';
 import { IndicadoresTab } from '../components/tabs/IndicadoresTab';
-import { EventosTab } from '../components/tabs/EventosTab';
 import { ConfiguracoesTab } from '../components/tabs/ConfiguracoesTab';
 
 import { AdicionarDocumentoDialog } from '../components/dialogs/AdicionarDocumentoDialog';
@@ -34,6 +36,8 @@ import { PlaceholderActionDialog } from '../components/dialogs/PlaceholderAction
 
 import { useDeleteVeiculo, useUpdateVeiculoStatus, useVeiculo, useVenderVeiculo } from '../hooks/useVeiculos';
 import { useVehicleIntelligence } from '../hooks/useVehicleIntelligence';
+import { useSaudeDoAtivo } from '../hooks/useSaudeDoAtivo';
+import { VelocimetroSaudeAtivo } from '../components/VelocimetroSaudeAtivo';
 import { PLACEHOLDER_DESCRIPTIONS, type ActionKey } from '../lib/actions';
 import { VEICULO_STATUS_LABEL, VEICULO_STATUS_TRANSITIONS, type VeiculoStatus } from '../types';
 
@@ -54,6 +58,14 @@ const CAMPOS_LABEL: Record<string, string> = {
   chassi: 'Chassi',
   renavam: 'RENAVAM',
   placa: 'Placa',
+  fornecedor: 'Fornecedor',
+  banco: 'Banco',
+  valor_entrada: 'Entrada',
+  valor_financiado: 'Valor financiado',
+  taxa_juros_am_pct: 'Taxa de juros',
+  prazo_financiamento_meses: 'Prazo do financiamento',
+  sistema_amortizacao: 'Sistema de amortização',
+  primeiro_vencimento_financiamento: 'Primeiro vencimento',
 };
 
 function CockpitSkeleton() {
@@ -79,6 +91,7 @@ export function VeiculoDetailPage() {
   const venderVeiculo = useVenderVeiculo();
   const deleteVeiculo = useDeleteVeiculo();
   const intelligence = useVehicleIntelligence(veiculo);
+  const saudeDoAtivo = useSaudeDoAtivo(veiculo);
   const commandActionsRef = useRef<HTMLDivElement>(null);
 
   const [activeAction, setActiveAction] = useState<ActionKey | null>(null);
@@ -175,7 +188,18 @@ export function VeiculoDetailPage() {
         onExcluir={() => setConfirmExcluir(true)}
       />
 
-      <VeiculoKpiBand veiculo={veiculo} healthScore={intelligence.isLoading ? null : intelligence.healthScore} />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
+        <div className="lg:w-64 lg:shrink-0">
+          {saudeDoAtivo.isLoading ? (
+            <div className="h-full min-h-[180px] cockpit-shimmer rounded-2xl" />
+          ) : (
+            <VelocimetroSaudeAtivo saude={saudeDoAtivo.saude} />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <VeiculoKpiBand veiculo={veiculo} healthScore={intelligence.isLoading ? null : intelligence.healthScore} />
+        </div>
+      </div>
 
       <div className="flex flex-col gap-6 lg:flex-row">
         <div className="min-w-0 flex-1 space-y-6">
@@ -184,6 +208,9 @@ export function VeiculoDetailPage() {
           <Tabs
             items={[
               { value: 'dados', label: 'Dados Gerais', content: <DadosGeraisTab veiculo={veiculo} /> },
+              { value: 'aquisicao', label: 'Aquisição', content: <AquisicaoTab veiculo={veiculo} /> },
+              { value: 'contratos', label: 'Contratos', content: <ContratosHistoricoTab veiculoId={veiculo.id} /> },
+              { value: 'motoristas-historico', label: 'Motoristas', content: <MotoristasHistoricoTab veiculoId={veiculo.id} /> },
               {
                 value: 'timeline',
                 label: 'Timeline',
@@ -233,7 +260,6 @@ export function VeiculoDetailPage() {
                 label: 'Indicadores',
                 content: <IndicadoresTab resultado={intelligence} veiculoId={veiculo.id} onAction={handleAction} />,
               },
-              { value: 'eventos', label: 'Eventos', content: <EventosTab onAction={handleAction} /> },
               {
                 value: 'historico',
                 label: 'Histórico',

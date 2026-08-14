@@ -8,6 +8,7 @@ import {
   MessageSquarePlus,
   Receipt,
   Repeat,
+  Smartphone,
   Tags,
   type LucideIcon,
 } from 'lucide-react';
@@ -33,7 +34,8 @@ export type ActionKey =
   | 'contrato'
   | 'cobranca'
   | 'ocorrencia'
-  | 'relatorio';
+  | 'relatorio'
+  | 'acesso-portal';
 
 // "cobranca" e "ocorrencia" viraram ações reais na Missão 4 (Fase 1, achado de texto stale +
 // achado #12 da auditoria de jornada): o módulo Financeiro/Pagamentos existe desde a Missão 2
@@ -50,6 +52,7 @@ export const COMMAND_ACTIONS: { key: ActionKey; label: string; icon: LucideIcon;
   { key: 'contrato', label: 'Novo contrato', icon: FileSignature, real: true },
   { key: 'cobranca', label: 'Registrar cobrança', icon: Receipt, real: true },
   { key: 'ocorrencia', label: 'Registrar multa', icon: AlertTriangle, real: true },
+  { key: 'acesso-portal', label: 'Criar acesso ao portal', icon: Smartphone, real: true },
   { key: 'relatorio', label: 'Gerar relatório', icon: Camera, real: false },
 ];
 

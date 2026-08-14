@@ -18,7 +18,7 @@ export const veiculoSchema = z.object({
   placa: z.string().min(1, 'Placa obrigatória').max(10),
   cor: optionalString(),
   categoria: z.enum(['hatch', 'sedan', 'suv', 'pickup', 'van', 'moto', 'onibus', 'caminhao', 'outro']),
-  tipo_aquisicao: z.enum(['compra_direta', 'financiamento', 'consorcio', 'leasing']),
+  tipo_aquisicao: z.enum(['compra_direta', 'financiamento', 'consorcio', 'leasing', 'outro']),
   status: z.enum([
     'novo',
     'comprado',
@@ -40,6 +40,18 @@ export const veiculoSchema = z.object({
   valor_mercado: optionalNumber(),
   valor_residual_estimado: optionalNumber(),
   observacoes: optionalString(),
+  // Épico 4, Parte 1 (Aquisição) — 2026-08-10.
+  fornecedor: optionalString(),
+  banco: optionalString(),
+  valor_entrada: optionalNumber(),
+  valor_financiado: optionalNumber(),
+  taxa_juros_am_pct: optionalNumber(),
+  prazo_financiamento_meses: optionalNumber(),
+  sistema_amortizacao: z.preprocess(
+    (val) => (val === '' || val === undefined || val === null ? undefined : val),
+    z.enum(['price', 'sac']).optional()
+  ),
+  primeiro_vencimento_financiamento: optionalString(),
 });
 
 // z.coerce/preprocess faz input (o que o form escreve) e output (o que é enviado à API)

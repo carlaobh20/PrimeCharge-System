@@ -32,10 +32,24 @@ export async function getLancamento(id: string) {
   return data as unknown as LancamentoComRelacoes;
 }
 
+// conta_contabil_id/centro_resultado_id/competencia/usuario_id são omissíveis do payload —
+// o trigger fn_classificar_lancamento_automaticamente (migration 0028) preenche o que ficar
+// NULL; seleção manual no formulário sempre vence, mas nada obriga o usuário a escolher.
 export type LancamentoInput = Omit<
   Lancamento,
-  'id' | 'empresa_id' | 'criado_em' | 'atualizado_em' | 'status' | 'data_confirmacao' | 'criado_via'
->;
+  | 'id'
+  | 'empresa_id'
+  | 'criado_em'
+  | 'atualizado_em'
+  | 'status'
+  | 'data_confirmacao'
+  | 'criado_via'
+  | 'conta_contabil_id'
+  | 'centro_resultado_id'
+  | 'competencia'
+  | 'usuario_id'
+> &
+  Partial<Pick<Lancamento, 'conta_contabil_id' | 'centro_resultado_id' | 'competencia' | 'usuario_id'>>;
 
 export async function createLancamento(empresaId: string, payload: LancamentoInput) {
   const { data, error } = await supabase
@@ -73,4 +87,23 @@ export async function listLancamentosPorEmpresa() {
   const { data, error } = await supabase.from('lancamentos').select(SELECT_COM_RELACOES);
   if (error) throw error;
   return data as unknown as LancamentoComRelacoes[];
+}
+
+export type CobrancaRecorrenteResultado = {
+  contrato_id: string;
+  lancamento_id: string | null;
+  gerado: boolean;
+  motivo: string;
+};
+
+// Botão "Gerar cobranças do mês" (migration 0029) — não é automação silenciosa: o usuário
+// aciona explicitamente, a RPC é idempotente por competência e respeita a RLS de INSERT de
+// lancamentos (pode('financeiro','criar')) normalmente, sem checagem duplicada aqui.
+export async function gerarCobrancasRecorrentes(empresaId: string, competencia: string | null = null) {
+  const { data, error } = await supabase.rpc('fn_gerar_cobrancas_recorrentes', {
+    p_empresa_id: empresaId,
+    p_competencia: competencia,
+  });
+  if (error) throw error;
+  return data as CobrancaRecorrenteResultado[];
 }

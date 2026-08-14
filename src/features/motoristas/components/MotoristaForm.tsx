@@ -6,7 +6,7 @@ import { Select } from '@/shared/components/ui/select';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Button } from '@/shared/components/ui/button';
 import { motoristaSchema, type MotoristaFormInput, type MotoristaFormValues } from '../schemas/motorista.schema';
-import { MOTORISTA_STATUS_LABEL } from '../types';
+import { MOTORISTA_STATUS_LABEL, ORIGEM_LEAD_LABEL } from '../types';
 
 export function MotoristaForm({
   defaultValues,
@@ -74,6 +74,23 @@ export function MotoristaForm({
             ))}
           </Select>
           {isEdit && <p className="mt-1 text-xs text-neutral-500">Use "Alterar status" na tela de detalhes.</p>}
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <Label>Origem do lead</Label>
+            <Select {...register('origem_lead')} defaultValue="">
+              <option value="">Não informado</option>
+              {Object.entries(ORIGEM_LEAD_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Detalhe (opcional)</Label>
+            <Input {...register('origem_lead_detalhe')} placeholder="Ex.: indicação do João, Instagram…" />
+          </div>
         </div>
       </section>
 

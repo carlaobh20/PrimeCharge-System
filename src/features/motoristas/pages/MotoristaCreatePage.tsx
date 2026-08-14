@@ -2,15 +2,27 @@ import { useNavigate } from 'react-router-dom';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { MotoristaForm } from '../components/MotoristaForm';
 import { useCreateMotorista } from '../hooks/useMotoristas';
+import { useFunilEtapas } from '../hooks/useFunilEtapas';
 import type { MotoristaFormValues } from '../schemas/motorista.schema';
 
 export function MotoristaCreatePage() {
   const navigate = useNavigate();
   const { data: usuario } = useCurrentUsuario();
+  const { data: etapas } = useFunilEtapas(usuario?.empresa_id ?? undefined);
   const createMotorista = useCreateMotorista();
 
   function handleSubmit(values: MotoristaFormValues) {
     if (!usuario?.empresa_id) return;
+    // Épico 6, Fase 1.1 — motorista criado pelo formulário entra no Kanban já classificado na
+    // primeira etapa do funil (grupo 'lead', menor ordem; se não houver nenhuma com esse grupo
+    // — ex.: Carlos apagou/renomeou todas — cai na etapa de menor ordem que sobrar; sem etapa
+    // nenhuma cadastrada, entra null e aparece em "Não classificados", igual a quem existia
+    // antes do Kanban — nunca inventamos uma etapa que não existe).
+    const listaEtapas = etapas ?? [];
+    const primeiraLead = listaEtapas.filter((e) => e.grupo === 'lead').sort((a, b) => a.ordem - b.ordem)[0];
+    const primeiraQualquer = [...listaEtapas].sort((a, b) => a.ordem - b.ordem)[0];
+    const etapaInicial = primeiraLead ?? primeiraQualquer ?? null;
+
     createMotorista.mutate(
       {
         empresaId: usuario.empresa_id,
@@ -26,6 +38,11 @@ export function MotoristaCreatePage() {
           cidade: values.cidade ?? null,
           estado: values.estado ?? null,
           observacoes: values.observacoes ?? null,
+          origem_lead: values.origem_lead ?? null,
+          origem_lead_detalhe: values.origem_lead_detalhe ?? null,
+          etapa_funil_id: etapaInicial?.id ?? null,
+          responsavel_id: null,
+          prioridade: 'media',
         },
       },
       {

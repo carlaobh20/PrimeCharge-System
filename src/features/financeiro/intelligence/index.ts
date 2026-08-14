@@ -4,6 +4,12 @@
 export { calcularResumoFinanceiro } from './resumoFinanceiro';
 export type { ResumoFinanceiroInput, ResumoFinanceiro } from './resumoFinanceiro';
 
+// calcularSaldoPorConta só tinha consumidor dentro da própria feature até o Épico 9 (Motor de
+// Expansão, estrategia/expansao/intelligence/estadoReal.ts precisa de caixa real por conta) —
+// reexportado aqui agora, mesma exceção DEC-024 de sempre: através do barril, nunca direto no
+// arquivo.
+export { calcularSaldoPorConta } from './resumoFinanceiro';
+
 export { calcularRoi } from './roi';
 export type { RoiResult } from './roi';
 

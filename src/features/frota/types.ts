@@ -24,7 +24,13 @@ export type VeiculoCategoria =
   | 'caminhao'
   | 'outro';
 
-export type TipoAquisicao = 'compra_direta' | 'financiamento' | 'consorcio' | 'leasing';
+// 2026-08-10 (Épico 4, Parte 1) — 'outro' adicionado: a missão pede "Forma de aquisição: ...
+// Outro" e o enum do banco (tipo_aquisicao, migration 0003) não tinha esse valor.
+export type TipoAquisicao = 'compra_direta' | 'financiamento' | 'consorcio' | 'leasing' | 'outro';
+
+// Espelha o novo enum sistema_amortizacao (migration 0020) — só é relevante quando
+// tipo_aquisicao é financiamento/consorcio/leasing.
+export type SistemaAmortizacao = 'price' | 'sac';
 
 export type Marca = {
   id: string;
@@ -68,6 +74,19 @@ export type Veiculo = {
   comprador: string | null;
   valor_venda: number | null;
   data_venda: string | null;
+  // Épico 4, Parte 1 (Aquisição) — 2026-08-10. `fornecedor` fecha o bloco "Compra"; os demais
+  // fecham "Financiamento". Todos nulos quando tipo_aquisicao = compra_direta. "Parcela
+  // inicial"/"Parcela atual"/"Quitação prevista" (pedidos na missão) são DERIVADOS destes campos
+  // pelo motor de amortização (shared/lib/amortizacao.ts), não colunas — não guardamos número
+  // que fica desatualizado sozinho (mesmo princípio de calcularSaldoPorConta no financeiro).
+  fornecedor: string | null;
+  banco: string | null;
+  valor_entrada: number | null;
+  valor_financiado: number | null;
+  taxa_juros_am_pct: number | null;
+  prazo_financiamento_meses: number | null;
+  sistema_amortizacao: SistemaAmortizacao | null;
+  primeiro_vencimento_financiamento: string | null;
   criado_em: string;
   atualizado_em: string;
 };
@@ -139,4 +158,13 @@ export const TIPO_AQUISICAO_LABEL: Record<TipoAquisicao, string> = {
   financiamento: 'Financiamento',
   consorcio: 'Consórcio',
   leasing: 'Leasing',
+  outro: 'Outro',
 };
+
+export const SISTEMA_AMORTIZACAO_LABEL: Record<SistemaAmortizacao, string> = {
+  price: 'Price (parcela fixa)',
+  sac: 'SAC (amortização fixa)',
+};
+
+/** tipo_aquisicao que tem financiamento de verdade por trás — o bloco Financiamento só faz sentido pra estes. */
+export const TIPOS_AQUISICAO_COM_FINANCIAMENTO: TipoAquisicao[] = ['financiamento', 'consorcio', 'leasing'];
