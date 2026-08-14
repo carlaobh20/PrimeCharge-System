@@ -6,7 +6,7 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-14, fim da Fase 4.3 (Central de Decisão Empresarial).
+**Última atualização:** 2026-08-14, `dev-epico9-expansao` promovida para `main` (PR #1 mergeado, produção no ar).
 
 ## 0. Regra de ouro antes de tocar em qualquer código
 
@@ -22,23 +22,18 @@ empurrados pra lugar nenhum — só não viraram perda de trabalho porque cada e
 
 ## 1. Onde exatamente paramos (2026-08-14)
 
-- **Branch de trabalho:** `dev-epico9-expansao` (ainda não foi pra `main` — só migra pra lá quando
-  tudo estiver validado, por instrução do Carlos).
-- **No GitHub (`origin`), confirmado por push real:** commit `91df8d1` — "fix(estrategia): corrige
-  crash insertBefore no Fluxo de Caixa (Card 2)".
-- **Pendente de aplicar no PC do Carlos:** commit `ff3b178` — "fix(estrategia): remove
-  classificação subjetiva de risco (Fase 4.3)" — está entregue como arquivo
-  `fase4.3-remove-risco.bundle` na raiz do projeto no PC dele, **ainda não mergeado nem pushado**.
-  Comandos pra aplicar (já testados, funcionam):
-  ```
-  git fetch "fase4.3-remove-risco.bundle" HEAD:fase4.3-novo
-  git merge fase4.3-novo
-  git push origin dev-epico9-expansao
-  git branch -d fase4.3-novo
-  ```
-  **Antes de continuar qualquer trabalho novo em `src/features/estrategia/`, confirme que este
-  push já aconteceu** (`git log origin/dev-epico9-expansao --oneline -3` deve mostrar `ff3b178`
-  no topo). Se ainda não aconteceu, é o próximo passo, não outra tarefa.
+- **`main` está atualizada e é a versão em produção.** PR #1
+  (`github.com/carlaobh20/PrimeCharge-System/pull/1`, "Promove dev-epico9-expansao para main —
+  Épicos 3 a 12 consolidados") foi mergeado (merge commit `d1a8407`, sem conflitos, 90 commits /
+  249 arquivos). Deploy de produção desse commit confirmado `READY` no Vercel (projeto
+  `primecharge-os`, alias `primecharge-os.vercel.app`), sem erro de build.
+- **`dev-epico9-expansao`** (não apagada — segue sendo a branch de trabalho) está no commit
+  `a7dc9c2`, que é exatamente o pai do merge commit em `main` — as duas branches estão
+  sincronizadas neste ponto. Todo o histórico das seções 3/4/5 abaixo (remoção do selo de risco,
+  fix do crash insertBefore, zona congelada da expansão) já está em `main`.
+- **Próximo trabalho** (seja nova feature, seja a investigação da seção 2) deve partir de
+  `dev-epico9-expansao` atualizada (`git pull origin dev-epico9-expansao` primeiro) ou de uma nova
+  branch a partir de `main` — as duas são equivalentes agora.
 
 ## 2. Investigação em aberto, sem resposta do Carlos
 
@@ -128,7 +123,7 @@ já está descrita nos relatórios da Fase 2.1 salvos no projeto Claude.
 
 ## 7. Perguntas em aberto pro Carlos
 
-1. O crash "insertBefore" some numa aba anônima do Chrome, ou é bug real que sobrou? (seção 2)
-2. Confirmar que o bundle da Fase 4.3 foi aplicado e pushado (seção 1).
-3. Login do motorista de teste — pendência antiga, separada, rate limit de e-mail do Supabase
+1. O crash "insertBefore" some numa aba anônima do Chrome, ou é bug real que sobrou? (seção 2) —
+   agora que `main` é produção, este é o ambiente certo pra testar.
+2. Login do motorista de teste — pendência antiga, separada, rate limit de e-mail do Supabase
    (nunca voltou a ser tratada nesta sessão).
