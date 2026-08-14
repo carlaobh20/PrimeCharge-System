@@ -1,13 +1,16 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
+import { TelaAcessoNegado } from './TelaAcessoNegado';
 
-// Épico 11 — App do Motorista. Antes desta fase, NENHUMA rota do PrimeCharge OS checava role
-// no client (achado já registrado em RequireOwner.tsx) — não importava porque não existia
-// ainda uma role com um destino diferente. Agora existe: um usuário role='motorista' logado em
-// "/" veria o AppLayout administrativo inteiro (menu de Frota, Financeiro, Usuários...) — RLS
-// no banco impediria QUALQUER leitura de dado de outra empresa/motorista, mas a experiência
-// seria um painel administrativo vazio e sem sentido pra quem só devia ver o próprio contrato.
-// Redireciona pro portal certo em vez disso.
+// Épico 11 — App do Motorista. RLS no banco é a barreira REAL de dados; este guard cuida da
+// experiência (cada role no portal certo) e de não renderizar área administrativa pra quem
+// não é staff confirmado.
+//
+// Fase 1 (2026-08-14, fix R5 da auditoria): este guard falhava ABERTO — em erro de query
+// (`isError`) ele renderizava o <Outlet/> administrativo mesmo sem saber quem era o usuário.
+// Agora é fail-closed, espelhando o RequireMotorista: loading → loading; erro OU perfil
+// inexistente (linha órfã em usuarios) OU conta desativada → acesso negado; motorista →
+// /motorista; staff ativo confirmado → libera. Nunca: erro → permitir.
 export function RequireStaff() {
   const { data: usuario, isLoading, isError } = useCurrentUsuario();
 
@@ -15,7 +18,15 @@ export function RequireStaff() {
     return <div className="flex min-h-screen items-center justify-center text-sm text-neutral-500">Carregando…</div>;
   }
 
-  if (!isError && usuario?.role === 'motorista') {
+  if (isError || !usuario) {
+    return <TelaAcessoNegado mensagem="Não foi possível confirmar o seu perfil de acesso. Verifique sua conexão e tente de novo — ou fale com a locadora se o problema continuar." />;
+  }
+
+  if (!usuario.ativo) {
+    return <TelaAcessoNegado mensagem="Sua conta está desativada. Fale com a locadora para reativar o acesso." />;
+  }
+
+  if (usuario.role === 'motorista') {
     return <Navigate to="/motorista" replace />;
   }
 

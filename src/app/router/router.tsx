@@ -2,6 +2,8 @@ import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '@/app/layout/AppLayout';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { AceitarConvitePage } from '@/features/auth/pages/AceitarConvitePage';
+import { RecuperarSenhaPage } from '@/features/auth/pages/RecuperarSenhaPage';
+import { RedefinirSenhaPage } from '@/features/auth/pages/RedefinirSenhaPage';
 import { UsuariosPage } from '@/features/auth/pages/UsuariosPage';
 import { CentroDeOperacoesPage } from '@/features/command-center/pages/CentroDeOperacoesPage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
@@ -42,6 +44,16 @@ export const router = createBrowserRouter([
   {
     path: '/aceitar-convite',
     element: <AceitarConvitePage />,
+  },
+  {
+    path: '/recuperar-senha',
+    element: <RecuperarSenhaPage />,
+  },
+  {
+    // Pública de propósito: o link do e-mail de recuperação autentica sozinho (supabase-js
+    // processa o token da URL); a própria página nega quando não há sessão.
+    path: '/redefinir-senha',
+    element: <RedefinirSenhaPage />,
   },
   {
     element: <ProtectedRoute />,

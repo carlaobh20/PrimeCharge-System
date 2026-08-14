@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
@@ -65,6 +65,10 @@ export function LoginPage() {
         <Button type="submit" className="w-full" disabled={submitting}>
           {submitting ? 'Entrando…' : 'Entrar'}
         </Button>
+
+        <Link to="/recuperar-senha" className="block text-center text-sm text-neutral-500 hover:underline">
+          Esqueci minha senha
+        </Link>
       </form>
     </div>
   );
