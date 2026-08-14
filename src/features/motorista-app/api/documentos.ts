@@ -11,12 +11,14 @@ export type MeuDocumento = {
   caminho_storage: string;
   data_validade: string | null;
   criado_em: string;
+  status_revisao?: string | null;
+  motivo_rejeicao?: string | null;
 };
 
 export async function listMeusDocumentos(): Promise<MeuDocumento[]> {
   const { data, error } = await supabase
     .from('arquivos')
-    .select('id, entidade_tipo, categoria, nome_arquivo, caminho_storage, data_validade, criado_em')
+    .select('id, entidade_tipo, categoria, nome_arquivo, caminho_storage, data_validade, criado_em, status_revisao, motivo_rejeicao')
     .order('criado_em', { ascending: false });
   if (error) throw error;
   return (data ?? []) as MeuDocumento[];

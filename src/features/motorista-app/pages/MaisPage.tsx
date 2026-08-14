@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FileText, FileCheck2, ClipboardCheck, LifeBuoy, User, ChevronRight, type LucideIcon } from 'lucide-react';
+import { FileText, FileCheck2, ClipboardCheck, LifeBuoy, User, Bell, ChevronRight, type LucideIcon } from 'lucide-react';
 
 // Épico 11 — App do Motorista. Tela "Mais": índice de navegação para as áreas menos frequentes.
 // Alvos de toque grandes, um link por linha.
@@ -10,6 +10,7 @@ const ITENS: ItemMenu[] = [
   { to: '/motorista/contrato', icon: FileText, label: 'Contrato' },
   { to: '/motorista/documentos', icon: FileCheck2, label: 'Documentos' },
   { to: '/motorista/vistorias', icon: ClipboardCheck, label: 'Vistorias' },
+  { to: '/motorista/notificacoes', icon: Bell, label: 'Notificações' },
   { to: '/motorista/suporte', icon: LifeBuoy, label: 'Suporte' },
   { to: '/motorista/perfil', icon: User, label: 'Perfil' },
 ];

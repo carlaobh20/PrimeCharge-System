@@ -4,6 +4,7 @@ import { listCatalogo, listMeusPedidos, listItensDosMeusPedidos } from '../api/l
 import { listMeusDocumentos } from '../api/documentos';
 import { listMinhasVistorias } from '../api/vistorias';
 import { listMeusChamados, abrirChamado, cancelarChamado, type NovoChamado } from '../api/chamados';
+import { listMinhasNotificacoes, marcarNotificacaoLida, marcarTodasLidas } from '../api/notificacoes';
 
 // Hooks do portal do motorista. Chave de cache sempre prefixada 'motorista-app' pra isolar do
 // admin. staleTime herdado do QueryClient (30s). Nenhuma lógica de negócio aqui — só ligação
@@ -48,5 +49,23 @@ export function useCancelarChamado() {
   return useMutation({
     mutationFn: (id: string) => cancelarChamado(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: K('chamados') }),
+  });
+}
+
+export function useMinhasNotificacoes() {
+  return useQuery({ queryKey: K('notificacoes'), queryFn: listMinhasNotificacoes });
+}
+export function useMarcarNotificacaoLida() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => marcarNotificacaoLida(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: K('notificacoes') }),
+  });
+}
+export function useMarcarTodasLidas() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => marcarTodasLidas(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: K('notificacoes') }),
   });
 }

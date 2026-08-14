@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Plus } from 'lucide-react';
 import { formatDataSimples } from '@/shared/lib/format';
+import { buttonVariants } from '@/shared/components/ui/button';
 import { Secao, Pill, SkeletonPortal, ErroPortal, VazioPortal } from '../components/ui';
 import { useMinhasVistorias } from '../hooks/useMotoristaApp';
 import type { MinhaVistoria } from '../api/vistorias';
@@ -26,7 +27,8 @@ function tomStatus(status: string): 'verde' | 'ambar' | 'neutro' {
 }
 function labelStatus(status: string): string {
   if (status === 'concluido') return 'Concluída';
-  if (status === 'aberto') return 'Em aberto';
+  // Vistoria do motorista enviada fica 'aberto' aguardando o staff — mostramos "Em análise".
+  if (status === 'aberto') return 'Em análise';
   if (status === 'cancelado') return 'Cancelada';
   return status;
 }
@@ -59,7 +61,12 @@ export function MinhasVistoriasPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Vistorias</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Vistorias</h1>
+        <Link to="/motorista/vistorias/nova" className={buttonVariants({ size: 'sm' })}>
+          <Plus className="mr-1 h-4 w-4" /> Nova vistoria
+        </Link>
+      </div>
 
       {isLoading ? (
         <SkeletonPortal />

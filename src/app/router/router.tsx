@@ -36,8 +36,16 @@ const MeusDocumentosPage = named(() => import('@/features/motorista-app/pages/Me
 const MinhasVistoriasPage = named(() => import('@/features/motorista-app/pages/MinhasVistoriasPage'), 'MinhasVistoriasPage');
 const VistoriaDetalhePage = named(() => import('@/features/motorista-app/pages/VistoriaDetalhePage'), 'VistoriaDetalhePage');
 const SuportePage = named(() => import('@/features/motorista-app/pages/SuportePage'), 'SuportePage');
+const AnexarChamadoPage = named(() => import('@/features/motorista-app/pages/AnexarChamadoPage'), 'AnexarChamadoPage');
+const NovaVistoriaPage = named(() => import('@/features/motorista-app/pages/NovaVistoriaPage'), 'NovaVistoriaPage');
+const NotificacoesPage = named(() => import('@/features/motorista-app/pages/NotificacoesPage'), 'NotificacoesPage');
 const PerfilPage = named(() => import('@/features/motorista-app/pages/PerfilPage'), 'PerfilPage');
 const MaisPage = named(() => import('@/features/motorista-app/pages/MaisPage'), 'MaisPage');
+
+// --- lojinha administrativa (staff) ---
+const ProdutosPage = named(() => import('@/features/lojinha/pages/ProdutosPage'), 'ProdutosPage');
+const EstoquePage = named(() => import('@/features/lojinha/pages/EstoquePage'), 'EstoquePage');
+const PedidosAdminPage = named(() => import('@/features/lojinha/pages/PedidosAdminPage'), 'PedidosAdminPage');
 
 // --- administrativo ---
 const CentroDeOperacoesPage = named(() => import('@/features/command-center/pages/CentroDeOperacoesPage'), 'CentroDeOperacoesPage');
@@ -89,8 +97,11 @@ export const router = createBrowserRouter([
               { path: 'lojinha/pedidos', element: <MeusPedidosPage /> },
               { path: 'documentos', element: <MeusDocumentosPage /> },
               { path: 'vistorias', element: <MinhasVistoriasPage /> },
+              { path: 'vistorias/nova', element: <NovaVistoriaPage /> },
               { path: 'vistorias/:id', element: <VistoriaDetalhePage /> },
               { path: 'suporte', element: <SuportePage /> },
+              { path: 'suporte/:id/anexar', element: <AnexarChamadoPage /> },
+              { path: 'notificacoes', element: <NotificacoesPage /> },
               { path: 'perfil', element: <PerfilPage /> },
               { path: 'mais', element: <MaisPage /> },
             ],
@@ -124,6 +135,9 @@ export const router = createBrowserRouter([
               { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },
               { path: 'financeiro/centros-custo', element: <CentrosCustoPage /> },
               { path: 'operacoes/acoes', element: <AcoesListPage /> },
+              { path: 'lojinha/produtos', element: <ProdutosPage /> },
+              { path: 'lojinha/estoque', element: <EstoquePage /> },
+              { path: 'lojinha/pedidos', element: <PedidosAdminPage /> },
               {
                 path: 'estrategia',
                 element: <RequireOwner />,

@@ -4,6 +4,7 @@ import { Home, Car, Wallet, ShoppingBag, Menu } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { CarrinhoProvider, useCarrinho } from '../lib/carrinho';
 import { SkeletonPortal } from './ui';
+import { SinoNotificacoes } from './SinoNotificacoes';
 
 // Shell mobile-first do App do Motorista (Fase 2). Header enxuto + <Outlet/> num container
 // max-w-md + bottom navigation fixa. safe-area-inset pra não passar por baixo do notch/home
@@ -66,6 +67,9 @@ export function AppLayoutMotorista() {
         >
           <div className="mx-auto flex h-12 max-w-md items-center px-4">
             <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">PrimeCharge</span>
+            <div className="ml-auto">
+              <SinoNotificacoes />
+            </div>
           </div>
         </header>
 
