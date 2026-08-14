@@ -29,3 +29,6 @@ $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/20_ataques.sql
 
 echo "== rodando ataques (Fase 2) =="
 $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/30_fase2_seed_e_ataques.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM"
+
+echo "== rodando ataques (Fase 3) =="
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/40_fase3_ataques.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM"
