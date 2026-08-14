@@ -67,6 +67,7 @@ const PagamentosPage = named(() => import('@/features/financeiro/pages/Pagamento
 const ContasBancariasPage = named(() => import('@/features/financeiro/pages/ContasBancariasPage'), 'ContasBancariasPage');
 const CentrosCustoPage = named(() => import('@/features/financeiro/pages/CentrosCustoPage'), 'CentrosCustoPage');
 const AcoesListPage = named(() => import('@/features/operacoes/pages/AcoesListPage'), 'AcoesListPage');
+const CentralAtendimentoPage = named(() => import('@/features/atendimento/pages/CentralAtendimentoPage'), 'CentralAtendimentoPage');
 const CentroDeEstrategiaPage = named(() => import('@/features/estrategia/pages/CentroDeEstrategiaPage'), 'CentroDeEstrategiaPage');
 const UsuariosPage = named(() => import('@/features/auth/pages/UsuariosPage'), 'UsuariosPage');
 
@@ -135,6 +136,7 @@ export const router = createBrowserRouter([
               { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },
               { path: 'financeiro/centros-custo', element: <CentrosCustoPage /> },
               { path: 'operacoes/acoes', element: <AcoesListPage /> },
+              { path: 'atendimento', element: <CentralAtendimentoPage /> },
               { path: 'lojinha/produtos', element: <ProdutosPage /> },
               { path: 'lojinha/estoque', element: <EstoquePage /> },
               { path: 'lojinha/pedidos', element: <PedidosAdminPage /> },

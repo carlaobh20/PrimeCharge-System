@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { BarChart3, Car, ClipboardList, Compass, FileSignature, Landmark, PieChart, Radar, LogOut, Receipt, Search, Users, UserCog, Wallet, ShoppingBag, Package, PackageOpen } from 'lucide-react';
+import { BarChart3, Car, ClipboardList, Compass, FileSignature, Landmark, PieChart, Radar, Headset, LogOut, Receipt, Search, Users, UserCog, Wallet, ShoppingBag, Package, PackageOpen } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { to: '/motoristas', label: 'Motoristas', icon: Users, end: false },
   { to: '/contratos', label: 'Contratos', icon: FileSignature, end: false },
   { to: '/operacoes/acoes', label: 'Ações Operacionais', icon: ClipboardList, end: false },
+  { to: '/atendimento', label: 'Atendimento Motorista', icon: Headset, end: false },
   // Épico 12 — Lojinha administrativa (Fase 3). Pedidos primeiro (fila de trabalho diária),
   // depois catálogo e estoque (cadastro/reposição).
   { to: '/lojinha/pedidos', label: 'Pedidos (Lojinha)', icon: ShoppingBag, end: false },
