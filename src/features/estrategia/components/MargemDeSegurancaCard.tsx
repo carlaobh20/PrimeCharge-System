@@ -1,8 +1,7 @@
-import { ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
-import { Card, CardContent } from '@/shared/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
 import { formatMoeda } from '@/shared/lib/format';
-import type { MargemDeSeguranca, Runway, NivelDeSeguranca } from '../intelligence/margemDeSeguranca';
+import type { MargemDeSeguranca, Runway } from '../intelligence/margemDeSeguranca';
 
 // Épico 3 — Central de Decisão Empresarial, "Margem de Segurança da Operação" (2026-08-10,
 // missão do Carlos: "copiloto financeiro" — cada card deve responder uma pergunta, com semáforo,
@@ -16,12 +15,13 @@ import type { MargemDeSeguranca, Runway, NivelDeSeguranca } from '../intelligenc
 // Motorista/documentação/seguro-como-compliance são dado REAL de frota (outro domínio, Centro de
 // Operações), não existem dentro da Central de Decisão — fingir que este selo os considera seria
 // inventar dado que não existe. Ver rodapé do card.
-
-const CONFIG_NIVEL: Record<NivelDeSeguranca, { icon: typeof ShieldCheck; titulo: string; cor: string; bg: string }> = {
-  seguro: { icon: ShieldCheck, titulo: 'Operação Saudável', cor: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
-  atencao: { icon: ShieldAlert, titulo: 'Atenção', cor: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-500/10' },
-  risco: { icon: ShieldX, titulo: 'Operação em Risco', cor: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-500/10' },
-};
+//
+// 2026-08-13 (Fase 4.3) — removido o selo "Operação Saudável / Atenção / Operação em Risco"
+// (ícone + cor + título), pedido explícito do Carlos: nenhuma classificação subjetiva na Central
+// de Decisão, nem aqui nem no Card 1. O card agora abre com um título neutro (igual aos outros
+// cards da tela) e vai direto pros números objetivos — break-even, margem em %, dias parado. A
+// classificação "seguro/atenção/risco" que gerava esse selo (e a frase `motivo`) foi removida do
+// motor também (`margemDeSeguranca.ts`) — não sobrou em nenhum lugar, não foi só escondida.
 
 function LinhaMargem({
   label,
@@ -56,22 +56,12 @@ function LinhaMargem({
 }
 
 export function MargemDeSegurancaCard({ margem, runway }: { margem: MargemDeSeguranca; runway: Runway }) {
-  const cfg = CONFIG_NIVEL[margem.nivel];
-  const Icon = cfg.icon;
-
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className={cn('flex flex-col gap-2 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between', cfg.bg)}>
-          <div className="flex items-center gap-3">
-            <Icon className={cn('h-8 w-8 shrink-0', cfg.cor)} />
-            <div>
-              <p className={cn('text-xl font-bold', cfg.cor)}>{cfg.titulo}</p>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">{margem.motivo}</p>
-            </div>
-          </div>
-        </div>
-
+      <CardHeader>
+        <CardTitle>Margem de segurança da operação</CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
         {margem.frotaAtual > 0 && (
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <LinhaMargem

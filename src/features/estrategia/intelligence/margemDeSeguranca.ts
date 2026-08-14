@@ -9,11 +9,11 @@ import type { CenarioSimulacaoInput } from '../types';
 // em vez de "dado ocupação/aluguel, qual o lucro", pergunta "qual o menor ocupação/aluguel que
 // ainda dá lucro zero".
 //
-// Honestidade de dado (DEC-022): os limiares de "seguro/atenção/risco" abaixo (15 pontos
-// percentuais de margem de ocupação, 20% de folga sobre a reserva) são heurística minha, não
-// vieram de nenhuma política sua — documentados aqui pra você poder discordar e ajustar.
-
-export type NivelDeSeguranca = 'seguro' | 'atencao' | 'risco';
+// 2026-08-13 (Fase 4.3) — removida a classificação "seguro/atenção/risco" (nivel/motivo) que
+// vivia aqui: pedido explícito do Carlos foi tirar TODA classificação subjetiva da Central de
+// Decisão, tanto o selo do card quanto o "Nível de risco" do Card 1 (esse já tinha saído antes).
+// O que ficou é só a matemática objetiva (break-even, margem em %, dias parado) — cada linha do
+// card mostra o número e o próprio usuário decide o que aquilo significa pra ele.
 
 export type MargemDeSeguranca = {
   frotaAtual: number;
@@ -42,8 +42,6 @@ export type MargemDeSeguranca = {
   margemCaixaPct: number | null;
   lucroAtual: number;
   lucroMinimo: number;
-  nivel: NivelDeSeguranca;
-  motivo: string;
 };
 
 export type Runway = {
@@ -56,26 +54,6 @@ export type Runway = {
 };
 
 const DIAS_POR_MES = 30;
-const MARGEM_OCUPACAO_SEGURA_PP = 15; // pontos percentuais
-const FOLGA_RESERVA_SEGURA = 1.2; // caixa >= reserva × 1.2 é "seguro"
-
-function nivelPorMargemOcupacao(margemPct: number | null): NivelDeSeguranca {
-  if (margemPct === null) return 'atencao';
-  if (margemPct < 0) return 'risco';
-  if (margemPct < MARGEM_OCUPACAO_SEGURA_PP) return 'atencao';
-  return 'seguro';
-}
-
-function nivelPorCaixa(caixa: number, reserva: number): NivelDeSeguranca {
-  if (caixa < reserva) return 'risco';
-  if (reserva > 0 && caixa < reserva * FOLGA_RESERVA_SEGURA) return 'atencao';
-  return 'seguro';
-}
-
-function piorNivel(a: NivelDeSeguranca, b: NivelDeSeguranca): NivelDeSeguranca {
-  const ordem: Record<NivelDeSeguranca, number> = { seguro: 0, atencao: 1, risco: 2 };
-  return ordem[a] >= ordem[b] ? a : b;
-}
 
 export function calcularMargemDeSeguranca(cenario: CenarioSimulacaoInput, mesAtual: MesSimulado): MargemDeSeguranca {
   const frota = mesAtual.frota;
@@ -107,28 +85,6 @@ export function calcularMargemDeSeguranca(cenario: CenarioSimulacaoInput, mesAtu
     }
   }
 
-  const nivel = piorNivel(
-    piorNivel(nivelPorMargemOcupacao(margemOcupacaoPct), nivelPorCaixa(mesAtual.caixaDisponivel, cenario.reserva_de_seguranca)),
-    mesAtual.lucroMensal < 0 ? 'risco' : 'seguro'
-  );
-
-  let motivo: string;
-  if (frota === 0) {
-    motivo = 'ainda sem veículo operando — a margem de segurança começa a valer a partir da primeira compra.';
-  } else if (nivel === 'risco') {
-    if (mesAtual.caixaDisponivel < cenario.reserva_de_seguranca) {
-      motivo = `caixa (${formatMoedaSimples(mesAtual.caixaDisponivel)}) já está abaixo da reserva mínima (${formatMoedaSimples(cenario.reserva_de_seguranca)}).`;
-    } else if (margemOcupacaoPct !== null && margemOcupacaoPct < 0) {
-      motivo = `a ocupação configurada (${ocupacaoAtualPct.toFixed(0)}%) está ABAIXO do break-even (${ocupacaoMinimaPct!.toFixed(0)}%) — nesse ritmo a operação dá prejuízo.`;
-    } else {
-      motivo = 'o lucro do mês está negativo.';
-    }
-  } else if (nivel === 'atencao') {
-    motivo = `margem existe, mas é apertada — folga de ${margemOcupacaoPct !== null ? margemOcupacaoPct.toFixed(0) + ' pontos de ocupação' : 'caixa próxima da reserva'}.`;
-  } else {
-    motivo = `folga de ${margemOcupacaoPct !== null ? margemOcupacaoPct.toFixed(0) + ' pontos acima do break-even de ocupação' : 'caixa'} e caixa confortavelmente acima da reserva.`;
-  }
-
   // Fase 4.2 (2026-08-13) — movidos de MargemDeSegurancaCard.tsx (mesma fórmula que já era usada
   // lá, só centralizada aqui, ao lado de margemOcupacaoPct/margemFinanceiraPct que já viviam no
   // motor).
@@ -154,8 +110,6 @@ export function calcularMargemDeSeguranca(cenario: CenarioSimulacaoInput, mesAtu
     margemCaixaPct,
     lucroAtual: mesAtual.lucroMensal,
     lucroMinimo: 0,
-    nivel,
-    motivo,
   };
 }
 
@@ -189,6 +143,3 @@ export function calcularRunway(meses: MesSimulado[], reservaMinima: number): Run
   };
 }
 
-function formatMoedaSimples(valor: number): string {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
