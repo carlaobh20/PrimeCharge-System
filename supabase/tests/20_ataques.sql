@@ -52,8 +52,12 @@ select _assert(
   and (select id from veiculos) = 'e2222222-0000-0000-0000-000000000000',
   'Motorista A vê só o veículo do próprio contrato');
 
-select _assert((select count(*) from lancamentos) = 0, 'Motorista A NÃO vê lançamentos (staff-only, 0036)');
-select _assert((select count(*) from pagamentos) = 0, 'Motorista A NÃO vê pagamentos');
+-- Após 0040: A vê a PRÓPRIA receita (lançamento 1a00 do seed) — e só ela. (Detalhe testado a
+-- fundo no grupo Fase 2; aqui só confirmamos que não vazou nada além do próprio.)
+select _assert(
+  (select count(*) from lancamentos) = 1 and (select id from lancamentos) = '1a000000-0000-0000-0000-000000000000',
+  'Motorista A vê só a própria receita em lançamentos (nada de terceiros)');
+select _assert((select count(*) from pagamentos) = 0, 'Motorista A NÃO vê pagamentos ainda (sem pagamento no seed base)');
 select _assert((select count(*) from checklists) = 0, 'Motorista A NÃO vê checklists');
 select _assert((select count(*) from arquivos) = 0, 'Motorista A NÃO vê metadados de arquivos');
 select _assert((select count(*) from interacoes) = 0, 'Motorista A NÃO vê interacoes');

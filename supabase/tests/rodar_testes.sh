@@ -24,5 +24,8 @@ echo "   OK ($(ls "$ROOT"/supabase/migrations/*.sql | wc -l) migrations)"
 echo "== seed de teste =="
 $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/10_seed_teste.sql'" >/dev/null
 
-echo "== rodando ataques =="
+echo "== rodando ataques (Fase 1) =="
 $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/20_ataques.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM"
+
+echo "== rodando ataques (Fase 2) =="
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/30_fase2_seed_e_ataques.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM"
