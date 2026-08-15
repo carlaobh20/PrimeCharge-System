@@ -71,6 +71,13 @@ export type MesSimulado = {
   amortizacaoExtraAcumulada: number;
   /** Parte da parcela normal (Price) que é amortização de principal, não juros — soma de todos os veículos financiados neste mês. Usado no Fluxo Detalhado (Card "ano a ano"). */
   amortizacaoProgramadaMensal: number;
+  /** Juros do FINANCIAMENTO embutidos na parcela deste mês (parcela cobrada − amortização
+   * programada), somados sobre todos os veículos com saldo. Já era calculado no loop (compõe a
+   * parcela e entra na despesa via despesaBreakdown.parcelas) — passa a ser exposto pra o Fluxo
+   * Detalhado poder mostrar "Juros da dívida" separado da amortização. Não é conta nova: é a mesma
+   * decomposição da Tabela Price (parcela = juros + amortização programada), sem nenhuma alteração
+   * de fórmula. NÃO confundir com jurosInvestimentoMensal (rendimento do caixa parado). */
+  jurosFinanciamentoMensal: number;
   /** Quantos veículos foram comprados NESTE mês especificamente (mesCompra === mes) — iniciais contam no mês 0. Não confundir com `frota`: `frota` é capturado ANTES da compra deste mês rodar (proposital — um veículo comprado agora ainda não gera receita neste mês), então `frota` só reflete essa compra a partir do mês seguinte. `comprasNoMes` existe pra marcar o momento exato da compra (gráfico/tabela), sem depender desse deslocamento de um mês do `frota`. */
   comprasNoMes: number;
   valorDaEmpresa: number;
@@ -199,6 +206,34 @@ export function calcularComparacaoAmortizarVsComprar(cenario: CenarioSimulacaoIn
 export function calcularVeiculosDisponiveisAgora(cenario: CenarioSimulacaoInput): number {
   if (cenario.valor_entrada_por_veiculo <= 0) return 0;
   return Math.max(0, Math.floor((cenario.capital_disponivel - cenario.reserva_de_seguranca) / cenario.valor_entrada_por_veiculo));
+}
+
+/** Resumo da amortização extraordinária no horizonte inteiro — nasce no motor (nunca no card), só
+ * lê campos já calculados de MesSimulado + o valor configurado do cenário. Serve pro AmortizacaoCard
+ * distinguir CONFIGURADO x APLICADO sem refazer nenhuma conta. */
+export type ResumoAmortizacaoExtra = {
+  /** Valor por evento que o dono configurou (amortizacao_valor_manual). 0 quando não se aplica. */
+  configuradoPorEvento: number;
+  /** Total efetivamente amortizado a mais no horizonte = amortizacaoExtraAcumulada do último mês. */
+  totalAplicado: number;
+  /** true quando, em ALGUM mês-evento, aplicou-se um valor > 0 porém MENOR que o configurado —
+   * sinal de que o caixa ou o saldo devedor limitou o pagamento naquele mês. Não marca meses com
+   * 0 (dívida já quitada ou estratégia sem evento naquele mês não são "limitação"). */
+  algumMesLimitadoPorCaixa: boolean;
+};
+
+/** Fase amortização (2026-08-14) — agrega o que o motor já calculou por mês. Sem fórmula financeira
+ * nova: `totalAplicado` é o acumulado do último mês; `algumMesLimitadoPorCaixa` só compara o valor
+ * aplicado (motor) com o configurado (cenário). O teto de caixa/saldo é decidido dentro de
+ * `simularCrescimentoEmpresarial` (Math.min com caixaDisponivel e com o saldo devedor) — aqui só se
+ * observa o resultado. */
+export function resumirAmortizacaoExtra(meses: MesSimulado[], cenario: CenarioSimulacaoInput): ResumoAmortizacaoExtra {
+  const configuradoPorEvento = cenario.amortizacao_valor_manual ?? 0;
+  const totalAplicado = meses.length > 0 ? meses[meses.length - 1].amortizacaoExtraAcumulada : 0;
+  const algumMesLimitadoPorCaixa =
+    configuradoPorEvento > 0 &&
+    meses.some((m) => m.amortizacaoExtraMensal > 0.005 && m.amortizacaoExtraMensal < configuradoPorEvento - 0.005);
+  return { configuradoPorEvento, totalAplicado, algumMesLimitadoPorCaixa };
 }
 
 type VeiculoSimulado = {
@@ -345,6 +380,7 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
   for (let mes = 0; mes <= cenario.prazo_desejado_meses; mes++) {
     let parcelasDoMes = 0;
     let amortizacaoProgramadaDoMes = 0;
+    let jurosFinanciamentoDoMes = 0;
     for (const v of veiculos) {
       if (v.saldoDevedor <= 0) continue;
       const juros = v.saldoDevedor * (cenario.taxa_juros_am_pct / 100);
@@ -353,6 +389,10 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       v.saldoDevedor = Math.max(0, v.saldoDevedor - amortizacaoDaParcela);
       parcelasDoMes += parcelaCobrada;
       amortizacaoProgramadaDoMes += amortizacaoDaParcela;
+      // Juros embutido nesta parcela = parcela cobrada − amortização de principal. Identidade exata
+      // da Price (inclusive no mês final parcial), então "Parcela = Juros + Amort. programada" fecha
+      // no display sem nenhuma conta nova.
+      jurosFinanciamentoDoMes += parcelaCobrada - amortizacaoDaParcela;
     }
 
     const frota = veiculos.length;
@@ -480,6 +520,7 @@ export function simularCrescimentoEmpresarial(cenario: CenarioSimulacaoInput): S
       amortizacaoExtraMensal,
       amortizacaoExtraAcumulada,
       amortizacaoProgramadaMensal: amortizacaoProgramadaDoMes,
+      jurosFinanciamentoMensal: jurosFinanciamentoDoMes,
       comprasNoMes: comprasPorMes.get(mes) ?? 0,
       valorDaEmpresa: caixaDisponivel + patrimonioLiquido,
       roiAcumuladoPct,

@@ -20,6 +20,15 @@ export type FluxoAnual = {
   anoIncompleto: boolean;
   entrada: number;
   despesas: number;
+  /** Parcela do financiamento paga no ano (juros + amortização programada). Soma de despesaBreakdown.parcelas. */
+  parcela: number;
+  /** Amortização de principal via parcela normal (Price), somada no ano. */
+  amortizacaoProgramada: number;
+  /** Amortização extraordinária (além da parcela) somada no ano — Card 4. */
+  amortizacaoExtra: number;
+  /** Juros do financiamento pagos no ano (parte de juros embutida na parcela). */
+  jurosFinanciamento: number;
+  /** amortizacaoProgramada + amortizacaoExtra do ano (mantém o nome antigo = total). */
   amortizacaoDaDivida: number;
   saldoDaDivida: number;
   lucroLiquido: number;
@@ -54,6 +63,13 @@ export function agruparFluxoPorAno(meses: MesSimulado[]): FluxoAnual[] {
     // um por conta própria, em vez de reusar o que este arquivo já fazia. Agora os 3 lugares somam
     // o mesmo campo, em vez de cada um refazer a subtração/soma à sua maneira.
     const despesas = mesesDoAno.reduce((acc, m) => acc + m.despesaSemParcelaMensal, 0);
+    // Amortização (2026-08-14) — programada/extra/total agora agregadas separadas, só somando os
+    // campos que o motor já calcula por mês. amortizacaoDaDivida continua sendo o TOTAL (soma dos
+    // dois), pra não quebrar nenhum consumidor antigo.
+    const parcela = mesesDoAno.reduce((acc, m) => acc + m.despesaBreakdown.parcelas, 0);
+    const amortizacaoProgramada = mesesDoAno.reduce((acc, m) => acc + m.amortizacaoProgramadaMensal, 0);
+    const amortizacaoExtra = mesesDoAno.reduce((acc, m) => acc + m.amortizacaoExtraMensal, 0);
+    const jurosFinanciamento = mesesDoAno.reduce((acc, m) => acc + m.jurosFinanciamentoMensal, 0);
     const amortizacaoDaDivida = mesesDoAno.reduce((acc, m) => acc + m.amortizacaoTotalMensal, 0);
     const lucroLiquido = mesesDoAno.reduce((acc, m) => acc + m.lucroMensal, 0);
     const saldoDaDivida = mesesDoAno[mesesDoAno.length - 1].saldoDevedorTotal;
@@ -71,6 +87,10 @@ export function agruparFluxoPorAno(meses: MesSimulado[]): FluxoAnual[] {
       anoIncompleto,
       entrada,
       despesas,
+      parcela,
+      amortizacaoProgramada,
+      amortizacaoExtra,
+      jurosFinanciamento,
       amortizacaoDaDivida,
       saldoDaDivida,
       lucroLiquido,
