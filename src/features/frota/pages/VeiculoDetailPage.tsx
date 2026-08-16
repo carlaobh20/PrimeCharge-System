@@ -9,6 +9,7 @@ import { HistoricoPanel } from '@/shared/capabilities/components/HistoricoPanel'
 import { ChecklistsPanel } from '@/features/operacoes/components/ChecklistsPanel';
 import { ManutencoesPanel } from '@/features/operacoes/components/ManutencoesPanel';
 import { MultasPanel } from '@/features/operacoes/components/MultasPanel';
+import { SinistrosPanel } from '@/features/operacoes/components/SinistrosPanel';
 import { NovaManutencaoDialog } from '@/features/operacoes/components/NovaManutencaoDialog';
 import { NovaMultaDialog } from '@/features/operacoes/components/NovaMultaDialog';
 
@@ -254,6 +255,11 @@ export function VeiculoDetailPage() {
                 value: 'multas',
                 label: 'Multas',
                 content: <MultasPanel veiculoId={veiculo.id} />,
+              },
+              {
+                value: 'sinistros',
+                label: 'Sinistros',
+                content: <SinistrosPanel veiculoId={veiculo.id} />,
               },
               {
                 value: 'indicadores',

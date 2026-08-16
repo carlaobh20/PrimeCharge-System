@@ -54,4 +54,24 @@ select _login('55555555-5555-5555-5555-555555555555');
 select _assert((select count(*) from chamados) = 0, 'F4 Fila: staff inativo não vê chamados');
 reset role;
 
+-- Sinistros (capability de UI nova 2026-08-14): a tabela + RLS staff-only (0036) já existiam;
+-- este bloco só garante que a RLS que a nova tela consome está correta — staff vê, motorista não.
+-- setup (superuser): um sinistro no veículo e5 da empresa A
+insert into sinistros (id, empresa_id, veiculo_id, motorista_id, tipo, data_ocorrencia, descricao)
+values ('51000000-0000-0000-0000-0000000000f4', 'a0000000-0000-0000-0000-000000000001', 'e5000000-0000-0000-0000-000000000000', 'a2222222-0000-0000-0000-000000000000', 'colisao', now()::date, 'colisao de teste');
+
+set role authenticated;
+select _login('11111111-1111-1111-1111-111111111111'); -- staff owner
+select _assert(
+  (select count(*) from sinistros where id='51000000-0000-0000-0000-0000000000f4') = 1,
+  'Sinistros: staff vê o sinistro da empresa');
+reset role;
+
+set role authenticated;
+select _login('33333333-3333-3333-3333-333333333333'); -- motorista B
+select _assert(
+  (select count(*) from sinistros where id='51000000-0000-0000-0000-0000000000f4') = 0,
+  'Sinistros: motorista NÃO vê sinistro (tabela é staff-only)');
+reset role;
+
 do $$ begin raise notice '==== FASE 4: TODOS OS TESTES PASSARAM ===='; end $$;
