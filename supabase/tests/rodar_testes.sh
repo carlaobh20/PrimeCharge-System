@@ -44,3 +44,6 @@ $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/61_juridico_fa
 
 echo "== rodando Centro Jurídico (Fase 3 — ciclo de vida/rescisão/concorrência) =="
 $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/62_juridico_fase3.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"
+
+echo "== rodando Centro Jurídico (Fase 4 — E2E/IDOR/hardening) =="
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/63_juridico_fase4.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"

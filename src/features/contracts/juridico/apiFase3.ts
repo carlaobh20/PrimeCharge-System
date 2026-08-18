@@ -189,6 +189,15 @@ export async function upsertSeguro(empresaId: string, contratoId: string, payloa
   return data as ContratoSeguro;
 }
 
+/** Seguros de TODOS os contratos da empresa (dashboard) — colunas mínimas. */
+export async function listSegurosDaEmpresa() {
+  const { data, error } = await supabase
+    .from('contrato_seguros')
+    .select('id, contrato_id, seguradora, apolice, vigencia_fim');
+  if (error) throw error;
+  return data as { id: string; contrato_id: string; seguradora: string | null; apolice: string | null; vigencia_fim: string | null }[];
+}
+
 // ============================ RESCISÕES ============================
 export async function listRescisoesPorContrato(contratoId: string) {
   const { data, error } = await supabase

@@ -5,6 +5,7 @@ import { Button } from '@/shared/components/ui/button';
 import { toast, extrairMensagemDeErro } from '@/shared/components/ui/toast';
 import { formatDataSimples, formatMoeda } from '@/shared/lib/format';
 import { listArquivos } from '@/shared/capabilities/api/arquivos';
+import { listAuditLog } from '@/shared/capabilities/api/auditLog';
 import { listTimeline } from '@/shared/capabilities/api/timeline';
 import type { ContratoComRelacoes } from '../../types';
 import type { ContratoAditivo, ContratoVersao } from '../types';
@@ -30,11 +31,14 @@ export function DossiePanel({
 
   const exportar = useMutation({
     mutationFn: async () => {
-      const [assinaturas, arquivosContrato, arquivosMotorista, timeline] = await Promise.all([
+      const [assinaturas, arquivosContrato, arquivosMotorista, timeline, auditContrato, auditVersoes] = await Promise.all([
         listAssinaturasPorVersoes(versoes.map((v) => v.id)),
         listArquivos('contrato', contrato.id),
         listArquivos('motorista', contrato.motorista_id),
         listTimeline('contrato', contrato.id),
+        // 11_Auditoria: a RLS decide o que o exportador pode ler (admin-only) — quem não pode, exporta vazio.
+        listAuditLog('contratos', contrato.id).catch(() => []),
+        Promise.all(versoes.map((v) => listAuditLog('contrato_versoes', v.id).catch(() => []))).then((r) => r.flat()),
       ]);
 
       // baixa os anexos binários do Storage (contrato + documentos do motorista)
@@ -78,6 +82,11 @@ export function DossiePanel({
         multas: (ficha.data?.multas ?? []).map((m) => ({ orgao: m.orgao_autuador, descricao: m.descricao, data: formatDataSimples(m.data_infracao), valor: m.valor, status: m.status })),
         documentosMotorista: arquivosMotorista.map((a) => ({ nome: a.nome_arquivo, categoria: a.categoria, criadoEm: formatDataSimples(a.criado_em) })),
         timeline: timeline.map((t) => ({ data: formatDataSimples(t.criado_em), tipo: t.tipo, descricao: t.descricao ?? '' })),
+        auditoria: [...auditContrato, ...auditVersoes]
+          .sort((a, b) => (a.criado_em < b.criado_em ? 1 : -1))
+          .map((a) => ({ data: formatDataSimples(a.criado_em), usuario: a.usuario_id ?? 'sistema', acao: a.acao, tabela: a.tabela })),
+        versaoAtualRotulo: versoes[0] ? (versoes[0].rotulo ?? `v${versoes[0].numero}`) : null,
+        hashVersaoAtual: versoes[0]?.hash_sha256 ?? null,
         anexos,
       };
 

@@ -33,6 +33,7 @@ import type {
   ContratoVersaoStatus,
 } from './types';
 import { hashCorpo, renderarCorpo } from './lib';
+import { listRevisoes, listSegurosDaEmpresa, templateAprovadoJuridicamente } from './apiFase3';
 
 // ============================ TEMPLATES ============================
 export function useTemplatesJuridico() {
@@ -208,6 +209,9 @@ export type PanoramaJuridico = {
     aditivosPendentes: number;
     rescisoes: number;
     pendencias: number;
+    segurosVencendo: number;
+    assinaturasExpirando: number;
+    revisoesJuridicasPendentes: number;
   };
   fila: PendenciaJuridica[];
   vencimentos: { contrato: ContratoComRelacoes; diasRestantes: number }[];
@@ -226,11 +230,14 @@ export function usePanoramaJuridico() {
     enabled: contratoIds.length > 0,
     queryFn: async () => {
       const versoes = await listVersoesPorContratos(contratoIds);
-      const [assinaturas, aditivos] = await Promise.all([
+      const [assinaturas, aditivos, seguros, revisoes, templates] = await Promise.all([
         listAssinaturasPorVersoes(versoes.map((v) => v.id)),
         listAditivosPorContratos(contratoIds),
+        listSegurosDaEmpresa(),
+        listRevisoes(),
+        listTemplates(),
       ]);
-      return { versoes, assinaturas, aditivos };
+      return { versoes, assinaturas, aditivos, seguros, revisoes, templates };
     },
   });
 
@@ -240,6 +247,9 @@ export function usePanoramaJuridico() {
   const versoes = agregadoQuery.data?.versoes ?? [];
   const assinaturas = agregadoQuery.data?.assinaturas ?? [];
   const aditivos = agregadoQuery.data?.aditivos ?? [];
+  const seguros = agregadoQuery.data?.seguros ?? [];
+  const revisoes = agregadoQuery.data?.revisoes ?? [];
+  const templates = agregadoQuery.data?.templates ?? [];
 
   const versoesPorContrato = new Map<string, VersaoResumo[]>();
   for (const v of versoes) {
@@ -366,6 +376,46 @@ export function usePanoramaJuridico() {
     });
   }
 
+  // Seguros vencendo/vencidos (Fase P/E) — derivado, sem cron
+  let segurosVencendo = 0;
+  const nomePorContrato = new Map(contratos.map((c) => [c.id, c.motorista?.nome_completo ?? '—']));
+  for (const s of seguros) {
+    if (!s.vigencia_fim) continue;
+    const dias = Math.ceil((new Date(s.vigencia_fim).getTime() - hoje) / DIA_MS);
+    if (dias < 0) {
+      segurosVencendo++;
+      fila.push({
+        prioridade: 1,
+        cor: 'vermelho',
+        rotulo: 'Seguro vencido',
+        detalhe: `${nomePorContrato.get(s.contrato_id) ?? '—'} — apólice ${s.apolice ?? 'sem número'} venceu há ${Math.abs(dias)} dia(s).`,
+        contratoId: s.contrato_id,
+      });
+    } else if (dias <= 30) {
+      segurosVencendo++;
+      fila.push({
+        prioridade: dias <= 7 ? 2 : 3,
+        cor: dias <= 7 ? 'laranja' : 'amarelo',
+        rotulo: 'Seguro vencendo',
+        detalhe: `${nomePorContrato.get(s.contrato_id) ?? '—'} — vence em ${dias} dia(s).`,
+        contratoId: s.contrato_id,
+      });
+    }
+  }
+
+  // Assinaturas expirando (contagem p/ card — os itens da fila já entram no loop de contratos)
+  const assinaturasExpirando = assinaturas.filter(
+    (a) =>
+      a.expira_em &&
+      !['assinado', 'aceito', 'cancelado', 'recusado'].includes(a.status) &&
+      new Date(a.expira_em).getTime() - hoje <= 7 * DIA_MS,
+  ).length;
+
+  // Revisões jurídicas pendentes: template PUBLICADO sem revisão aprovada da versão atual
+  const revisoesJuridicasPendentes = templates.filter(
+    (t) => t.status === 'publicado' && !templateAprovadoJuridicamente(revisoes.filter((r) => r.template_id === t.id), t.versao_template),
+  ).length;
+
   fila.sort((x, y) => x.prioridade - y.prioridade);
   vencimentos.sort((x, y) => x.diasRestantes - y.diasRestantes);
 
@@ -385,6 +435,9 @@ export function usePanoramaJuridico() {
       aditivosPendentes,
       rescisoes: aditivos.filter((a) => a.tipo === 'rescisao').length,
       pendencias: fila.length,
+      segurosVencendo,
+      assinaturasExpirando,
+      revisoesJuridicasPendentes,
     },
     fila,
     vencimentos,

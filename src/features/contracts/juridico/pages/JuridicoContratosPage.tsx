@@ -25,6 +25,8 @@ export function JuridicoContratosPage() {
   const [statusVersao, setStatusVersao] = useState<ContratoVersaoStatus | 'todas'>('todas');
   const [assinatura, setAssinatura] = useState<FiltroAssinatura>('todas');
   const [vigencia, setVigencia] = useState<FiltroVigencia>('todas');
+  const [inicioDe, setInicioDe] = useState('');
+  const [inicioAte, setInicioAte] = useState('');
 
   const linhas = useMemo(() => {
     const hoje = Date.now();
@@ -55,6 +57,8 @@ export function JuridicoContratosPage() {
         if (assinatura === 'recusada' && l.doMotorista?.status !== 'recusado') return false;
         if (vigencia === 'vencendo30' && !(l.diasFim !== null && l.diasFim >= 0 && l.diasFim <= 30)) return false;
         if (vigencia === 'vencidos' && !(l.diasFim !== null && l.diasFim < 0)) return false;
+        if (inicioDe && l.contrato.data_inicio < inicioDe) return false;
+        if (inicioAte && l.contrato.data_inicio > inicioAte) return false;
         const termo = busca.trim().toLowerCase();
         if (termo) {
           const alvo = `${l.contrato.motorista?.nome_completo ?? ''} ${l.contrato.motorista?.cpf ?? ''} ${l.contrato.veiculo?.placa ?? ''}`.toLowerCase();
@@ -62,7 +66,7 @@ export function JuridicoContratosPage() {
         }
         return true;
       });
-  }, [panorama, busca, status, statusVersao, assinatura, vigencia]);
+  }, [panorama, busca, status, statusVersao, assinatura, vigencia, inicioDe, inicioAte]);
 
   return (
     <div className="p-8">
@@ -108,6 +112,8 @@ export function JuridicoContratosPage() {
           <option value="vencendo30">Vencendo em 30d</option>
           <option value="vencidos">Vencidos</option>
         </Select>
+        <Input type="date" aria-label="Início a partir de" value={inicioDe} onChange={(e) => setInicioDe(e.target.value)} className="max-w-[160px]" />
+        <Input type="date" aria-label="Início até" value={inicioAte} onChange={(e) => setInicioAte(e.target.value)} className="max-w-[160px]" />
       </div>
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800">

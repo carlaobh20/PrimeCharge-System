@@ -7,8 +7,10 @@ import {
   FileSignature,
   FileStack,
   FileText,
+  Gavel,
   Plus,
   Scale,
+  ShieldCheck,
   Timer,
 } from 'lucide-react';
 import { KpiCard } from '@/shared/components/ui/kpi-card';
@@ -49,6 +51,9 @@ export function JuridicoDashboardPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Link to="/juridico/sala-do-advogado" className={buttonVariants({ variant: 'outline' })}>
+            <Gavel className="h-4 w-4" /> Sala do Advogado
+          </Link>
           <Link to="/juridico/politicas" className={buttonVariants({ variant: 'outline' })}>
             <FileStack className="h-4 w-4" /> Políticas
           </Link>
@@ -78,6 +83,9 @@ export function JuridicoDashboardPage() {
         <KpiCard icon={FileStack} label="Aditivos pendentes" value={String(cards.aditivosPendentes)} />
         <KpiCard icon={Scale} label="Rescisões" value={String(cards.rescisoes)} hint="aditivos de rescisão" />
         <KpiCard icon={AlertTriangle} label="Pendências" value={String(cards.pendencias)} />
+        <KpiCard icon={ShieldCheck} label="Seguros vencendo/vencidos" value={String(cards.segurosVencendo)} />
+        <KpiCard icon={FileSignature} label="Assinaturas expirando (7d)" value={String(cards.assinaturasExpirando)} />
+        <KpiCard icon={Gavel} label="Revisões jurídicas pendentes" value={String(cards.revisoesJuridicasPendentes)} hint="template publicado sem revisão aprovada" />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
@@ -106,7 +114,7 @@ export function JuridicoDashboardPage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">Próximos do vencimento</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">Contratos a vencer (janelas 90/60/30/15/7/1)</h2>
           {vencimentos.length === 0 ? (
             <EmptyState icon={CalendarClock} title="Nada vencendo" description="Nenhum contrato ativo vence nos próximos 30 dias." />
           ) : (
@@ -130,10 +138,16 @@ export function JuridicoDashboardPage() {
                       'shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold',
                       diasRestantes < 0
                         ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+                        : diasRestantes <= 7
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                          : diasRestantes <= 30
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
                     )}
                   >
-                    {diasRestantes < 0 ? `vencido há ${Math.abs(diasRestantes)}d` : `${diasRestantes}d`}
+                    {diasRestantes < 0
+                      ? `vencido há ${Math.abs(diasRestantes)}d`
+                      : `${diasRestantes}d · janela ${[1, 7, 15, 30, 60, 90].find((j) => diasRestantes <= j) ?? 90}`}
                   </span>
                 </Link>
               ))}

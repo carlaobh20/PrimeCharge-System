@@ -95,6 +95,7 @@ const DADOS: DadosDossie = {
   seguros: [{ seguradora: 'Seg X', apolice: 'AP-1', vigenciaFim: '2027-01-01' }],
   sinistros: [], multas: [], documentosMotorista: [{ nome: 'cnh.pdf', categoria: 'cnh', criadoEm: '2026-08-01' }],
   timeline: [{ data: '2026-08-18', tipo: 'contrato_versao', descricao: 'Versão v1.0 criada' }],
+  auditoria: [], versaoAtualRotulo: 'v1.0', hashVersaoAtual: 'abc',
   anexos: [{ pasta: '01_Contrato', nome: 'contrato-v1.pdf', bytes: new Uint8Array([37, 80, 68, 70]) }],
 };
 const arquivos = montarArquivosDossie(DADOS);

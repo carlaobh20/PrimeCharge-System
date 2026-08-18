@@ -52,7 +52,12 @@ import { FichaJuridicaPanel } from '../components/FichaJuridicaPanel';
 import { SeguroPanel } from '../components/SeguroPanel';
 import { RescisaoPanel } from '../components/RescisaoPanel';
 import { DossiePanel } from '../components/DossiePanel';
-import { useRevisoesTemplate } from '../hooksFase3';
+import { useRevisoesTemplate, useFichaJuridica } from '../hooksFase3';
+import { ResumoExecutivoStrip } from '../components/ResumoExecutivoStrip';
+import { IntegridadePanel } from '../components/IntegridadePanel';
+import { TarefasJuridicasPanel } from '../components/TarefasJuridicasPanel';
+import { VistoriasContrato, SinistrosContrato, MultasContrato, FinanceiroContrato } from '../components/OperacionalPanel';
+import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { templateAprovadoJuridicamente } from '../apiFase3';
 import { useTemplatesJuridico } from '../hooks';
 import { VersaoStatusBadge } from '../components/VersaoStatusBadge';
@@ -94,6 +99,9 @@ export function JuridicoContratoDetailPage() {
   const [aditivoAberto, setAditivoAberto] = useState(false);
   const [editorAberto, setEditorAberto] = useState(false);
   const [corpoEditado, setCorpoEditado] = useState('');
+  // Fase AF: confirmação explícita ANTES do congelamento (aguardando_assinatura)
+  const [confirmarCongelamento, setConfirmarCongelamento] = useState(false);
+  const fichaResumo = useFichaJuridica(id);
 
   const versao: ContratoVersao | undefined = useMemo(() => {
     if (!versoes || versoes.length === 0) return undefined;
@@ -251,6 +259,18 @@ export function JuridicoContratoDetailPage() {
         </Link>
       </div>
 
+      {/* Resumo executivo (Fase C) — status operacional, nunca "segurança jurídica". */}
+      <ResumoExecutivoStrip
+        contrato={contrato}
+        versao={versao}
+        pendencias={
+          (fichaResumo.data?.multas.filter((m) => m.status === 'pendente').length ?? 0) +
+          (aditivos ?? []).filter((a) => a.status === 'rascunho').length +
+          ((fichaResumo.data?.seguros.length ?? 0) === 0 && contrato.status === 'ativo' ? 1 : 0)
+        }
+        ultimaAtividade={versao?.atualizado_em ?? null}
+      />
+
       {!versao && (
         <div className="mt-6 rounded-lg border border-dashed border-amber-300 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
           Este contrato ainda não tem nenhuma versão de documento.{' '}
@@ -320,6 +340,11 @@ export function JuridicoContratoDetailPage() {
                 </div>
               </dl>
 
+              {/* Integridade (Fase S): recalcula o SHA-256 e compara — divergência = alerta crítico. */}
+              <div className="mt-3">
+                <IntegridadePanel versao={versao} />
+              </div>
+
               {/* Ações de workflow — só as transições válidas do estado atual */}
               <div className="mt-4 space-y-2">
                 {transicoes.map((alvo) => (
@@ -329,15 +354,20 @@ export function JuridicoContratoDetailPage() {
                     variant={alvo === 'cancelada' ? 'ghost' : alvo === 'aguardando_assinatura' ? 'default' : 'outline'}
                     className={cn('w-full justify-center', alvo === 'cancelada' && 'text-red-600')}
                     disabled={mudarStatus.isPending}
-                    onClick={() =>
+                    onClick={() => {
+                      // Fase AF: congelamento exige confirmação explícita
+                      if (alvo === 'aguardando_assinatura') {
+                        setConfirmarCongelamento(true);
+                        return;
+                      }
                       mudarStatus.mutate(
                         { id: versao.id, status: alvo },
                         {
                           onSuccess: () => toast.success('Status atualizado', CONTRATO_VERSAO_STATUS_LABEL[alvo]),
                           onError: (e) => toast.error('Transição recusada pelo banco', extrairMensagemDeErro(e)),
                         },
-                      )
-                    }
+                      );
+                    }}
                   >
                     {ACAO_LABEL[alvo] ?? CONTRATO_VERSAO_STATUS_LABEL[alvo]}
                   </Button>
@@ -491,7 +521,16 @@ export function JuridicoContratoDetailPage() {
                   bucket="contratos-arquivos"
                   empresaId={empresaId}
                   usuarioId={usuario?.id}
-                  label="Anexos do contrato (PDFs gerados, apólice, comprovantes)"
+                  label="Anexos do contrato"
+                  categorias={[
+                    { valor: 'contrato-pdf', rotulo: 'Contrato (PDF)' },
+                    { valor: 'aditivo', rotulo: 'Aditivo' },
+                    { valor: 'vistoria', rotulo: 'Vistoria' },
+                    { valor: 'apolice_seguro', rotulo: 'Seguro/Apólice' },
+                    { valor: 'documento_motorista', rotulo: 'Documento do motorista' },
+                    { valor: 'comprovante', rotulo: 'Comprovante' },
+                    { valor: 'juridico', rotulo: 'Outro (jurídico)' },
+                  ]}
                 />
               ),
             },
@@ -502,6 +541,11 @@ export function JuridicoContratoDetailPage() {
               label: 'Dossiê',
               content: <DossiePanel contrato={contrato} versoes={versoes ?? []} aditivos={aditivos ?? []} empresaId={empresaId} />,
             },
+            { value: 'vistorias', label: 'Vistorias', content: <VistoriasContrato contratoId={contrato.id} /> },
+            { value: 'sinistros', label: 'Sinistros', content: <SinistrosContrato contratoId={contrato.id} /> },
+            { value: 'multas', label: 'Multas', content: <MultasContrato contratoId={contrato.id} /> },
+            { value: 'financeiro', label: 'Financeiro', content: <FinanceiroContrato contratoId={contrato.id} /> },
+            { value: 'tarefas', label: 'Tarefas', content: <TarefasJuridicasPanel contratoId={contrato.id} empresaId={empresaId} /> },
             { value: 'timeline', label: 'Timeline', content: <TimelinePanel entidadeTipo="contrato" entidadeId={contrato.id} /> },
             {
               value: 'auditoria',
@@ -526,6 +570,30 @@ export function JuridicoContratoDetailPage() {
       {/* Diálogos */}
       {versoes && <CompararVersoesDialog open={compararAberto} onOpenChange={setCompararAberto} versoes={versoes} />}
       <NovoAditivoDialog open={aditivoAberto} onOpenChange={setAditivoAberto} empresaId={empresaId} contratoId={contrato.id} />
+      <ConfirmDialog
+        open={confirmarCongelamento}
+        onOpenChange={setConfirmarCongelamento}
+        title="Enviar para assinatura e congelar?"
+        description="Após esta etapa, o documento será CONGELADO: snapshot, corpo, hash e número ficam imutáveis. Qualquer alteração exigirá uma NOVA versão."
+        confirmLabel="Congelar e enviar"
+        isPending={mudarStatus.isPending}
+        onConfirm={() => {
+          if (!versao) return;
+          mudarStatus.mutate(
+            { id: versao.id, status: 'aguardando_assinatura' },
+            {
+              onSuccess: () => {
+                toast.success('Versão congelada', 'Documento imutável — prepare as assinaturas.');
+                setConfirmarCongelamento(false);
+              },
+              onError: (e) => {
+                toast.error('Transição recusada pelo banco', extrairMensagemDeErro(e));
+                setConfirmarCongelamento(false);
+              },
+            },
+          );
+        }}
+      />
       <Dialog open={editorAberto} onOpenChange={setEditorAberto} title="Editar rascunho" description="Documento ainda não congelado. Salvar recalcula o hash. Ao enviar para assinatura, congela e não muda mais." className="max-w-3xl">
         <Textarea value={corpoEditado} onChange={(e) => setCorpoEditado(e.target.value)} className="min-h-[50vh] font-mono text-xs" />
         <div className="mt-3 flex justify-end gap-2">

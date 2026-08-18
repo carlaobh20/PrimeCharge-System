@@ -6,7 +6,24 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-14, repositório consolidado em só 2 branches: `dev` e `main`.
+**Última atualização:** 2026-08-18, fim da Fase 4 do Centro Jurídico.
+
+## 0.1 Estado do Centro Jurídico (2026-08-18)
+
+- `origin/dev` tem as Fases 1–4 do Centro Jurídico (commits `113ccd0`, `812b351`, `b0adaf3` +
+  fase 4). Migrations LOCAIS `0042`–`0045` — **NENHUMA aplicada em produção** (aguardam
+  autorização explícita do Carlos).
+- Testes: harness SQL 221/221 (`bash supabase/tests/rodar_testes.sh`, precisa de Postgres local:
+  initdb em /tmp/pgdata + pg_ctl, binários em /usr/lib/postgresql/16/bin) + audits Node
+  (scripts/audit-juridico-{lib,fase2,fase3,fase4}.ts, audit-amortizacao-extra.ts) + tsc/oxlint/
+  vite build. `npm install` traz pdfmake e fflate (deps novas).
+- Docs para o advogado: `docs/juridico/` (ARQUITETURA, GUIA-PARA-ADVOGADO, DECISOES-PENDENTES,
+  MATRIZ-VARIAVEIS gerada por script, MINUTA-STATUS).
+- Pergunta aberta ao Carlos desde a Fase 2: o deploy dev usa o MESMO banco Supabase da produção?
+  (decide onde aplicar 0042–0045 pro teste vivo).
+- ESTE SANDBOX RESETOU DE NOVO em 18/08 no meio da Fase 4 — recuperado via
+  `git fetch origin` + `git stash` (resíduo da zona congelada) + `git merge --ff-only origin/dev`.
+  (`git reset --hard` é bloqueado pelo classificador; use stash+ff.)
 
 ## 0. Regra de ouro antes de tocar em qualquer código
 

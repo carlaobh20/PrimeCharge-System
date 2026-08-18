@@ -31,6 +31,10 @@ export type DadosDossie = {
   multas: { orgao: string; descricao: string; data: string; valor: number | null; status: string }[];
   documentosMotorista: { nome: string; categoria: string | null; criadoEm: string }[];
   timeline: { data: string; tipo: string; descricao: string }[];
+  /** Auditoria (audit_log) — só chega aqui o que a RLS do usuário permite ler (admin). */
+  auditoria: { data: string; usuario: string; acao: string; tabela: string }[];
+  versaoAtualRotulo?: string | null;
+  hashVersaoAtual?: string | null;
   /** anexos binários já baixados (PDFs gerados, apólices, docs) com a pasta de destino */
   anexos: { pasta: string; nome: string; bytes: Uint8Array }[];
 };
@@ -47,6 +51,7 @@ export const PASTAS_DOSSIE = [
   '08_Multas',
   '09_Documentos',
   '10_Timeline',
+  '11_Auditoria',
 ] as const;
 
 function md(linhas: (string | null | undefined)[]): string {
@@ -67,6 +72,8 @@ export function montarCapaDossie(d: DadosDossie): string {
     `- Status do contrato: ${d.statusContrato}`,
     `- Vigência: ${d.dataInicio} → ${d.dataFim ?? 'indeterminado'}`,
     `- Valor: ${d.valorPeriodico}`,
+    `- Versão atual do documento: ${d.versaoAtualRotulo ?? '—'}`,
+    `- SHA-256 do corpo congelado: ${d.hashVersaoAtual ?? '—'}`,
     '',
     '## Conteúdo do pacote',
     `- Versões do documento: ${d.versoes.length}`,
@@ -193,6 +200,18 @@ export function montarArquivosDossie(d: DadosDossie): ArquivoDossie[] {
     pasta: '10_Timeline',
     nome: 'timeline.md',
     conteudo: md(['# Timeline', ...(d.timeline.length === 0 ? ['Sem eventos.'] : d.timeline.map((t) => `- ${t.data} · [${t.tipo}] ${t.descricao}`))]),
+  });
+
+  arquivos.push({
+    pasta: '11_Auditoria',
+    nome: 'auditoria.md',
+    conteudo: md([
+      '# Auditoria (audit_log)',
+      d.auditoria.length === 0
+        ? 'Sem registros visíveis para o usuário que exportou (a leitura de auditoria é restrita a administradores).'
+        : null,
+      ...d.auditoria.map((a) => `- ${a.data} · ${a.usuario} · ${a.acao} em ${a.tabela}`),
+    ]),
   });
 
   for (const a of d.anexos) arquivos.push({ pasta: a.pasta, nome: a.nome, conteudo: a.bytes });
