@@ -24,25 +24,23 @@ somente valores registrados com sua origem. [VALIDAR COM ADVOGADO: forma do demo
 de contestação pelo locatário.]
 
 {{#se contrato.valor_caucao}}
-## 3. Caução
-
-3.1. A caução de {{contrato.valor_caucao}} tem sua destinação (restituição integral, parcial ou
-retenção fundamentada) indicada no demonstrativo do item 2. [VALIDAR COM ADVOGADO: prazo de
-restituição e requisitos da retenção — sem presunção de direito de reter.]
+2.3. **Caução.** A caução de {{contrato.valor_caucao}} tem sua destinação (restituição integral,
+parcial ou retenção fundamentada) indicada no demonstrativo do item 2.2. [VALIDAR COM ADVOGADO:
+prazo de restituição e requisitos da retenção — sem presunção de direito de reter.]
 {{/se}}
 
-## 4. Débitos posteriores
+## 3. Débitos posteriores
 
-4.1. Débitos do período de posse do LOCATÁRIO identificados após este encerramento (multas com
+3.1. Débitos do período de posse do LOCATÁRIO identificados após este encerramento (multas com
 notificação posterior e congêneres) serão cobrados com o comprovante correspondente, conforme o
 Contrato. [VALIDAR COM ADVOGADO: prazo-limite e procedimento dessa cobrança residual.]
 
-## 5. Encerramento
+## 4. Encerramento
 
-5.1. Cumpridas as etapas acima, as partes declaram ENCERRADO o Contrato de Locação nº
+4.1. Cumpridas as etapas acima, as partes declaram ENCERRADO o Contrato de Locação nº
 {{contrato.numero}}, permanecendo válidos os registros, documentos e evidências arquivados no
 sistema (dossiê do contrato). A eventual quitação recíproca é objeto do Termo de Quitação, após
-liquidada a apuração. 
+liquidada a apuração.
 
 Local e data: {{local.assinatura}}, {{data.hoje}}.
 

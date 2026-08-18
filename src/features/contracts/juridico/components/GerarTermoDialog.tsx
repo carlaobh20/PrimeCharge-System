@@ -19,6 +19,7 @@ import { templateAprovadoJuridicamente } from '../apiFase3';
 import { montarSnapshotTermo, variaveisManuais } from '../termos';
 import { renderarCorpo, hashCorpo, variaveisFaltando } from '../lib';
 import { CATALOGO_VARIAVEIS } from '../variaveisCatalogo';
+import { BIBLIOTECA } from '../biblioteca';
 import { gerarPdfContrato } from '../pdf';
 import { useAditivos } from '../hooks';
 import { DocumentoView } from '../components/DocumentoView';
@@ -98,18 +99,31 @@ export function GerarTermoDialog({
 
   const camposManuais = useMemo(() => (template ? variaveisManuais(template.corpo) : []), [template]);
 
-  const { bloqueantes, alertas } = useMemo(() => {
-    if (!template || !snapshot) return { bloqueantes: [] as string[], alertas: [] as string[] };
+  const { bloqueantes, alertas, travas } = useMemo(() => {
+    if (!template || !snapshot) return { bloqueantes: [] as string[], alertas: [] as string[], travas: [] as string[] };
     const faltando = variaveisFaltando(template.corpo, snapshot);
+    // TRAVA OPERACIONAL (Fase 6): documento cujo ASSUNTO não existe no contrato não é emitido
+    // (ex.: termo de seguro sem apólice, comunicação sem sinistro). Definida no registro da
+    // biblioteca (exigeDados) — não é regra jurídica, é impedir documento vazio de si mesmo.
+    const entrada = BIBLIOTECA.find((e) => e.nome === template.nome);
+    const resolver = (caminho: string): unknown =>
+      caminho.split('.').reduce<unknown>((acc, k) => (acc && typeof acc === 'object' ? (acc as Record<string, unknown>)[k] : undefined), snapshot);
+    const travas = (entrada?.exigeDados ?? [])
+      .filter(({ caminho }) => {
+        const v = resolver(caminho);
+        return v === undefined || v === null || v === '';
+      })
+      .map(({ motivo }) => motivo);
     return {
       bloqueantes: faltando.filter((v) => CATALOGO_VARIAVEIS[v]?.obrigatoria !== false),
       alertas: faltando.filter((v) => CATALOGO_VARIAVEIS[v]?.obrigatoria === false),
+      travas,
     };
   }, [template, snapshot]);
 
   const gerar = useMutation({
     mutationFn: async () => {
-      if (!template || !snapshot || bloqueantes.length > 0) throw new Error('Há erros bloqueantes.');
+      if (!template || !snapshot || bloqueantes.length > 0 || travas.length > 0) throw new Error('Há erros bloqueantes.');
       const corpo = renderarCorpo(template.corpo, snapshot);
       const hash = await hashCorpo(corpo);
       const aprovado = templateAprovadoJuridicamente(
@@ -192,6 +206,11 @@ export function GerarTermoDialog({
 
         {template && (
           <div className="space-y-1 rounded-lg border border-neutral-200 px-3 py-2 text-xs dark:border-neutral-800">
+            {travas.length > 0 && (
+              <p className="text-red-600">
+                <span className="font-semibold">DOCUMENTO NÃO EMITÍVEL:</span> {travas.join(' ')}
+              </p>
+            )}
             {bloqueantes.length > 0 && (
               <p className="text-red-600">
                 <span className="font-semibold">ERROS BLOQUEANTES:</span>{' '}
@@ -204,7 +223,7 @@ export function GerarTermoDialog({
                 {alertas.map((v) => CATALOGO_VARIAVEIS[v]?.descricao ?? v).join('; ')}
               </p>
             )}
-            {bloqueantes.length === 0 && alertas.length === 0 && <p className="text-emerald-600">Todos os dados presentes.</p>}
+            {travas.length === 0 && bloqueantes.length === 0 && alertas.length === 0 && <p className="text-emerald-600">Todos os dados presentes.</p>}
           </div>
         )}
 
@@ -218,7 +237,7 @@ export function GerarTermoDialog({
           >
             Pré-visualizar
           </Button>
-          <Button disabled={!template || !snapshot || bloqueantes.length > 0 || gerar.isPending || dadosBase.isLoading} onClick={() => gerar.mutate()}>
+          <Button disabled={!template || !snapshot || bloqueantes.length > 0 || travas.length > 0 || gerar.isPending || dadosBase.isLoading} onClick={() => gerar.mutate()}>
             <FilePlus2 className="h-4 w-4" aria-hidden /> {gerar.isPending ? 'Gerando…' : 'Gerar PDF e arquivar'}
           </Button>
         </div>

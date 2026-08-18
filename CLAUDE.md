@@ -6,7 +6,26 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-18, fim da Fase 5 do Centro Jurídico (Biblioteca Contratual).
+**Última atualização:** 2026-08-18, fim da Fase 6 do Centro Jurídico (Legal QA).
+
+## 0.0 Fase 6 — Legal QA (2026-08-18, commit local após 5cabee8)
+
+- Auditoria REAL dos 17 documentos (leitura integral) → 3 defeitos corrigidos (numeração furada
+  no encerramento sem caução e na rescisão sem solicitante; renovação × valor vigente) e 8
+  conflitos potenciais registrados SEM decidir (qaBiblioteca.ts → CONFLITOS.md).
+- Motor de QA estrutural `qa.ts` (referências, numeração POR VARIANTE condicional, blocos,
+  órfãs, catálogo, vocabulário, índice de completude) + GATE de publicação (erro estrutural
+  bloqueia; pendência jurídica só avisa; OFICIAL continua exigindo revisão aprovada).
+- Docs novos: MATRIZ-COBERTURA.md (57 temas, gerada), CONFLITOS.md, GLOSSARIO.md (gerados por
+  scripts/gerar-qa-biblioteca.ts — FALHA se estrutura quebrar), CICLOS-OPERACIONAIS.md (ciclo
+  contrato/sinistro/rescisão + mapa LGPD), CHECKLIST-ADVOGADO.md (A–O).
+- Pacote para Advogado 2.0: ZIP com 19 pastas (00_CAPA…18_CHECKLIST_ADVOGADO).
+- Sala do Advogado: índice de completude documental (NUNCA "risco jurídico"), conflitos,
+  pendências dos termos, filtro por prioridade OPERACIONAL (crítico/alto/médio/baixo).
+- Travas de emissão no gerador de termos (exigeDados no registry): seguro sem apólice, sinistro
+  sem ocorrência, rescisão sem workflow, aditivo/renovação sem registro, quitação sem apuração.
+- SEM migration nova (0046 continua a última). Testes: audit-juridico-fase6.ts 61/61; harness
+  239/239 mantido; demais audits verdes; tsc/oxlint/build ok. Produção intocada.
 
 ## 0.1 Estado do Centro Jurídico (2026-08-18)
 

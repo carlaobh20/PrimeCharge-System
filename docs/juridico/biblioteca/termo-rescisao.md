@@ -1,9 +1,10 @@
 # TERMO DE RESCISÃO DO CONTRATO DE LOCAÇÃO
 
 > **MINUTA — SUJEITA À VALIDAÇÃO JURÍDICA.** Termo ÚNICO parametrizado pelo solicitante
-> ({{rescisao.solicitante}}: acordo / motorista / empresa) via blocos condicionais — em vez de
-> três termos quase idênticos. Valores financeiros são DADOS registrados na apuração; o sistema
-> não calcula multa jurídica, não presume retenção nem compensação.
+> ({{rescisao.solicitante}}: acordo / motorista / empresa) — em vez de três termos quase
+> idênticos. A geração exige rescisão registrada no sistema. Valores financeiros são DADOS
+> registrados na apuração; o sistema não calcula multa jurídica, não presume retenção nem
+> compensação.
 
 **LOCADORA:** {{empresa.razao_social}}, CNPJ {{empresa.cnpj}}
 **LOCATÁRIO:** {{motorista.nome}}, CPF {{motorista.cpf}}
@@ -20,14 +21,12 @@ encerramento), com cada etapa registrada em timeline e auditoria.
 
 ## 2. Modalidade
 
-{{#se rescisao.solicitante}}
 2.1. Modalidade registrada: **{{rescisao.solicitante}}**. Regras aplicáveis por modalidade —
 aviso prévio, eventual cláusula penal e seus limites — conforme o Contrato de Locação e a
 definição jurídica registrada. [VALIDAR COM ADVOGADO: consequências específicas por modalidade
 (acordo × iniciativa do motorista × iniciativa da locadora): aviso prévio, penalidade proporcional
 com teto, hipóteses sem penalidade (justa causa contratual). O sistema apenas registra a
 modalidade; nenhuma consequência financeira é presumida.]
-{{/se}}
 
 ## 3. Devolução do veículo
 

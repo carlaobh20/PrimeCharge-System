@@ -21,8 +21,11 @@ identificado, pelo motivo registrado: {{aditivo.descricao}}
 
 2.1. Valor: **{{contrato.valor_periodico}}** por período **{{contrato.periodicidade}}**
 {{#se contrato.valor_caucao}}— caução mantida em {{contrato.valor_caucao}}{{/se}}.
-[VALIDAR COM ADVOGADO: aplicação de reajuste na renovação — índice e periodicidade, mesma
-pendência do Contrato Master.]
+O valor indicado é o VIGENTE no contrato na data desta renovação; alteração de valor, caução ou
+demais condições, se pactuada para o novo período, é formalizada por **aditivo próprio**
+registrado no sistema, conforme o Contrato de Locação. [VALIDAR COM ADVOGADO: aplicação de
+reajuste na renovação — índice e periodicidade, mesma pendência do Contrato Master — e se a
+alteração de valor pode constar deste próprio termo em vez de aditivo separado.]
 
 {{#se contrato.km_incluso}}
 2.2. Franquia de quilometragem do novo período: {{contrato.km_incluso}}

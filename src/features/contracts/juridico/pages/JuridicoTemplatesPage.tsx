@@ -28,6 +28,7 @@ import {
 } from '../apiBiblioteca';
 import { BIBLIOTECA, CATEGORIA_BIBLIOTECA_LABEL, type CategoriaBiblioteca } from '../biblioteca';
 import { extrairVariaveis } from '../lib';
+import { avaliarPublicacao } from '../qa';
 import { extrairPendenciasJuridicas } from '../pendenciasMinuta';
 import { diffLinhas, resumoDiff } from '../diff';
 import { DocumentoView } from '../components/DocumentoView';
@@ -151,6 +152,20 @@ export function JuridicoTemplatesPage() {
   };
 
   const mudarStatus = (t: ContratoTemplate, status: ContratoTemplate['status']) => {
+    // GATE DE PUBLICAÇÃO (Fase 6/17): erro ESTRUTURAL bloqueia (variável órfã, referência
+    // quebrada, numeração furada, bloco condicional quebrado); pendência jurídica só AVISA —
+    // publica como MINUTA. OFICIAL continua exigindo revisão aprovada (statusBiblioteca).
+    if (status === 'publicado') {
+      const gate = avaliarPublicacao(t.corpo);
+      if (gate.bloqueios.length > 0) {
+        toast.error(
+          `Publicação bloqueada (${gate.bloqueios.length} erro(s) estrutural(is))`,
+          gate.bloqueios.slice(0, 3).join(' · ') + (gate.bloqueios.length > 3 ? ` · +${gate.bloqueios.length - 3}` : ''),
+        );
+        return;
+      }
+      for (const aviso of gate.avisos) toast.info('Publicando como MINUTA', aviso);
+    }
     atualizar.mutate(
       { id: t.id, payload: { status } },
       {
