@@ -7,6 +7,7 @@ import {
   type ContratoStatus,
 } from '@/features/contracts/types';
 import { Secao, Linha, Pill, SkeletonPortal, ErroPortal, VazioPortal } from '../components/ui';
+import { MeuDocumentoContrato } from '../components/MeuDocumentoContrato';
 import { useMeuContrato } from '../hooks/useMeuContrato';
 import type { MeuContrato } from '../api/meuContrato';
 
@@ -74,6 +75,10 @@ export function MeuContratoPage() {
           />
         </div>
       </Secao>
+
+      {/* Centro Jurídico Fase 2 — o documento do contrato (ver/assinar/recusar). A seção só
+          aparece quando existe versão compartilhada com o motorista (RLS decide). */}
+      <MeuDocumentoContrato />
 
       <Secao titulo="Veículo do contrato">
         <p className="text-base font-semibold text-neutral-900 dark:text-neutral-100">{veiculo.placa}</p>

@@ -25,16 +25,19 @@ echo "== seed de teste =="
 $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/10_seed_teste.sql'" >/dev/null
 
 echo "== rodando ataques (Fase 1) =="
-$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/20_ataques.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM"
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/20_ataques.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"
 
 echo "== rodando ataques (Fase 2) =="
-$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/30_fase2_seed_e_ataques.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM"
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/30_fase2_seed_e_ataques.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"
 
 echo "== rodando ataques (Fase 3) =="
-$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/40_fase3_ataques.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM"
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/40_fase3_ataques.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"
 
 echo "== rodando filas do staff (Fase 4) =="
-$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/50_fase4_filas_staff.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM"
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/50_fase4_filas_staff.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"
 
 echo "== rodando Centro Jurídico (Fase Jurídica) =="
-$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/60_juridico.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM"
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/60_juridico.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"
+
+echo "== rodando Centro Jurídico (Fase 2 — workflow/notificações/ataques) =="
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/61_juridico_fase2.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"

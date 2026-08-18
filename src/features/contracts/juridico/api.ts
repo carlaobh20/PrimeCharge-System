@@ -165,3 +165,62 @@ export async function createAditivo(empresaId: string, payload: ContratoAditivoI
   if (error) throw error;
   return data as ContratoAditivo;
 }
+
+export async function updateAditivoStatus(id: string, status: 'rascunho' | 'vigente' | 'cancelado') {
+  const { data, error } = await supabase.from('contrato_aditivos').update({ status }).eq('id', id).select().single();
+  if (error) throw error;
+  return data as ContratoAditivo;
+}
+
+// ============================ LOTE (dashboard/lista — evita N+1) ============================
+// Mesmo padrão de listArquivosPorEntidades (capabilities): UMA query pra N entidades; o
+// agrupamento por contrato é de quem chama. Sem select('*') desnecessário — só o que a
+// lista/dashboard mostram (numero/rotulo/status/congelada; nada de corpo, que pode ter KBs).
+export type VersaoResumo = Pick<
+  ContratoVersao,
+  'id' | 'contrato_id' | 'numero' | 'rotulo' | 'status' | 'congelada' | 'criado_em' | 'atualizado_em'
+>;
+
+export async function listVersoesPorContratos(contratoIds: string[]) {
+  if (contratoIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('contrato_versoes')
+    .select('id, contrato_id, numero, rotulo, status, congelada, criado_em, atualizado_em')
+    .in('contrato_id', contratoIds)
+    .order('numero', { ascending: false });
+  if (error) throw error;
+  return data as VersaoResumo[];
+}
+
+export type AssinaturaResumo = Pick<
+  ContratoAssinatura,
+  'id' | 'contrato_versao_id' | 'parte' | 'status' | 'enviado_em' | 'assinado_em'
+>;
+
+export async function listAssinaturasPorVersoes(versaoIds: string[]) {
+  if (versaoIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('contrato_assinaturas')
+    .select('id, contrato_versao_id, parte, status, enviado_em, assinado_em')
+    .in('contrato_versao_id', versaoIds);
+  if (error) throw error;
+  return data as AssinaturaResumo[];
+}
+
+/** Dados da empresa que entram no snapshot do contrato (LOCADORA). endereco existe desde 0043. */
+export async function getEmpresaParaContrato(empresaId: string) {
+  const { data, error } = await supabase.from('empresas').select('id, nome, cnpj, endereco').eq('id', empresaId).single();
+  if (error) throw error;
+  return data as { id: string; nome: string; cnpj: string | null; endereco: string | null };
+}
+
+export async function listAditivosPorContratos(contratoIds: string[]) {
+  if (contratoIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('contrato_aditivos')
+    .select('*')
+    .in('contrato_id', contratoIds)
+    .order('criado_em', { ascending: false });
+  if (error) throw error;
+  return data as ContratoAditivo[];
+}

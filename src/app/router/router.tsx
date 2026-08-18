@@ -59,6 +59,12 @@ const MotoristaDetailPage = named(() => import('@/features/motoristas/pages/Moto
 const MotoristaCreatePage = named(() => import('@/features/motoristas/pages/MotoristaCreatePage'), 'MotoristaCreatePage');
 const MotoristaEditPage = named(() => import('@/features/motoristas/pages/MotoristaEditPage'), 'MotoristaEditPage');
 const ContratosListPage = named(() => import('@/features/contracts/pages/ContratosListPage'), 'ContratosListPage');
+// Centro Jurídico (Fase 2) — chunks próprios; o ramo /motorista nunca os baixa.
+const JuridicoDashboardPage = named(() => import('@/features/contracts/juridico/pages/JuridicoDashboardPage'), 'JuridicoDashboardPage');
+const JuridicoContratosPage = named(() => import('@/features/contracts/juridico/pages/JuridicoContratosPage'), 'JuridicoContratosPage');
+const NovoContratoJuridicoPage = named(() => import('@/features/contracts/juridico/pages/NovoContratoJuridicoPage'), 'NovoContratoJuridicoPage');
+const JuridicoContratoDetailPage = named(() => import('@/features/contracts/juridico/pages/JuridicoContratoDetailPage'), 'JuridicoContratoDetailPage');
+const JuridicoTemplatesPage = named(() => import('@/features/contracts/juridico/pages/JuridicoTemplatesPage'), 'JuridicoTemplatesPage');
 const ContratoDetailPage = named(() => import('@/features/contracts/pages/ContratoDetailPage'), 'ContratoDetailPage');
 const ContratoCreatePage = named(() => import('@/features/contracts/pages/ContratoCreatePage'), 'ContratoCreatePage');
 const ContratoEditPage = named(() => import('@/features/contracts/pages/ContratoEditPage'), 'ContratoEditPage');
@@ -131,6 +137,11 @@ export const router = createBrowserRouter([
               { path: 'contratos/novo', element: <ContratoCreatePage /> },
               { path: 'contratos/:id', element: <ContratoDetailPage /> },
               { path: 'contratos/:id/editar', element: <ContratoEditPage /> },
+              { path: 'juridico', element: <JuridicoDashboardPage /> },
+              { path: 'juridico/contratos', element: <JuridicoContratosPage /> },
+              { path: 'juridico/contratos/novo', element: <NovoContratoJuridicoPage /> },
+              { path: 'juridico/contratos/:id', element: <JuridicoContratoDetailPage /> },
+              { path: 'juridico/templates', element: <JuridicoTemplatesPage /> },
               { path: 'financeiro/lancamentos', element: <LancamentosListPage /> },
               { path: 'financeiro/pagamentos', element: <PagamentosPage /> },
               { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },
