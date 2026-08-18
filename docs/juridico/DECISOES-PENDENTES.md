@@ -1,29 +1,40 @@
 # DECISÕES PENDENTES — Centro Jurídico
 
-Atualizado: 2026-08-18 (Fase 4). Duas listas: o que só o ADVOGADO pode decidir, e decisões de
-PRODUTO/ENGENHARIA registradas para o futuro.
+Atualizado: 2026-08-18 (Fase 5 — master reescrito com 20 cláusulas). Duas listas: o que só o
+ADVOGADO pode decidir, e decisões de PRODUTO/ENGENHARIA registradas para o futuro.
 
 ## A. Decisões JURÍDICAS pendentes (bloqueiam a versão final da minuta)
 
-As 16 marcações `[VALIDAR COM ADVOGADO]` da minuta master, gerenciáveis em
-**/juridico/sala-do-advogado** (cada uma com status/decisão/texto aprovado persistidos):
+As **24 marcações `[VALIDAR COM ADVOGADO]` do corpo do master** (a lista abaixo é derivada
+automaticamente do texto — a Sala do Advogado em **/juridico/sala-do-advogado** sempre mostra a
+versão viva, cada uma com status/decisão/texto aprovado persistidos). Além delas, **cada um dos
+16 termos da biblioteca** (`docs/juridico/biblioteca/`) carrega suas próprias marcações — todas
+consolidadas na pasta `09_Pendencias_Juridicas` do Pacote para Advogado.
 
-1. Enquadramento legal e legislação de regência (cláusula introdutória) — define foro/prazos/limites.
-2. Limite de quilometragem e consequência do excedente (2.3).
-3. Percentuais de multa e juros de mora — dentro do limite legal (4.2).
-4. Índice e periodicidade de reajuste (4.3).
-5. Prazo e regras de retenção/devolução da caução (5.2).
-6. Divisão de responsabilidade de manutenção locadora × locatário (6.2).
-7. Responsabilidade por bateria/recarga do veículo elétrico (6.3).
-8. Apólice real: coberturas, franquia e exclusões expressas (7.1).
-9. Procedimento de indicação de condutor infrator conforme CTB (7.3).
-10. Limite da responsabilidade do locatário por danos (7.4).
-11. LGPD: finalidade, base legal e transparência do rastreamento/telemetria (8.1).
-12. Prazo de purgação da mora e forma de notificação na rescisão (11.2).
-13. Cláusula penal por rescisão antecipada — proporcionalidade e teto (11.4).
-14. Meio de assinatura eletrônica e seu valor probatório (14.1).
-15. Foro de eleição (15.1).
-16. Anexos obrigatórios (apólice/resumo de coberturas) (Anexos).
+1. Enquadramento legal — locação de bem móvel (CC), afastar relação de consumo (preâmbulo).
+2. Responsabilidade por condutor autorizado e efeitos sobre o seguro (Cl. 2).
+3. Apuração/contestação/limites do excedente de quilometragem (Cl. 3).
+4. Percentuais de multa e juros dentro do limite legal (Cl. 5).
+5. Prazo de tolerância e notificação de inadimplência (Cl. 5).
+6. Índice e periodicidade de reajuste (Cl. 5).
+7. Devolução/retenção/compensação da caução + demonstrativo (Cl. 6).
+8. Garantia alternativa quando sem caução (fiador, seguro-fiança) (Cl. 6).
+9. Critério objetivo desgaste natural × dano indenizável (Cl. 7).
+10. Prazo/procedimento de cobrança pós-devolução (Cl. 7).
+11. Matriz de manutenção LOCADORA × LOCATÁRIO (Cl. 8 — parametrizada no sistema).
+12. Degradação natural × dano por recarga inadequada; efeito na garantia (Cl. 9).
+13. Apólice real anexada; coberturas/franquia/exclusões expressas (Cl. 10).
+14. Limite da responsabilidade transferível ao locatário (Cl. 10).
+15. Efeitos financeiros da perda total (Cl. 10).
+16. Indicação de condutor infrator conforme CTB e consequência da recusa (Cl. 11).
+17. LGPD: base legal, finalidade, retenção, compartilhamento, direitos do titular (Cl. 12).
+18. Substituição de veículo: direito ou faculdade, carência, proporcionalidade (Cl. 13).
+19. Prazo de purgação da mora e forma da notificação na rescisão (Cl. 15).
+20. Cláusula penal por rescisão antecipada — proporcional, com teto (Cl. 15).
+21. Cobrança durante impedimento prolongado (força maior) (Cl. 16).
+22. Alcance da confidencialidade (Cl. 17).
+23. Meio de assinatura eletrônica — registro do sistema é evidência, não equivalência (Cl. 19).
+24. Foro de eleição conforme natureza jurídica confirmada (Cl. 20).
 
 Também jurídicas (parametrizáveis em **/juridico/parametros**): conteúdo de
 `manutencao_responsabilidades`, `bateria_recarga`, `lgpd_telemetria`; regra de multa rescisória
@@ -54,6 +65,6 @@ Também jurídicas (parametrizáveis em **/juridico/parametros**): conteúdo de
 
 ## C. Pendências de PRODUÇÃO (aguardando autorização do Carlos)
 
-- Aplicar migrations **0042, 0043, 0044, 0045** no Supabase de produção (ojvhiadjnxhhevoryjtu).
+- Aplicar migrations **0042, 0043, 0044, 0045, 0046** no Supabase de produção (ojvhiadjnxhhevoryjtu).
 - Teste vivo no deploy (roteiro no relatório da Fase 2/4).
 - Confirmar qual banco o deploy dev usa (pergunta aberta desde a Fase 2).

@@ -68,6 +68,7 @@ const JuridicoTemplatesPage = named(() => import('@/features/contracts/juridico/
 const JuridicoPoliticasPage = named(() => import('@/features/contracts/juridico/pages/JuridicoPoliticasPage'), 'JuridicoPoliticasPage');
 const JuridicoParametrosPage = named(() => import('@/features/contracts/juridico/pages/JuridicoParametrosPage'), 'JuridicoParametrosPage');
 const JuridicoSalaAdvogadoPage = named(() => import('@/features/contracts/juridico/pages/JuridicoSalaAdvogadoPage'), 'JuridicoSalaAdvogadoPage');
+const JuridicoPacoteAdvogadoPage = named(() => import('@/features/contracts/juridico/pages/JuridicoPacoteAdvogadoPage'), 'JuridicoPacoteAdvogadoPage');
 const ContratoDetailPage = named(() => import('@/features/contracts/pages/ContratoDetailPage'), 'ContratoDetailPage');
 const ContratoCreatePage = named(() => import('@/features/contracts/pages/ContratoCreatePage'), 'ContratoCreatePage');
 const ContratoEditPage = named(() => import('@/features/contracts/pages/ContratoEditPage'), 'ContratoEditPage');
@@ -148,6 +149,7 @@ export const router = createBrowserRouter([
               { path: 'juridico/politicas', element: <JuridicoPoliticasPage /> },
               { path: 'juridico/parametros', element: <JuridicoParametrosPage /> },
               { path: 'juridico/sala-do-advogado', element: <JuridicoSalaAdvogadoPage /> },
+              { path: 'juridico/pacote-advogado', element: <JuridicoPacoteAdvogadoPage /> },
               { path: 'financeiro/lancamentos', element: <LancamentosListPage /> },
               { path: 'financeiro/pagamentos', element: <PagamentosPage /> },
               { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },

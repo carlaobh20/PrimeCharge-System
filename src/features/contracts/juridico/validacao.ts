@@ -4,6 +4,7 @@
 // snapshot (nunca o cadastro vivo), e o snapshot congela junto com a versão (trigger 0042).
 // A validação decide se PODE gerar: BLOQUEIO = não gera; ALERTA = gera, mas fica visível.
 import { variaveisFaltando } from './lib';
+import { CATALOGO_VARIAVEIS } from './variaveisCatalogo';
 
 // Formas mínimas dos dados que o wizard carrega — espelham colunas reais (não select('*')).
 export type MotoristaParaContrato = {
@@ -15,6 +16,8 @@ export type MotoristaParaContrato = {
   cnh_categoria: string | null;
   cnh_validade: string | null;
   endereco: string | null;
+  email?: string | null;
+  telefone?: string | null;
 };
 
 export type VeiculoParaContrato = {
@@ -27,6 +30,7 @@ export type VeiculoParaContrato = {
   cor?: string | null;
   status: string;
   quilometragem: number;
+  capacidade_bateria_kwh?: number | null;
   marca?: { nome: string } | null;
   modelo?: { nome: string } | null;
 };
@@ -39,6 +43,7 @@ export type CondicoesContrato = {
   data_inicio: string;
   data_fim_prevista: string | null;
   km_incluso?: string | null;
+  valor_km_excedente?: number | null;
   regras_especificas?: string | null;
 };
 
@@ -80,8 +85,12 @@ export function montarSnapshot(params: {
   veiculo: VeiculoParaContrato;
   condicoes: CondicoesContrato;
   template: { id: string; nome: string; versao_template: number };
+  /** Fase 5 — extras opcionais do master parametrizável */
+  numeroContrato?: string;
+  seguro?: { seguradora?: string | null; apolice?: string | null; vigencia_inicio?: string | null; vigencia_fim?: string | null; franquia_valor?: number | null } | null;
+  localAssinatura?: string;
 }): Record<string, unknown> {
-  const { empresa, motorista, veiculo, condicoes, template } = params;
+  const { empresa, motorista, veiculo, condicoes, template, seguro } = params;
   const prazo = condicoes.data_fim_prevista
     ? `de ${formatDataBR(condicoes.data_inicio)} a ${formatDataBR(condicoes.data_fim_prevista)}`
     : 'indeterminado';
@@ -98,6 +107,8 @@ export function montarSnapshot(params: {
         ? `${motorista.cnh_numero}${motorista.cnh_categoria ? ` (categoria ${motorista.cnh_categoria})` : ''}`
         : '',
       endereco: motorista.endereco ?? '',
+      email: motorista.email ?? '',
+      telefone: motorista.telefone ?? '',
     },
     veiculo: {
       marca_modelo: [veiculo.marca?.nome, veiculo.modelo?.nome].filter(Boolean).join(' ') || '',
@@ -106,9 +117,11 @@ export function montarSnapshot(params: {
       chassi: veiculo.chassi,
       ano: `${veiculo.ano_fabricacao}/${veiculo.ano_modelo}`,
       cor: veiculo.cor ?? '',
-      quilometragem: String(veiculo.quilometragem),
+      quilometragem: veiculo.quilometragem.toLocaleString('pt-BR'),
+      capacidade_bateria: veiculo.capacidade_bateria_kwh != null ? String(veiculo.capacidade_bateria_kwh) : '',
     },
     contrato: {
+      numero: params.numeroContrato ?? '',
       valor_periodico: formatBRL(condicoes.valor_periodico),
       periodicidade: PERIODICIDADE_LABEL[condicoes.periodicidade] ?? condicoes.periodicidade,
       dia_vencimento: condicoes.dia_vencimento != null ? String(condicoes.dia_vencimento) : '',
@@ -116,8 +129,20 @@ export function montarSnapshot(params: {
       data_inicio: formatDataBR(condicoes.data_inicio),
       prazo,
       km_incluso: condicoes.km_incluso ?? '',
+      valor_km_excedente: condicoes.valor_km_excedente != null ? formatBRL(condicoes.valor_km_excedente) : '',
       regras_especificas: condicoes.regras_especificas ?? '',
     },
+    seguro: {
+      seguradora: seguro?.seguradora ?? '',
+      apolice: seguro?.apolice ?? '',
+      vigencia:
+        seguro?.vigencia_inicio || seguro?.vigencia_fim
+          ? `de ${formatDataBR(seguro?.vigencia_inicio)} a ${formatDataBR(seguro?.vigencia_fim)}`
+          : '',
+      franquia: seguro?.franquia_valor != null ? formatBRL(seguro.franquia_valor) : '',
+    },
+    data: { hoje: formatDataBR(new Date().toISOString()) },
+    local: { assinatura: params.localAssinatura ?? '' },
     _meta: {
       template_id: template.id,
       template_nome: template.nome,
@@ -206,9 +231,9 @@ export function validarParaGeracao(params: {
     itens.push({ nivel: 'bloqueio', rotulo: 'Template', detalhe: 'Nenhum template selecionado.' });
   } else if (params.snapshot) {
     const faltando = variaveisFaltando(params.templateCorpo, params.snapshot);
-    // km_incluso/regras vazios são decisão comercial (viram [SEM VALOR] visível), não bloqueio;
-    // dados de identificação faltando são BLOQUEIO (contrato sem CPF/placa não existe).
-    const criticas = faltando.filter((v) => !v.startsWith('contrato.km_incluso') && !v.startsWith('contrato.regras'));
+    // Fase 5: a criticidade vem do CATÁLOGO (fonte única) — variável obrigatória (ou fora do
+    // catálogo, que é defeito de template) BLOQUEIA; opcional vira [SEM VALOR] visível/condicional.
+    const criticas = faltando.filter((v) => CATALOGO_VARIAVEIS[v]?.obrigatoria !== false);
     if (criticas.length > 0)
       itens.push({
         nivel: 'bloqueio',

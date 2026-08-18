@@ -21,6 +21,8 @@ export type DadosPdfContrato = {
   placaVeiculo: string;
   geradoEm: string; // ISO
   templateAprovado: boolean; // false => carimbo "MINUTA SUJEITA À REVISÃO JURÍDICA"
+  /** Fase 5: subtítulo do documento (termos da biblioteca). Default: contrato de locação. */
+  tituloDocumento?: string;
 };
 
 function formatDataHoraBR(iso: string): string {
@@ -33,7 +35,7 @@ export function montarDocDefinition(dados: DadosPdfContrato): Record<string, unk
   const conteudo: NoPdf[] = [
     // Cabeçalho institucional
     { text: 'PRIMECHARGE', style: 'marca' },
-    { text: 'Contrato de Locação de Veículo Automotor', style: 'subtitulo' },
+    { text: dados.tituloDocumento ?? 'Contrato de Locação de Veículo Automotor', style: 'subtitulo' },
     {
       columns: [
         { text: `Contrato nº ${dados.numeroContrato}`, style: 'meta' },

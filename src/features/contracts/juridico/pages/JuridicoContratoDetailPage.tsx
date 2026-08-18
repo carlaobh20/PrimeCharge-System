@@ -64,6 +64,7 @@ import { VersaoStatusBadge } from '../components/VersaoStatusBadge';
 import { AssinaturasPanel } from '../components/AssinaturasPanel';
 import { CompararVersoesDialog } from '../components/CompararVersoesDialog';
 import { NovoAditivoDialog } from '../components/NovoAditivoDialog';
+import { GerarTermoDialog } from '../components/GerarTermoDialog';
 
 // Tela individual do contrato no Jurídico (regra 27): documento central + painel lateral com
 // versão/status/hash/ações. As transições oferecidas são EXATAMENTE as do mapa espelhado da
@@ -97,6 +98,7 @@ export function JuridicoContratoDetailPage() {
   const templatesQuery = useTemplatesJuridico();
   const [compararAberto, setCompararAberto] = useState(false);
   const [aditivoAberto, setAditivoAberto] = useState(false);
+  const [termoAberto, setTermoAberto] = useState(false);
   const [editorAberto, setEditorAberto] = useState(false);
   const [corpoEditado, setCorpoEditado] = useState('');
   // Fase AF: confirmação explícita ANTES do congelamento (aguardando_assinatura)
@@ -383,6 +385,9 @@ export function JuridicoContratoDetailPage() {
                 <Button size="sm" variant="outline" className="w-full justify-center" disabled={novaVersao.isPending} onClick={() => novaVersao.mutate()}>
                   <RefreshCcw className="h-3.5 w-3.5" /> {novaVersao.isPending ? 'Gerando…' : 'Nova versão (snapshot atual)'}
                 </Button>
+                <Button size="sm" variant="outline" className="w-full justify-center" onClick={() => setTermoAberto(true)}>
+                  <FilePlus2 className="h-3.5 w-3.5" /> Gerar termo da biblioteca
+                </Button>
               </div>
               {!versao.congelada && (
                 <p className="mt-2 text-[11px] leading-snug text-neutral-400">Documento ainda não congelado — congela ao enviar para assinatura.</p>
@@ -570,6 +575,7 @@ export function JuridicoContratoDetailPage() {
       {/* Diálogos */}
       {versoes && <CompararVersoesDialog open={compararAberto} onOpenChange={setCompararAberto} versoes={versoes} />}
       <NovoAditivoDialog open={aditivoAberto} onOpenChange={setAditivoAberto} empresaId={empresaId} contratoId={contrato.id} />
+      <GerarTermoDialog open={termoAberto} onOpenChange={setTermoAberto} contrato={contrato} />
       <ConfirmDialog
         open={confirmarCongelamento}
         onOpenChange={setConfirmarCongelamento}

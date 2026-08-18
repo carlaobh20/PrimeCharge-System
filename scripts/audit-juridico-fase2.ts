@@ -25,14 +25,16 @@ function check(caso: string, cond: boolean, msg: string) {
 const MOTORISTA_OK = {
   id: 'm1', nome_completo: 'João Motorista', cpf: '12345678901', status: 'ativo',
   cnh_numero: '9988776655', cnh_categoria: 'B', cnh_validade: '2030-01-01', endereco: 'Rua A, 1',
+  email: 'joao@teste.com', telefone: '(31) 99999-0000',
 };
 const VEICULO_OK = {
   id: 'v1', placa: 'ABC1D23', renavam: 'REN1', chassi: 'CHS1', ano_fabricacao: 2024, ano_modelo: 2025,
-  cor: 'Branco', status: 'disponivel', quilometragem: 1000, marca: { nome: 'BYD' }, modelo: { nome: 'Dolphin' },
+  cor: 'Branco', status: 'disponivel', quilometragem: 1000, capacidade_bateria_kwh: 44, marca: { nome: 'BYD' }, modelo: { nome: 'Dolphin' },
 };
 const CONDICOES_OK = {
   valor_periodico: 1400, periodicidade: 'semanal', dia_vencimento: 5, valor_caucao: 3000,
-  data_inicio: '2026-09-01', data_fim_prevista: '2027-09-01', km_incluso: 'livre', regras_especificas: '',
+  data_inicio: '2026-09-01', data_fim_prevista: '2027-09-01', km_incluso: '3.000 km/mês',
+  valor_km_excedente: 0.8, regras_especificas: 'Sem condições particulares.',
 };
 const EMPRESA_OK = { id: 'e1', nome: 'PrimeCharge LTDA', cnpj: '00.000.000/0001-00', endereco: 'Av. B, 2' };
 
@@ -84,7 +86,10 @@ async function main() {
 
   // ===== D. Snapshot + validação =====
   const template = { id: 't1', nome: 'Master', versao_template: 1 };
-  const snapshot = montarSnapshot({ empresa: EMPRESA_OK, motorista: MOTORISTA_OK, veiculo: VEICULO_OK, condicoes: CONDICOES_OK, template });
+  const snapshot = montarSnapshot({
+    empresa: EMPRESA_OK, motorista: MOTORISTA_OK, veiculo: VEICULO_OK, condicoes: CONDICOES_OK, template,
+    numeroContrato: 'C-000123', localAssinatura: 'Belo Horizonte/MG',
+  });
   check('D', (snapshot as { motorista: { nome: string } }).motorista.nome === 'João Motorista', 'snapshot: motorista.nome');
   check('D', (snapshot as { contrato: { valor_periodico: string } }).contrato.valor_periodico.includes('1.400'), 'snapshot: valor formatado BRL');
   check('D', (snapshot as { veiculo: { marca_modelo: string } }).veiculo.marca_modelo === 'BYD Dolphin', 'snapshot: marca_modelo composto');

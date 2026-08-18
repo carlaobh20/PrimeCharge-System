@@ -309,11 +309,11 @@ export async function listSinistrosPorContrato(contratoId: string) {
 export async function listVistoriasPorContrato(contratoId: string) {
   const { data, error } = await supabase
     .from('checklists')
-    .select('id, titulo, tipo, status, criado_em')
+    .select('id, titulo, tipo, status, criado_em, odometro_km, carga_pct')
     .eq('contrato_id', contratoId)
     .order('criado_em', { ascending: false });
   if (error) throw error;
-  return data as { id: string; titulo: string; tipo: string | null; status: string; criado_em: string }[];
+  return data as { id: string; titulo: string; tipo: string | null; status: string; criado_em: string; odometro_km: number | null; carga_pct: number | null }[];
 }
 
 /** Resumo financeiro derivado dos lançamentos do contrato (regra 18 — nada de penalidade
