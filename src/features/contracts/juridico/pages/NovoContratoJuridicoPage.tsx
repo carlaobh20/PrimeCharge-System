@@ -22,6 +22,9 @@ import { getEmpresaParaContrato } from '../api';
 import { useGerarVersao, useTemplatesJuridico } from '../hooks';
 import { renderarCorpo } from '../lib';
 import { montarSnapshot, validarParaGeracao, type CondicoesContrato } from '../validacao';
+import { montarChecklistPreContrato, GRUPO_CHECKLIST_LABEL, type GrupoChecklist } from '../checklist';
+import { usePoliticas, useTodasRevisoes } from '../hooksFase3';
+import { templateAprovadoJuridicamente, type ContratoPolitica } from '../apiFase3';
 import { DocumentoView } from '../components/DocumentoView';
 
 // Wizard "Novo Contrato" (regras 5–13): motorista → veículo → condições → template → validação →
@@ -54,6 +57,7 @@ export function NovoContratoJuridicoPage() {
   const [motoristaId, setMotoristaId] = useState<string | null>(null);
   const [veiculoId, setVeiculoId] = useState<string | null>(null);
   const [templateId, setTemplateId] = useState<string | null>(null);
+  const [politicaId, setPoliticaId] = useState<string | null>(null);
   const [cond, setCond] = useState<CondicoesForm>({
     valor_periodico: 0,
     periodicidade: 'semanal',
@@ -70,6 +74,8 @@ export function NovoContratoJuridicoPage() {
   const veiculosQuery = useQuery({ queryKey: ['juridico', 'wizard', 'veiculos'], queryFn: () => listVeiculos() });
   const contratosQuery = useQuery({ queryKey: ['juridico', 'wizard', 'contratos'], queryFn: () => listContratos() });
   const templatesQuery = useTemplatesJuridico();
+  const politicasQuery = usePoliticas();
+  const revisoesQuery = useTodasRevisoes();
   const empresaQuery = useQuery({
     queryKey: ['juridico', 'empresa', empresaId],
     queryFn: () => getEmpresaParaContrato(empresaId!),
@@ -82,6 +88,7 @@ export function NovoContratoJuridicoPage() {
   const motorista = motoristasQuery.data?.find((m) => m.id === motoristaId) ?? null;
   const veiculo = veiculosQuery.data?.find((v) => v.id === veiculoId) ?? null;
   const template = templatesQuery.data?.find((t) => t.id === templateId) ?? null;
+  const politica: ContratoPolitica | null = politicasQuery.data?.find((p) => p.id === politicaId) ?? null;
   const contratos = contratosQuery.data ?? [];
 
   const contratosDoMotorista = (id: string) => contratos.filter((c) => c.motorista_id === id);
@@ -129,6 +136,34 @@ export function NovoContratoJuridicoPage() {
     [motorista, veiculo, condicoes, template, snapshot, veiculoId, contratos],
   );
 
+  // Checklist pré-contrato (Fase 3, regras 4/5): visão agrupada; a POLÍTICA define
+  // obrigatoriedade extra. O bloqueio final = validação base (fase 2) + bloqueios do checklist.
+  const checklist = useMemo(() => {
+    const templateAprovado = template
+      ? templateAprovadoJuridicamente((revisoesQuery.data ?? []).filter((r) => r.template_id === template.id), template.versao_template)
+      : false;
+    return montarChecklistPreContrato({
+      motorista,
+      veiculo,
+      condicoes,
+      templateCorpo: template?.corpo ?? null,
+      snapshot,
+      veiculoTemContratoAtivo: veiculoId ? !!contratoAtivoDoVeiculo(veiculoId) : false,
+      fase3: {
+        vistoriaEntregaOk: null, // vistoria de entrega acontece na ativação — sem info aqui
+        seguroCadastrado: false, // seguro é cadastrado na tela do contrato após a geração
+        seguroVigente: null,
+        apoliceAnexada: false,
+        templateComRevisaoAprovada: templateAprovado,
+        contatoMotoristaOk: !!(motorista?.telefone || motorista?.email),
+        documentacaoMotoristaOk: null,
+        anexosObrigatoriosFaltantes: politica?.anexos_obrigatorios ?? [],
+      },
+      obrigatoriosDaPolitica: politica?.campos_obrigatorios ?? [],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [motorista, veiculo, condicoes, template, snapshot, veiculoId, contratos, politica, revisoesQuery.data]);
+
   const preview = useMemo(
     () => (template && snapshot ? renderarCorpo(template.corpo, snapshot) : ''),
     [template, snapshot],
@@ -139,12 +174,12 @@ export function NovoContratoJuridicoPage() {
     !!veiculo && !contratoAtivoDoVeiculo(veiculoId ?? ''),
     cond.valor_periodico > 0 && !!cond.data_inicio,
     !!template,
-    validacao.podeGerar,
+    validacao.podeGerar && checklist.podeGerar,
     false,
   ][etapa];
 
   const gerar = () => {
-    if (!empresaId || !motorista || !veiculo || !template || !snapshot || !validacao.podeGerar) return;
+    if (!empresaId || !motorista || !veiculo || !template || !snapshot || !validacao.podeGerar || !checklist.podeGerar) return;
     criarContrato.mutate(
       {
         empresaId,
@@ -387,8 +422,34 @@ export function NovoContratoJuridicoPage() {
           </Card>
         )}
 
-        {/* ===== Etapa 4 — Template ===== */}
+        {/* ===== Etapa 4 — Template (com política contratual opcional) ===== */}
         {etapa === 3 && (
+          <div>
+            {(politicasQuery.data ?? []).filter((pol) => pol.status === 'ativa').length > 0 && (
+              <div className="mb-4 max-w-md">
+                <Label>Política contratual (opcional)</Label>
+                <Select
+                  className="mt-1"
+                  value={politicaId ?? ''}
+                  onChange={(e) => {
+                    const id = e.target.value || null;
+                    setPoliticaId(id);
+                    const pol = politicasQuery.data?.find((x) => x.id === id);
+                    if (pol?.template_id) setTemplateId(pol.template_id);
+                  }}
+                >
+                  <option value="">— sem política —</option>
+                  {(politicasQuery.data ?? [])
+                    .filter((pol) => pol.status === 'ativa')
+                    .map((pol) => (
+                      <option key={pol.id} value={pol.id}>
+                        {pol.nome} ({pol.campos_obrigatorios.length} obrigatórios)
+                      </option>
+                    ))}
+                </Select>
+                <p className="mt-1 text-[11px] text-neutral-400">A política define template e campos/anexos obrigatórios na validação.</p>
+              </div>
+            )}
           <div className="grid gap-2 md:grid-cols-2">
             {(templatesQuery.data ?? []).filter((t) => t.status === 'publicado').length === 0 && (
               <div className="md:col-span-2 rounded-lg border border-dashed border-neutral-300 p-6 text-sm text-neutral-500 dark:border-neutral-700">
@@ -426,12 +487,33 @@ export function NovoContratoJuridicoPage() {
                 </button>
               ))}
           </div>
+          </div>
         )}
 
         {/* ===== Etapa 5 — Validação ===== */}
         {etapa === 4 && (
           <Card>
             <CardContent className="py-5">
+              {/* Checklist agrupado (Fase 3) */}
+              <div className="mb-5 grid gap-4 md:grid-cols-2">
+                {(Object.keys(checklist.porGrupo) as GrupoChecklist[]).map((grupo) => (
+                  <div key={grupo} className="rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">{GRUPO_CHECKLIST_LABEL[grupo]}</p>
+                    {checklist.porGrupo[grupo].map((item) => (
+                      <div key={item.chave} className="flex items-start gap-1.5 py-0.5 text-xs">
+                        <span className={item.ok ? 'text-emerald-600' : item.obrigatorio ? 'text-red-600' : 'text-amber-500'}>
+                          {item.ok ? '✓' : item.obrigatorio ? '✗' : '⚠'}
+                        </span>
+                        <span className="text-neutral-700 dark:text-neutral-300">
+                          {item.rotulo}
+                          {item.obrigatorio && !item.ok && <span className="text-red-500"> (obrigatório)</span>}
+                          {item.detalhe && <span className="text-neutral-400"> — {item.detalhe}</span>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
               <div className="space-y-1.5">
                 {validacao.itens.map((item, i) => (
                   <div key={`${item.rotulo}-${i}`} className="flex items-start gap-2 text-sm">
@@ -448,14 +530,14 @@ export function NovoContratoJuridicoPage() {
               <div
                 className={cn(
                   'mt-4 rounded-lg px-4 py-3 text-sm font-medium',
-                  validacao.podeGerar
+                  validacao.podeGerar && checklist.podeGerar
                     ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
                     : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300',
                 )}
               >
-                {validacao.podeGerar
+                {validacao.podeGerar && checklist.podeGerar
                   ? `Pronto para gerar${validacao.alertas.length > 0 ? ` — ${validacao.alertas.length} alerta(s) acima ficam registrados` : ''}.`
-                  : `${validacao.bloqueios.length} bloqueio(s) impedem a geração. Corrija e volte.`}
+                  : `${validacao.bloqueios.length + checklist.bloqueios.length} bloqueio(s) impedem a geração. Corrija e volte.`}
               </div>
             </CardContent>
           </Card>
@@ -469,7 +551,7 @@ export function NovoContratoJuridicoPage() {
               <p className="text-sm text-neutral-500">
                 Ao gerar: contrato criado em rascunho + versão <span className="font-medium">v1.0</span> com snapshot e hash SHA-256.
               </p>
-              <Button disabled={gerando || !validacao.podeGerar} onClick={gerar}>
+              <Button disabled={gerando || !validacao.podeGerar || !checklist.podeGerar} onClick={gerar}>
                 {gerando ? 'Gerando…' : 'Criar contrato e gerar v1.0'}
               </Button>
             </div>

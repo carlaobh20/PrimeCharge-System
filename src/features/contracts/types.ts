@@ -53,7 +53,7 @@ export type Contrato = {
 // Veículo/Motorista — mesmo padrão de VeiculoComRelacoes (marca/modelo).
 export type ContratoComRelacoes = Contrato & {
   veiculo: { id: string; placa: string; status: string };
-  motorista: { id: string; nome_completo: string; status: string };
+  motorista: { id: string; nome_completo: string; status: string; cpf?: string };
 };
 
 export const CONTRATO_STATUS_LABEL: Record<ContratoStatus, string> = {

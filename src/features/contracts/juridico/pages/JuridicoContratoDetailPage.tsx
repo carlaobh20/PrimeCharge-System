@@ -48,6 +48,13 @@ import {
   type ContratoVersaoStatus,
 } from '../types';
 import { DocumentoView } from '../components/DocumentoView';
+import { FichaJuridicaPanel } from '../components/FichaJuridicaPanel';
+import { SeguroPanel } from '../components/SeguroPanel';
+import { RescisaoPanel } from '../components/RescisaoPanel';
+import { DossiePanel } from '../components/DossiePanel';
+import { useRevisoesTemplate } from '../hooksFase3';
+import { templateAprovadoJuridicamente } from '../apiFase3';
+import { useTemplatesJuridico } from '../hooks';
 import { VersaoStatusBadge } from '../components/VersaoStatusBadge';
 import { AssinaturasPanel } from '../components/AssinaturasPanel';
 import { CompararVersoesDialog } from '../components/CompararVersoesDialog';
@@ -82,6 +89,7 @@ export function JuridicoContratoDetailPage() {
   const atualizarAditivo = useUpdateAditivoStatus();
 
   const [versaoSelecionadaId, setVersaoSelecionadaId] = useState<string | null>(null);
+  const templatesQuery = useTemplatesJuridico();
   const [compararAberto, setCompararAberto] = useState(false);
   const [aditivoAberto, setAditivoAberto] = useState(false);
   const [editorAberto, setEditorAberto] = useState(false);
@@ -95,6 +103,18 @@ export function JuridicoContratoDetailPage() {
   useEffect(() => {
     if (versao) setCorpoEditado(versao.corpo ?? '');
   }, [versao]);
+
+  // Fase 3 (regras 25/27): aprovação jurídica REAL (revisões da versão do template usada no
+  // snapshot) + alerta de template desatualizado (nunca atualiza contrato antigo sozinho).
+  const revisoesQuery = useRevisoesTemplate(versao?.template_id ?? undefined);
+  const templateVersaoUsada = (versao?.snapshot as { _meta?: { template_versao?: number } } | undefined)?._meta?.template_versao;
+  const templateAprovado =
+    !!revisoesQuery.data && templateVersaoUsada != null
+      ? templateAprovadoJuridicamente(revisoesQuery.data, templateVersaoUsada)
+      : false;
+  const templateAtual = templatesQuery.data?.find((t) => t.id === versao?.template_id);
+  const templateDesatualizado =
+    templateAtual != null && templateVersaoUsada != null && templateAtual.versao_template > templateVersaoUsada;
 
   // Editor de rascunho (regra 14): corpo editável SÓ enquanto não congelada; salvar recalcula o
   // hash. Depois do congelamento o banco recusa (trigger) — a UI nem oferece.
@@ -171,7 +191,7 @@ export function JuridicoContratoDetailPage() {
         nomeMotorista: contrato.motorista?.nome_completo ?? '—',
         placaVeiculo: contrato.veiculo?.placa ?? '—',
         geradoEm: new Date().toISOString(),
-        templateAprovado: false, // minuta ainda não aprovada por advogado (regra 35)
+        templateAprovado, // real: revisão jurídica aprovada da versão do template usada (regra 25)
       });
       const nome = `contrato-${contrato.id.slice(0, 8)}-${versao.rotulo ?? `v${versao.numero}`}.pdf`;
       // download local
@@ -245,7 +265,13 @@ export function JuridicoContratoDetailPage() {
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
           {/* Documento central */}
           <div className="lg:col-span-2">
-            <DocumentoView corpo={versao.corpo ?? '_Sem corpo gerado._'} congelada={versao.congelada} templateAprovado={false} />
+            {templateDesatualizado && (
+              <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/10 dark:text-blue-300">
+                Existe uma versão mais recente do modelo (template v{templateAtual?.versao_template}; este documento usou a v
+                {templateVersaoUsada}). Contratos existentes NÃO mudam — gere uma nova versão se quiser adotar o modelo novo.
+              </div>
+            )}
+            <DocumentoView corpo={versao.corpo ?? '_Sem corpo gerado._'} congelada={versao.congelada} templateAprovado={templateAprovado} />
           </div>
 
           {/* Painel lateral */}
@@ -340,6 +366,18 @@ export function JuridicoContratoDetailPage() {
       <div className="mt-8">
         <Tabs
           items={[
+            {
+              value: 'ficha',
+              label: 'Ficha Jurídica',
+              content: (
+                <FichaJuridicaPanel
+                  contrato={contrato}
+                  versaoAtual={versao}
+                  assinaturas={undefined}
+                  aditivosPendentes={(aditivos ?? []).filter((a) => a.status === 'rascunho').length}
+                />
+              ),
+            },
             {
               value: 'versoes',
               label: `Versões (${versoes?.length ?? 0})`,
@@ -456,6 +494,13 @@ export function JuridicoContratoDetailPage() {
                   label="Anexos do contrato (PDFs gerados, apólice, comprovantes)"
                 />
               ),
+            },
+            { value: 'seguro', label: 'Seguro', content: <SeguroPanel contratoId={contrato.id} empresaId={empresaId} /> },
+            { value: 'rescisao', label: 'Rescisão', content: <RescisaoPanel contratoId={contrato.id} empresaId={empresaId} /> },
+            {
+              value: 'dossie',
+              label: 'Dossiê',
+              content: <DossiePanel contrato={contrato} versoes={versoes ?? []} aditivos={aditivos ?? []} empresaId={empresaId} />,
             },
             { value: 'timeline', label: 'Timeline', content: <TimelinePanel entidadeTipo="contrato" entidadeId={contrato.id} /> },
             {

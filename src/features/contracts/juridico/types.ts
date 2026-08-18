@@ -146,6 +146,8 @@ export type ContratoAssinatura = {
   visualizado_em: string | null;
   assinado_em: string | null;
   motivo_recusa: string | null;
+  /** Fase 3 (0044): prazo do convite de assinatura — alertas 7/3/1 derivados na fila. */
+  expira_em: string | null;
   criado_em: string;
   atualizado_em: string;
 };

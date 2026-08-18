@@ -49,6 +49,12 @@ export function JuridicoDashboardPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Link to="/juridico/politicas" className={buttonVariants({ variant: 'outline' })}>
+            <FileStack className="h-4 w-4" /> Políticas
+          </Link>
+          <Link to="/juridico/parametros" className={buttonVariants({ variant: 'outline' })}>
+            <Scale className="h-4 w-4" /> Parâmetros
+          </Link>
           <Link to="/juridico/templates" className={buttonVariants({ variant: 'outline' })}>
             <FileStack className="h-4 w-4" /> Templates
           </Link>

@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/shared/components/ui/confirm-dialog';
 import { toast, extrairMensagemDeErro } from '@/shared/components/ui/toast';
 import { formatDataSimples } from '@/shared/lib/format';
 import { useAssinaturas, useMudarStatusAssinatura, usePrepararAssinaturas } from '../hooks';
+import { useParametrosJuridicos } from '../hooksFase3';
 import {
   CONTRATO_ASSINATURA_STATUS_LABEL,
   CONTRATO_PARTE_LABEL,
@@ -41,6 +42,10 @@ export function AssinaturasPanel({
   const { data: assinaturas, isLoading } = useAssinaturas(versaoId);
   const preparar = usePrepararAssinaturas();
   const mudar = useMudarStatusAssinatura();
+  // Prazo do convite (regra 12): só existe se o parâmetro 'assinatura_prazo_dias' estiver
+  // configurado — sem regra configurada, não se inventa expiração.
+  const { data: parametros } = useParametrosJuridicos();
+  const prazoDias = Number((parametros?.find((p) => p.chave === 'assinatura_prazo_dias')?.valor as { dias?: number } | undefined)?.dias ?? 0) || null;
   const [confirmar, setConfirmar] = useState<{ assinatura: ContratoAssinatura; alvo: ContratoAssinaturaStatus } | null>(null);
 
   if (isLoading) return <p className="text-sm text-neutral-500">Carregando assinaturas…</p>;
@@ -80,6 +85,8 @@ export function AssinaturasPanel({
           alvo === 'assinado'
             ? { ...assinatura.evidencia, registrado_por: 'staff', user_agent: navigator.userAgent }
             : undefined,
+        expira_em:
+          alvo === 'enviado' && prazoDias ? new Date(Date.now() + prazoDias * 86400000).toISOString() : undefined,
       },
       {
         onSuccess: () => toast.success('Assinatura atualizada', CONTRATO_ASSINATURA_STATUS_LABEL[alvo]),
@@ -99,6 +106,7 @@ export function AssinaturasPanel({
             <p className="text-sm font-medium text-neutral-800 dark:text-neutral-200">{CONTRATO_PARTE_LABEL[a.parte]}</p>
             <p className="text-xs text-neutral-500">
               {a.enviado_em && `Enviado ${formatDataSimples(a.enviado_em)}`}
+              {a.expira_em && ` · Expira ${formatDataSimples(a.expira_em)}`}
               {a.visualizado_em && ` · Visualizado ${formatDataSimples(a.visualizado_em)}`}
               {a.assinado_em && ` · Assinado ${formatDataSimples(a.assinado_em)}`}
               {a.motivo_recusa && ` · Motivo: ${a.motivo_recusa}`}

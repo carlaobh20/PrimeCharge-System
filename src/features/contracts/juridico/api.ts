@@ -131,7 +131,7 @@ export async function createAssinatura(empresaId: string, payload: ContratoAssin
 export async function mudarStatusAssinatura(
   id: string,
   status: ContratoAssinaturaStatus,
-  extra?: { evidencia?: ContratoAssinaturaEvidencia; motivo_recusa?: string | null },
+  extra?: { evidencia?: ContratoAssinaturaEvidencia; motivo_recusa?: string | null; expira_em?: string | null },
 ) {
   const patch: Record<string, unknown> = { status };
   const agora = new Date().toISOString();
@@ -140,6 +140,7 @@ export async function mudarStatusAssinatura(
   if (status === 'assinado' || status === 'aceito') patch.assinado_em = agora;
   if (extra?.evidencia) patch.evidencia = extra.evidencia;
   if (extra?.motivo_recusa !== undefined) patch.motivo_recusa = extra.motivo_recusa;
+  if (extra?.expira_em !== undefined) patch.expira_em = extra.expira_em;
   const { data, error } = await supabase.from('contrato_assinaturas').update(patch).eq('id', id).select().single();
   if (error) throw error;
   return data as ContratoAssinatura;
@@ -195,13 +196,13 @@ export async function listVersoesPorContratos(contratoIds: string[]) {
 export type AssinaturaResumo = Pick<
   ContratoAssinatura,
   'id' | 'contrato_versao_id' | 'parte' | 'status' | 'enviado_em' | 'assinado_em'
->;
+> & { expira_em: string | null };
 
 export async function listAssinaturasPorVersoes(versaoIds: string[]) {
   if (versaoIds.length === 0) return [];
   const { data, error } = await supabase
     .from('contrato_assinaturas')
-    .select('id, contrato_versao_id, parte, status, enviado_em, assinado_em')
+    .select('id, contrato_versao_id, parte, status, enviado_em, assinado_em, expira_em')
     .in('contrato_versao_id', versaoIds);
   if (error) throw error;
   return data as AssinaturaResumo[];

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, Copy, Eye, FileStack, Pencil, Plus, Upload } from 'lucide-react';
+import { ChevronLeft, Copy, Eye, FileStack, Gavel, Pencil, Plus, Upload } from 'lucide-react';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Dialog } from '@/shared/components/ui/dialog';
@@ -12,6 +12,8 @@ import { toast, extrairMensagemDeErro } from '@/shared/components/ui/toast';
 import { formatDataSimples } from '@/shared/lib/format';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { useCreateTemplate, useTemplatesJuridico, useUpdateTemplate } from '../hooks';
+import { useCreateRevisao, useTodasRevisoes } from '../hooksFase3';
+import { REVISAO_JURIDICA_STATUS_LABEL, templateAprovadoJuridicamente, type RevisaoJuridicaStatus } from '../apiFase3';
 import { corpoMinutaMaster, variaveisMinutaMaster, NOME_TEMPLATE_MASTER, AVISO_MINUTA } from '../minutaMaster';
 import { extrairVariaveis } from '../lib';
 import { DocumentoView } from '../components/DocumentoView';
@@ -39,6 +41,14 @@ export function JuridicoTemplatesPage() {
   const [editar, setEditar] = useState<ContratoTemplate | null>(null);
   const [nomeEdit, setNomeEdit] = useState('');
   const [corpoEdit, setCorpoEdit] = useState('');
+
+  // Revisão jurídica (regra 25): o sistema só REGISTRA quem revisou — nunca finge aprovação.
+  const { data: revisoes } = useTodasRevisoes();
+  const criarRevisao = useCreateRevisao();
+  const [revisar, setRevisar] = useState<ContratoTemplate | null>(null);
+  const [revForm, setRevForm] = useState({ status: 'em_analise' as RevisaoJuridicaStatus, responsavel: '', observacoes: '' });
+  const aprovadoJuridicamente = (t: ContratoTemplate) =>
+    templateAprovadoJuridicamente((revisoes ?? []).filter((r) => r.template_id === t.id), t.versao_template);
 
   const temMaster = (templates ?? []).some((t) => t.nome === NOME_TEMPLATE_MASTER);
 
@@ -160,6 +170,9 @@ export function JuridicoTemplatesPage() {
               <p className="flex items-center gap-2 text-sm font-medium text-neutral-800 dark:text-neutral-200">
                 {t.nome}
                 <Badge variant={VARIANTE_TEMPLATE[t.status]}>{CONTRATO_TEMPLATE_STATUS_LABEL[t.status]}</Badge>
+                <Badge variant={aprovadoJuridicamente(t) ? 'success' : 'warning'}>
+                  {aprovadoJuridicamente(t) ? 'Revisão jurídica aprovada' : 'Sem revisão jurídica aprovada'}
+                </Badge>
               </p>
               <p className="mt-0.5 text-xs text-neutral-500">
                 v{t.versao_template} · {t.variaveis.length} variáveis · atualizado {formatDataSimples(t.atualizado_em)}
@@ -177,6 +190,9 @@ export function JuridicoTemplatesPage() {
               )}
               <Button size="sm" variant="ghost" onClick={() => duplicar(t)}>
                 <Copy className="h-3.5 w-3.5" /> Duplicar
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setRevisar(t); setRevForm({ status: 'em_analise', responsavel: '', observacoes: '' }); }}>
+                <Gavel className="h-3.5 w-3.5" /> Revisão jurídica
               </Button>
               {t.status === 'rascunho' && (
                 <Button size="sm" variant="outline" onClick={() => mudarStatus(t, 'publicado')}>
@@ -201,6 +217,106 @@ export function JuridicoTemplatesPage() {
       {/* Visualizar */}
       <Dialog open={visualizar !== null} onOpenChange={(v) => !v && setVisualizar(null)} title={visualizar?.nome ?? ''} className="max-w-3xl">
         {visualizar && <DocumentoView corpo={visualizar.corpo} congelada={false} templateAprovado={false} />}
+      </Dialog>
+
+      {/* Revisão jurídica (regra 25) */}
+      <Dialog
+        open={revisar !== null}
+        onOpenChange={(v) => !v && setRevisar(null)}
+        title={`Revisão jurídica — ${revisar?.nome ?? ''} (v${revisar?.versao_template ?? ''})`}
+        description="O sistema registra QUEM revisou e o resultado. Aprovar aqui não substitui o parecer do advogado — apenas registra que ele aconteceu."
+        className="max-w-2xl"
+      >
+        {revisar && (
+          <div className="space-y-4">
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">Histórico desta minuta</p>
+              {(revisoes ?? []).filter((r) => r.template_id === revisar.id).length === 0 ? (
+                <p className="text-sm text-neutral-500">Nenhuma revisão registrada.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {(revisoes ?? [])
+                    .filter((r) => r.template_id === revisar.id)
+                    .map((r) => (
+                      <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-xs dark:border-neutral-800">
+                        <span className="truncate text-neutral-600 dark:text-neutral-300">
+                          v{r.versao_template} · {r.responsavel_nome ?? 'usuário do sistema'} · {formatDataSimples(r.criado_em)}
+                          {r.observacoes && ` — ${r.observacoes}`}
+                        </span>
+                        <Badge
+                          variant={
+                            r.status === 'aprovado' || r.status === 'aprovado_com_ressalvas'
+                              ? 'success'
+                              : r.status === 'reprovado'
+                                ? 'destructive'
+                                : 'info'
+                          }
+                        >
+                          {REVISAO_JURIDICA_STATUS_LABEL[r.status]}
+                        </Badge>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <Label>Resultado</Label>
+                <select
+                  className="mt-1 h-9 w-full rounded-md border border-neutral-300 bg-transparent px-2 text-sm dark:border-neutral-700"
+                  value={revForm.status}
+                  onChange={(e) => setRevForm((f) => ({ ...f, status: e.target.value as RevisaoJuridicaStatus }))}
+                >
+                  {Object.entries(REVISAO_JURIDICA_STATUS_LABEL).map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label>Responsável (advogado)</Label>
+                <Input className="mt-1" placeholder="Nome do responsável pela revisão" value={revForm.responsavel} onChange={(e) => setRevForm((f) => ({ ...f, responsavel: e.target.value }))} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Observações / ressalvas</Label>
+                <Textarea className="mt-1" value={revForm.observacoes} onChange={(e) => setRevForm((f) => ({ ...f, observacoes: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setRevisar(null)}>
+                Fechar
+              </Button>
+              <Button
+                disabled={criarRevisao.isPending || !empresaId || revForm.responsavel.trim().length < 3}
+                onClick={() =>
+                  criarRevisao.mutate(
+                    {
+                      empresaId: empresaId!,
+                      payload: {
+                        template_id: revisar.id,
+                        versao_template: revisar.versao_template,
+                        responsavel_id: usuario?.id ?? null,
+                        responsavel_nome: revForm.responsavel.trim(),
+                        status: revForm.status,
+                        observacoes: revForm.observacoes || null,
+                      },
+                    },
+                    {
+                      onSuccess: () => {
+                        toast.success('Revisão registrada', `v${revisar.versao_template}: ${REVISAO_JURIDICA_STATUS_LABEL[revForm.status]}`);
+                        setRevisar(null);
+                      },
+                      onError: (e) => toast.error('Não foi possível registrar', extrairMensagemDeErro(e)),
+                    },
+                  )
+                }
+              >
+                Registrar revisão
+              </Button>
+            </div>
+          </div>
+        )}
       </Dialog>
 
       {/* Editar */}

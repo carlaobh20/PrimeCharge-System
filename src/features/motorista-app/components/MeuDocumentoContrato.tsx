@@ -6,6 +6,7 @@ import { markdownParaHtml } from '@/features/contracts/juridico/markdown';
 import { Secao, Pill } from './ui';
 import {
   assinarMeuContrato,
+  listMeusAditivos,
   listMinhasAssinaturas,
   listMinhasVersoesContrato,
   marcarVersaoVisualizada,
@@ -13,6 +14,11 @@ import {
   type MinhaAssinatura,
   type MinhaVersaoContrato,
 } from '../api/meuContratoJuridico';
+
+const ADITIVO_LABEL: Record<string, string> = {
+  valor: 'Alteração de valor', veiculo: 'Troca de veículo', prazo: 'Alteração de prazo',
+  motorista: 'Alteração cadastral', renovacao: 'Renovação', rescisao: 'Rescisão', outro: 'Outros',
+};
 
 // "Meu contrato" — o DOCUMENTO jurídico (Centro Jurídico Fase 2, regras 24–25). A RLS entrega só
 // o que o motorista pode ver: versões do próprio contrato em aguardando_assinatura/assinada/
@@ -33,6 +39,7 @@ export function MeuDocumentoContrato() {
 
   const versoesQuery = useQuery({ queryKey: ['motorista-app', 'contrato-versoes'], queryFn: listMinhasVersoesContrato });
   const assinaturasQuery = useQuery({ queryKey: ['motorista-app', 'contrato-assinaturas'], queryFn: listMinhasAssinaturas });
+  const aditivosQuery = useQuery({ queryKey: ['motorista-app', 'contrato-aditivos'], queryFn: listMeusAditivos });
 
   const versao: MinhaVersaoContrato | undefined = versoesQuery.data?.[0];
   const assinatura: MinhaAssinatura | undefined = useMemo(
@@ -142,6 +149,29 @@ export function MeuDocumentoContrato() {
         </div>
       )}
       {assinar.isError && <p className="mt-2 text-xs text-red-600">Não foi possível registrar a assinatura. Tente novamente.</p>}
+
+      {(aditivosQuery.data ?? []).length > 0 && (
+        <div className="mt-4 border-t border-neutral-100 pt-3 dark:border-white/5">
+          <p className="mb-1.5 text-xs font-semibold text-neutral-500">Aditivos vigentes</p>
+          {(aditivosQuery.data ?? []).map((a) => (
+            <p key={a.id} className="py-0.5 text-xs text-neutral-600 dark:text-neutral-300">
+              {ADITIVO_LABEL[a.tipo] ?? a.tipo} · {new Date(a.criado_em).toLocaleDateString('pt-BR')}
+              {a.descricao ? ` — ${a.descricao}` : ''}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {(versoesQuery.data ?? []).length > 1 && (
+        <div className="mt-3 border-t border-neutral-100 pt-3 dark:border-white/5">
+          <p className="mb-1.5 text-xs font-semibold text-neutral-500">Versões do documento</p>
+          {(versoesQuery.data ?? []).map((v) => (
+            <p key={v.id} className="py-0.5 text-xs text-neutral-500">
+              {v.rotulo ?? `v${v.numero}`} · {STATUS_PILL[v.status]?.label ?? v.status} · {new Date(v.criado_em).toLocaleDateString('pt-BR')}
+            </p>
+          ))}
+        </div>
+      )}
 
       {recusando && (
         <div className="mt-3 space-y-2">

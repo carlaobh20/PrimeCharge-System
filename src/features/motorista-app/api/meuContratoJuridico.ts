@@ -44,6 +44,26 @@ export type MinhaAssinatura = {
 
 const COLUNAS_ASSINATURA = 'id, contrato_versao_id, status, enviado_em, visualizado_em, assinado_em, motivo_recusa';
 
+export type MeuAditivo = {
+  id: string;
+  tipo: string;
+  status: string;
+  descricao: string | null;
+  criado_em: string;
+};
+
+/** Aditivos do próprio contrato (RLS da 0042: motorista SELECT nos aditivos do próprio
+ * contrato). Só vigentes aparecem no app — rascunho é trabalho interno do staff. */
+export async function listMeusAditivos() {
+  const { data, error } = await supabase
+    .from('contrato_aditivos')
+    .select('id, tipo, status, descricao, criado_em')
+    .eq('status', 'vigente')
+    .order('criado_em', { ascending: false });
+  if (error) throw error;
+  return data as MeuAditivo[];
+}
+
 export async function listMinhasAssinaturas() {
   const { data, error } = await supabase.from('contrato_assinaturas').select(COLUNAS_ASSINATURA);
   if (error) throw error;

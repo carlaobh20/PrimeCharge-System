@@ -57,7 +57,7 @@ export function JuridicoContratosPage() {
         if (vigencia === 'vencidos' && !(l.diasFim !== null && l.diasFim < 0)) return false;
         const termo = busca.trim().toLowerCase();
         if (termo) {
-          const alvo = `${l.contrato.motorista?.nome_completo ?? ''} ${l.contrato.veiculo?.placa ?? ''}`.toLowerCase();
+          const alvo = `${l.contrato.motorista?.nome_completo ?? ''} ${l.contrato.motorista?.cpf ?? ''} ${l.contrato.veiculo?.placa ?? ''}`.toLowerCase();
           if (!alvo.includes(termo)) return false;
         }
         return true;
@@ -79,7 +79,7 @@ export function JuridicoContratosPage() {
       <div className="mt-6 flex flex-wrap gap-3">
         <div className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por motorista ou placa…" className="pl-9" />
+          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por motorista, CPF ou placa…" className="pl-9" />
         </div>
         <Select value={status} onChange={(e) => setStatus(e.target.value as ContratoStatus | 'todos')} className="max-w-[180px]">
           <option value="todos">Contrato: todos</option>

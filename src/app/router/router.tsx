@@ -65,6 +65,8 @@ const JuridicoContratosPage = named(() => import('@/features/contracts/juridico/
 const NovoContratoJuridicoPage = named(() => import('@/features/contracts/juridico/pages/NovoContratoJuridicoPage'), 'NovoContratoJuridicoPage');
 const JuridicoContratoDetailPage = named(() => import('@/features/contracts/juridico/pages/JuridicoContratoDetailPage'), 'JuridicoContratoDetailPage');
 const JuridicoTemplatesPage = named(() => import('@/features/contracts/juridico/pages/JuridicoTemplatesPage'), 'JuridicoTemplatesPage');
+const JuridicoPoliticasPage = named(() => import('@/features/contracts/juridico/pages/JuridicoPoliticasPage'), 'JuridicoPoliticasPage');
+const JuridicoParametrosPage = named(() => import('@/features/contracts/juridico/pages/JuridicoParametrosPage'), 'JuridicoParametrosPage');
 const ContratoDetailPage = named(() => import('@/features/contracts/pages/ContratoDetailPage'), 'ContratoDetailPage');
 const ContratoCreatePage = named(() => import('@/features/contracts/pages/ContratoCreatePage'), 'ContratoCreatePage');
 const ContratoEditPage = named(() => import('@/features/contracts/pages/ContratoEditPage'), 'ContratoEditPage');
@@ -142,6 +144,8 @@ export const router = createBrowserRouter([
               { path: 'juridico/contratos/novo', element: <NovoContratoJuridicoPage /> },
               { path: 'juridico/contratos/:id', element: <JuridicoContratoDetailPage /> },
               { path: 'juridico/templates', element: <JuridicoTemplatesPage /> },
+              { path: 'juridico/politicas', element: <JuridicoPoliticasPage /> },
+              { path: 'juridico/parametros', element: <JuridicoParametrosPage /> },
               { path: 'financeiro/lancamentos', element: <LancamentosListPage /> },
               { path: 'financeiro/pagamentos', element: <PagamentosPage /> },
               { path: 'financeiro/contas-bancarias', element: <ContasBancariasPage /> },

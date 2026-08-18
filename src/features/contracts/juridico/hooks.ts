@@ -150,7 +150,8 @@ export function useMudarStatusAssinatura() {
       status: ContratoAssinaturaStatus;
       evidencia?: ContratoAssinaturaEvidencia;
       motivo_recusa?: string | null;
-    }) => mudarStatusAssinatura(params.id, params.status, { evidencia: params.evidencia, motivo_recusa: params.motivo_recusa }),
+      expira_em?: string | null;
+    }) => mudarStatusAssinatura(params.id, params.status, { evidencia: params.evidencia, motivo_recusa: params.motivo_recusa, expira_em: params.expira_em }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['juridico'] }),
   });
 }
@@ -285,6 +286,17 @@ export function usePanoramaJuridico() {
       const linhas = assinaturasPorVersao.get(atual.id) ?? [];
       const pendente = linhas.find((l) => !['assinado', 'aceito'].includes(l.status));
       const enviadaHaDias = pendente?.enviado_em ? Math.floor((hoje - new Date(pendente.enviado_em).getTime()) / DIA_MS) : null;
+      // Expiração do convite (Fase 3, regra 12): alerta derivado em <=7 dias (sem cron — decisão do projeto).
+      const expiraEmDias = pendente?.expira_em ? Math.ceil((new Date(pendente.expira_em).getTime() - hoje) / DIA_MS) : null;
+      if (expiraEmDias != null && expiraEmDias <= 7) {
+        fila.push({
+          prioridade: expiraEmDias <= 1 ? 1 : 2,
+          cor: expiraEmDias <= 1 ? 'vermelho' : 'laranja',
+          rotulo: expiraEmDias < 0 ? 'Convite de assinatura expirado' : 'Convite de assinatura expirando',
+          detalhe: `${nome} — ${expiraEmDias < 0 ? `expirou há ${Math.abs(expiraEmDias)} dia(s)` : `expira em ${expiraEmDias} dia(s)`}.`,
+          contratoId: contrato.id,
+        });
+      }
       fila.push({
         prioridade: enviadaHaDias != null && enviadaHaDias >= 7 ? 1 : 2,
         cor: enviadaHaDias != null && enviadaHaDias >= 7 ? 'vermelho' : 'laranja',
@@ -335,6 +347,9 @@ export function usePanoramaJuridico() {
           detalhe: `${nome} — vence em ${dias} dia(s).`,
           contratoId: contrato.id,
         });
+        vencimentos.push({ contrato, diasRestantes: dias });
+      } else if (dias <= 90) {
+        // Fase 3 (regra 15): janelas 90/60 aparecem na lista de vencimentos (não poluem a fila).
         vencimentos.push({ contrato, diasRestantes: dias });
       }
     }
