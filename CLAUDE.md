@@ -6,7 +6,29 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-18, fim da Fase 7 do Centro Jurídico (Oficina Jurídica).
+**Última atualização:** 2026-08-18, fim da Fase 8 do Centro Jurídico (Governança Contratual).
+
+## 0.-2 Fase 8 — Governança Contratual (2026-08-18, após 3e84ea3)
+
+- Motor puro `governanca.ts`: divergências snapshot×cadastro (completa via MESMO montarSnapshot
+  + lote normalizado p/ dashboard), conformidade operacional (OK/ATENÇÃO/BLOQUEADO + integridade
+  documental + indicador operacional, tudo com motivo), agenda 1/7/15/30/60/90, checklist de
+  renovação (11 itens, decisão humana nova versão × aditivo), reconciliação sob demanda +
+  relatórios md. `resumoExecutivo` estendido (divergência/doc rejeitado).
+- Cockpit → aba **Governança**: Estado Contratual (16 campos, NÃO INFORMADO p/ ausente),
+  conformidade, divergências com decisão (aditivo/ignorar c/ justificativa em juridico_parametros),
+  cadeia de aditivos, renovação, reconciliação exportável.
+- Dashboard: Agenda Contratual, fila de Divergências, Governança do Master (distribuição de
+  versões em uso + órfãos detectados) e Relatório de Governança (.md). Biblioteca: distribuição
+  por template + **Simular publicação** (resumo de impacto, CANCELAR/PUBLICAR).
+- Dossiê EXECUTIVO: 22 pastas (00_Capa…21_Arquivos_Originais; campos novos opcionais — ausente
+  = "não incluído nesta exportação"). Docs: GOVERNANCA-CONTRATUAL.md + 5 docs atualizados.
+- ZERO migration (auditoria prévia provou reuso; suíte SQL 65 só de testes: retroatividade
+  repetida v→v+2 byte a byte, concorrência, órfão detectável, RLS A/B/inativos).
+- Testes: harness **254/254** (10 suítes); audit-fase8 47/47; demais audits verdes; tsc/oxlint/
+  build ok (governanca lazy ~13KB; app motorista intacto — assert no audit). Produção intocada.
+- SANDBOX RESETOU 4ª VEZ no início da Fase 8 — Fase 7 recuperada do BUNDLE no PC do Carlos via
+  ponte (origin/dev estava na Fase 6). Receita: device_stage_files + git fetch bundle.
 
 ## 0.-1 Fase 7 — Oficina Jurídica / retorno do advogado (2026-08-18, após 8076a0c)
 

@@ -236,6 +236,10 @@ export const GLOSSARIO: TermoGlossario[] = [
   { termo: 'QUITAÇÃO', definicao: 'Declaração recíproca de nada mais dever — uso CONDICIONADO à decisão do advogado.' },
   { termo: 'DOSSIÊ', definicao: 'ZIP com todos os documentos, versões, evidências e auditoria de um contrato.' },
   { termo: 'HASH (SHA-256)', definicao: 'Código de integridade do documento congelado; impresso no PDF e conferido pelo painel de integridade.' },
+  { termo: 'CONFORMIDADE OPERACIONAL', definicao: 'Resposta objetiva a "o contrato está operacionalmente completo?" — OK/ATENÇÃO/BLOQUEADO com motivos. NÃO significa validade jurídica.' },
+  { termo: 'INTEGRIDADE DOCUMENTAL', definicao: 'Documento existe, congelado, hash confere e assinaturas completas — OK/ATENÇÃO/CRÍTICO.' },
+  { termo: 'DIVERGÊNCIA CONTRATUAL', definicao: 'Diferença entre o snapshot congelado do contrato e o cadastro atual. Sinalizada, nunca corrigida automaticamente.' },
+  { termo: 'RECONCILIAÇÃO', definicao: 'Verificação sob demanda: banco × snapshot × documento × hash × timeline × arquivos × assinaturas, com relatório exportável.' },
 ];
 
 // ---------------------------------------------------------------------------

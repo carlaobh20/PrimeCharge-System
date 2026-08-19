@@ -50,8 +50,8 @@ export function DossiePanel({
         anexos.push({ pasta, nome, bytes: new Uint8Array(await data.arrayBuffer()) });
       };
       await Promise.all([
-        ...arquivosContrato.map((a) => baixar(a.caminho_storage, a.categoria === 'contrato-pdf' ? '01_Contrato' : '09_Documentos', a.nome_arquivo)),
-        ...arquivosMotorista.map((a) => baixar(a.caminho_storage, '09_Documentos', a.nome_arquivo)),
+        ...arquivosContrato.map((a) => baixar(a.caminho_storage, a.categoria === 'contrato-pdf' ? '01_Contrato' : '13_Documentos', a.nome_arquivo)),
+        ...arquivosMotorista.map((a) => baixar(a.caminho_storage, '13_Documentos', a.nome_arquivo)),
       ]);
 
       const rotuloPorVersao = new Map(versoes.map((v) => [v.id, v.rotulo ?? `v${v.numero}`]));

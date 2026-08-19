@@ -27,6 +27,10 @@ import {
 } from '../apiBiblioteca';
 import { BIBLIOTECA, CATEGORIA_BIBLIOTECA_LABEL, type CategoriaBiblioteca } from '../biblioteca';
 import { DECISAO_MIGRACAO_OPCOES, listContratosPorTemplate } from '../apiRetornos';
+import { listMetaVersoesPorTemplate } from '../apiGovernanca';
+import { distribuirVersoesUsadas } from '../governanca';
+import { analisarImpacto } from '../comparador';
+import { listHistoricoTemplate as listHistoricoParaSimulacao } from '../apiBiblioteca';
 import { auditoriaCruzada } from '../qa';
 import { compararVersoes } from '../comparador';
 import { ImportarRetorno } from '../components/ImportarRetorno';
@@ -84,6 +88,8 @@ export function JuridicoTemplatesPage() {
   const [diffDe, setDiffDe] = useState<string | null>(null);
   const [verCorpoDe, setVerCorpoDe] = useState<string | null>(null);
 
+  const [simulacaoDe, setSimulacaoDe] = useState<ContratoTemplate | null>(null);
+  const metaVersoes = useQuery({ queryKey: ['juridico', 'meta-versoes'], queryFn: listMetaVersoesPorTemplate });
   const idsTemplates = useMemo(() => (templates ?? []).map((t) => t.id), [templates]);
   const contratosUsando = useQuery({
     queryKey: ['juridico', 'templates-uso', idsTemplates],
@@ -253,6 +259,21 @@ export function JuridicoTemplatesPage() {
                       v{t.versao_template} · {t.variaveis.length} variáveis · {usando} contrato(s) usando · atualizado{' '}
                       {formatDataSimples(t.atualizado_em)}
                     </p>
+                    {(() => {
+                      // Fase 8 (Módulo 21): distribuição de versões em uso — VERSÃO PUBLICADA × usadas
+                      const dist = distribuirVersoesUsadas(
+                        (metaVersoes.data ?? []).filter((m) => m.template_id === t.id).map((m) => (typeof m.versao_meta === 'number' ? m.versao_meta : null)),
+                      );
+                      if (dist.length === 0) return null;
+                      return (
+                        <p className="mt-0.5 text-[11px] text-neutral-400">
+                          {dist.map((d) => `${d.contratos} usam ${d.versao == null ? 'v?' : `v${d.versao}`}`).join(' · ')}
+                          {dist.some((d) => d.versao != null && d.versao < t.versao_template) && (
+                            <span className="ml-1 text-amber-600">— há contratos em versões antigas (aba Contratos impactados)</span>
+                          )}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <Button size="sm" variant="ghost" aria-label={`Abrir ${t.nome}`} onClick={() => { setAberto(t); setAbaAberta('documento'); setEditando(false); setCorpoEdit(t.corpo); setDiffDe(null); }}>
@@ -265,9 +286,14 @@ export function JuridicoTemplatesPage() {
                       <Copy className="h-3.5 w-3.5" aria-hidden />
                     </Button>
                     {t.status === 'rascunho' && (
-                      <Button size="sm" variant="outline" onClick={() => mudarStatus(t, 'publicado')}>
-                        <Upload className="h-3.5 w-3.5" aria-hidden /> Publicar
-                      </Button>
+                      <>
+                        <Button size="sm" variant="ghost" onClick={() => setSimulacaoDe(t)}>
+                          Simular publicação
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => mudarStatus(t, 'publicado')}>
+                          <Upload className="h-3.5 w-3.5" aria-hidden /> Publicar
+                        </Button>
+                      </>
                     )}
                     {t.status === 'publicado' && (
                       <Button size="sm" variant="ghost" onClick={() => mudarStatus(t, 'arquivado')}>
@@ -513,7 +539,89 @@ export function JuridicoTemplatesPage() {
           </div>
         )}
       </Dialog>
+
+      {/* ===== Fase 8 (Módulos 22/23) — SIMULAÇÃO DE PUBLICAÇÃO: nada é alterado ===== */}
+      <SimulacaoPublicacaoDialog
+        template={simulacaoDe}
+        templates={templates ?? []}
+        contratosUsando={simulacaoDe ? (contratosUsando.data?.get(simulacaoDe.id) ?? 0) : 0}
+        onClose={() => setSimulacaoDe(null)}
+        onPublicar={(t) => {
+          setSimulacaoDe(null);
+          mudarStatus(t, 'publicado');
+        }}
+      />
     </div>
+  );
+}
+
+/** Resumo de impacto ANTES de publicar (Módulos 22/23). Simular NÃO altera nada; a publicação
+ * continua passando pelo gate estrutural. */
+function SimulacaoPublicacaoDialog({
+  template,
+  templates,
+  contratosUsando,
+  onClose,
+  onPublicar,
+}: {
+  template: ContratoTemplate | null;
+  templates: ContratoTemplate[];
+  contratosUsando: number;
+  onClose: () => void;
+  onPublicar: (t: ContratoTemplate) => void;
+}) {
+  const historico = useQuery({
+    queryKey: ['juridico', 'simulacao-historico', template?.id],
+    enabled: !!template,
+    queryFn: () => listHistoricoParaSimulacao(template!.id),
+  });
+  if (!template) return null;
+  const gate = avaliarPublicacao(template.corpo);
+  const pendencias = extrairPendenciasJuridicas(template.corpo).length;
+  const cruzada =
+    template.tipo === 'contrato'
+      ? auditoriaCruzada(
+          template.corpo,
+          templates.filter((x) => x.tipo !== 'contrato' && x.status !== 'arquivado').map((x) => ({ nome: x.nome, corpo: x.corpo })),
+        )
+      : [];
+  const anterior = historico.data?.[0];
+  const impacto = anterior ? analisarImpacto(anterior.corpo, template.corpo) : null;
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()} title={`Simular publicação — ${template.nome}`} description="Nada foi alterado. Este é o resumo exato do que aconteceria ao publicar." className="max-w-2xl">
+      <div className="space-y-2 text-xs">
+        <p>
+          Versão atual v{template.versao_template} → publicar {template.versao_template > 1 || historico.data?.some((h) => h.origem === 'publicacao') ? 'pode gerar NOVA versão (republicação)' : 'mantém v1 (primeira publicação)'}.
+        </p>
+        <p className={gate.bloqueios.length > 0 ? 'font-semibold text-red-600' : 'text-emerald-600'}>
+          QA estrutural: {gate.bloqueios.length === 0 ? 'OK — nenhum bloqueio' : `${gate.bloqueios.length} BLOQUEIO(S): ${gate.bloqueios[0]}`}
+        </p>
+        <p>Pendências jurídicas no texto: {pendencias} {pendencias > 0 && '— publica como MINUTA (OFICIAL exige revisão aprovada registrada)'}</p>
+        {template.tipo === 'contrato' && (
+          <p className={cruzada.length > 0 ? 'text-amber-600' : 'text-emerald-600'}>
+            Auditoria cruzada Master × Termos: {cruzada.length === 0 ? 'sem divergência' : `${cruzada.length} alerta(s) — ${cruzada[0].detalhe}`}
+          </p>
+        )}
+        <p>
+          Contratos usando versões anteriores: <span className="font-semibold">{contratosUsando}</span> — a publicação NÃO altera nenhum deles (decisão de migração é humana).
+        </p>
+        {impacto ? (
+          <p>
+            Alterações desde a última fotografia: {impacto.contagem.alteradas} cláusula(s) alterada(s), {impacto.contagem.adicionadas} adicionada(s), {impacto.contagem.removidas} removida(s) · variáveis +{impacto.variaveis.adicionadas.length}/−{impacto.variaveis.removidas.length} · {impacto.pendencias.novas.length} pendência(s) nova(s)
+          </p>
+        ) : (
+          <p className="text-neutral-500">Sem fotografia anterior para comparar (primeira redação).</p>
+        )}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button size="sm" variant="ghost" onClick={onClose}>
+            CANCELAR
+          </Button>
+          <Button size="sm" disabled={gate.bloqueios.length > 0} onClick={() => onPublicar(template)}>
+            PUBLICAR
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   );
 }
 

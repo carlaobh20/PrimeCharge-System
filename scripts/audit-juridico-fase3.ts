@@ -100,7 +100,7 @@ const DADOS: DadosDossie = {
 };
 const arquivos = montarArquivosDossie(DADOS);
 const pastas = new Set(arquivos.map((a) => a.pasta));
-check('D', PASTAS_DOSSIE.every((p) => pastas.has(p)), 'todas as 11 pastas (00_Capa..10_Timeline) presentes');
+check('D', PASTAS_DOSSIE.every((p) => pastas.has(p)), `todas as ${PASTAS_DOSSIE.length} pastas do dossiê executivo presentes`);
 const capa = montarCapaDossie(DADOS);
 check('D', capa.includes('C-000123') && capa.includes('João') && capa.includes('não constitui parecer jurídico'), 'capa identifica o contrato e nega juízo jurídico');
 const versaoArq = arquivos.find((a) => a.pasta === '02_Versoes');

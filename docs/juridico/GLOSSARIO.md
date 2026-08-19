@@ -30,6 +30,10 @@
 | **QUITAÇÃO** | Declaração recíproca de nada mais dever — uso CONDICIONADO à decisão do advogado. | — |
 | **DOSSIÊ** | ZIP com todos os documentos, versões, evidências e auditoria de um contrato. | — |
 | **HASH (SHA-256)** | Código de integridade do documento congelado; impresso no PDF e conferido pelo painel de integridade. | — |
+| **CONFORMIDADE OPERACIONAL** | Resposta objetiva a "o contrato está operacionalmente completo?" — OK/ATENÇÃO/BLOQUEADO com motivos. NÃO significa validade jurídica. | — |
+| **INTEGRIDADE DOCUMENTAL** | Documento existe, congelado, hash confere e assinaturas completas — OK/ATENÇÃO/CRÍTICO. | — |
+| **DIVERGÊNCIA CONTRATUAL** | Diferença entre o snapshot congelado do contrato e o cadastro atual. Sinalizada, nunca corrigida automaticamente. | — |
+| **RECONCILIAÇÃO** | Verificação sob demanda: banco × snapshot × documento × hash × timeline × arquivos × assinaturas, com relatório exportável. | — |
 
 ## Alertas de vocabulário (termos potencialmente equivalentes em documentos diferentes)
 

@@ -102,3 +102,10 @@ qualificado. **[DECISÃO JURÍDICA]** Suficiência disso para o risco do negóci
    da SUA revisão — não certificação automática.
 Depois da revisão: a minuta é reescrita com os textos aprovados e o template republicado (vira
 versão nova; contratos antigos permanecem exatamente como assinados).
+
+## Governança (Fase 8)
+
+O sistema agora expõe, para qualquer contrato: estado contratual completo (versão/master/hash),
+conformidade operacional com motivos, divergências entre o documento congelado e o cadastro,
+agenda de prazos e reconciliação sob demanda. Nada disso é parecer jurídico — são fatos
+operacionais para apoiar a sua revisão. Ver `GOVERNANCA-CONTRATUAL.md`.

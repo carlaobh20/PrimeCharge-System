@@ -15,6 +15,9 @@ export type InsumosResumo = {
   pendencias: number; // contagem objetiva (fila/risco)
   rescisaoStatus: string | null; // status da rescisão ativa, se houver
   ultimaAtividade: string | null; // ISO do evento mais recente
+  /** Fase 8 (Módulo 14) — insumos opcionais de governança */
+  divergencias?: number; // snapshot × cadastro
+  documentoObrigatorioRejeitado?: boolean;
 };
 
 export type ResumoExecutivo = {
@@ -51,7 +54,9 @@ export function montarResumoExecutivo(i: InsumosResumo): ResumoExecutivo {
   // assinatura expirando > seguro vencido > documento parado no fluxo > seguro vencendo >
   // renovação próxima > nada.
   let proximaAcao = 'Nenhuma ação imediata — acompanhar.';
-  if (i.diasParaFim != null && i.diasParaFim < 0 && i.statusContrato === 'ativo') {
+  if (i.documentoObrigatorioRejeitado) {
+    proximaAcao = 'Documento obrigatório REJEITADO: solicitar novo envio ao motorista.';
+  } else if (i.diasParaFim != null && i.diasParaFim < 0 && i.statusContrato === 'ativo') {
     proximaAcao = `Contrato vencido há ${Math.abs(i.diasParaFim)} dia(s): renovar, aditar ou iniciar rescisão.`;
   } else if (i.rescisaoStatus && !['encerrada', 'cancelada'].includes(i.rescisaoStatus)) {
     proximaAcao = `Rescisão em andamento (${i.rescisaoStatus}): avançar o workflow.`;
@@ -79,6 +84,8 @@ export function montarResumoExecutivo(i: InsumosResumo): ResumoExecutivo {
     proximaAcao = `Seguro vence em ${i.seguroVenceEmDias} dia(s): programar renovação da apólice.`;
   } else if (situacaoSeguro === 'ausente' && i.statusContrato === 'ativo') {
     proximaAcao = 'Cadastrar o seguro do contrato.';
+  } else if ((i.divergencias ?? 0) > 0) {
+    proximaAcao = `${i.divergencias} divergência(s) entre contrato e cadastro: revisar (nova versão, aditivo ou ignorar com justificativa).`;
   } else if (i.diasParaFim != null && i.diasParaFim <= 30 && i.statusContrato === 'ativo') {
     proximaAcao = `Renovação em ${i.diasParaFim} dia(s): decidir renovar, aditar ou encerrar.`;
   }

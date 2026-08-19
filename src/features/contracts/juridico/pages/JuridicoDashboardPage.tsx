@@ -19,6 +19,7 @@ import { EmptyState } from '@/shared/components/ui/empty-state';
 import { formatDataSimples } from '@/shared/lib/format';
 import { cn } from '@/shared/lib/utils';
 import { usePanoramaJuridico, type PendenciaJuridica } from '../hooks';
+import { GovernancaDashboardSections } from '../components/GovernancaDashboardSections';
 
 // Dashboard Jurídico (regras 2 e 3): TODOS os números derivam do banco (usePanoramaJuridico —
 // contratos + versões + assinaturas + aditivos em lote); nada inventado. A fila "Precisa de
@@ -155,6 +156,9 @@ export function JuridicoDashboardPage() {
           )}
         </section>
       </div>
+
+      {/* Fase 8 — governança: agenda, divergências, master, órfãos, relatório */}
+      <GovernancaDashboardSections />
     </div>
   );
 }

@@ -197,6 +197,9 @@ export type PanoramaJuridico = {
   contratos: ContratoComRelacoes[];
   versoesPorContrato: Map<string, VersaoResumo[]>;
   assinaturasPorVersao: Map<string, AssinaturaResumo[]>;
+  /** Fase 8 — expostos p/ Agenda Contratual e Relatório de Governança (mesmas queries, zero busca nova) */
+  seguros: { contrato_id: string; apolice: string | null; vigencia_fim: string | null }[];
+  aditivosTotal: number;
   aditivosPendentes: number;
   cards: {
     ativos: number;
@@ -423,6 +426,8 @@ export function usePanoramaJuridico() {
     contratos,
     versoesPorContrato,
     assinaturasPorVersao,
+    seguros: seguros.map((s) => ({ contrato_id: s.contrato_id, apolice: s.apolice, vigencia_fim: s.vigencia_fim })),
+    aditivosTotal: aditivos.length,
     aditivosPendentes,
     cards: {
       ativos: contratos.filter((c) => c.status === 'ativo').length,

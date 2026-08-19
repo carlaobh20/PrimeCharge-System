@@ -65,6 +65,7 @@ import { AssinaturasPanel } from '../components/AssinaturasPanel';
 import { CompararVersoesDialog } from '../components/CompararVersoesDialog';
 import { NovoAditivoDialog } from '../components/NovoAditivoDialog';
 import { GerarTermoDialog } from '../components/GerarTermoDialog';
+import { GovernancaContratoPanel } from '../components/GovernancaContratoPanel';
 
 // Tela individual do contrato no Jurídico (regra 27): documento central + painel lateral com
 // versão/status/hash/ações. As transições oferecidas são EXATAMENTE as do mapa espelhado da
@@ -401,6 +402,11 @@ export function JuridicoContratoDetailPage() {
       <div className="mt-8">
         <Tabs
           items={[
+            {
+              value: 'governanca',
+              label: 'Governança',
+              content: <GovernancaContratoPanel contrato={contrato} versao={versao} />,
+            },
             {
               value: 'ficha',
               label: 'Ficha Jurídica',

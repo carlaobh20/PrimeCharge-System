@@ -50,3 +50,6 @@ $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/63_juridico_fa
 
 echo "== rodando Centro Jurídico (Fase 5 — biblioteca/histórico de templates) =="
 $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/64_juridico_fase5.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"
+
+echo "== rodando Centro Jurídico (Fase 8 — governança/retroatividade/concorrência/órfãos) =="
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/65_juridico_fase8.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"

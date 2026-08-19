@@ -56,13 +56,13 @@ const DADOS: DadosDossie = {
   versaoAtualRotulo: 'v2.0', hashVersaoAtual: 'abc123', anexos: [],
 };
 const arquivos = montarArquivosDossie(DADOS);
-check('C', PASTAS_DOSSIE.length === 12 && PASTAS_DOSSIE[11] === '11_Auditoria', 'PASTAS_DOSSIE tem 12 pastas com 11_Auditoria');
-const auditArq = arquivos.find((a) => a.pasta === '11_Auditoria');
-check('C', auditArq !== undefined && String(auditArq.conteudo).includes('UPDATE em contrato_versoes'), '11_Auditoria lista os registros visíveis');
+check('C', PASTAS_DOSSIE.length === 22 && PASTAS_DOSSIE.includes('18_Auditoria'), 'PASTAS_DOSSIE tem 22 pastas (dossiê executivo Fase 8) com 18_Auditoria');
+const auditArq = arquivos.find((a) => a.pasta === '18_Auditoria');
+check('C', auditArq !== undefined && String(auditArq.conteudo).includes('UPDATE em contrato_versoes'), '18_Auditoria lista os registros visíveis');
 const capa = montarCapaDossie(DADOS);
 check('C', capa.includes('v2.0') && capa.includes('abc123'), 'capa contém versão atual e hash SHA-256');
 const vazio = montarArquivosDossie({ ...DADOS, auditoria: [] });
-check('C', String(vazio.find((a) => a.pasta === '11_Auditoria')!.conteudo).includes('restrita a administradores'),
+check('C', String(vazio.find((a) => a.pasta === '18_Auditoria')!.conteudo).includes('restrita a administradores'),
   'sem permissão de auditoria => dossiê explica em vez de fingir vazio');
 
 console.log(`\n${passes} PASS, ${fails} FALHOU`);

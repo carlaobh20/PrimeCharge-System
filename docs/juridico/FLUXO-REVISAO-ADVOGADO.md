@@ -107,3 +107,9 @@ quando). As decisões acompanham o Pacote (pasta 09) nas exportações seguintes
   É o comportamento correto: texto novo = revisão nova. Veja o Histórico para saber quem/quando.
 - **Quero desfazer uma importação** — importe de novo colando a redação anterior (ela está
   íntegra no Histórico). O histórico nunca é apagado; "desfazer" é criar mais um passo à frente.
+
+## Depois de publicar (Fase 8)
+
+Antes de publicar, use **Simular publicação** (resumo de impacto sem alterar nada). Depois de
+publicar, o Dashboard mostra a distribuição de versões em uso ("X contratos usam v1...") e a
+decisão sobre contratos antigos permanece humana (aba Contratos impactados).

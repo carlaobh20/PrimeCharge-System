@@ -86,3 +86,11 @@ EXPLÍCITAS (proibido select('*') no portal). Regra: motor calcula, componente a
 - SQL: `supabase/tests/rodar_testes.sh` — banco do zero + 7 suítes (20/30/40/50/60/61/62/63).
 - Node: `scripts/audit-juridico-{lib,fase2,fase3,fase4}.ts` + `audit-amortizacao-extra.ts`.
 - Gates: `tsc -b`, `oxlint`, `vite build`.
+
+## Fase 8 — Governança (2026-08-18)
+
+Motor puro `governanca.ts` (divergências snapshot×cadastro, conformidade operacional, agenda,
+checklist de renovação, reconciliação, distribuição de versões, relatório) + aba Governança no
+cockpit + seções de governança no Dashboard + Simulação de publicação na Biblioteca + Dossiê
+Executivo de 22 pastas. ZERO migration (derivação sobre o schema existente). Detalhes:
+`GOVERNANCA-CONTRATUAL.md`.

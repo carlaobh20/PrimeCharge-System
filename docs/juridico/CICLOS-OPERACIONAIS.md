@@ -70,3 +70,9 @@ Base legal por finalidade (art. 7º LGPD), prazos de retenção por categoria, r
 destinatários, canal do titular/DPO e prazos de resposta: TODOS pendentes de definição do
 advogado — parametrizados em `juridico_parametros` quando decididos. O sistema não inventa
 nenhum desses valores.
+
+## 5. Governança do ciclo (Fase 8)
+
+Cada etapa acima agora é vigiada por: Conformidade operacional (bloqueios/alertas com motivo),
+Agenda Contratual (1/7/15/30/60/90 dias), Divergências snapshot × cadastro e Reconciliação sob
+demanda — ver `GOVERNANCA-CONTRATUAL.md`.

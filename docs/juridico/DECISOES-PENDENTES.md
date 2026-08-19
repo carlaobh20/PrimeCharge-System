@@ -68,3 +68,9 @@ Também jurídicas (parametrizáveis em **/juridico/parametros**): conteúdo de
 - Aplicar migrations **0042, 0043, 0044, 0045, 0046** no Supabase de produção (ojvhiadjnxhhevoryjtu).
 - Teste vivo no deploy (roteiro no relatório da Fase 2/4).
 - Confirmar qual banco o deploy dev usa (pergunta aberta desde a Fase 2).
+
+## D. Governança (Fase 8) — decisões humanas registradas pelo sistema
+
+Divergência contratual (nova versão × aditivo × ignorar com justificativa), caminho de renovação
+(nova versão × aditivo) e migração de contratos antigos (manter/aditar/renovar/substituir) são
+SEMPRE decisões humanas, registradas em `juridico_parametros` — o sistema apenas sinaliza.
