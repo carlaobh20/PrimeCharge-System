@@ -74,23 +74,30 @@ export async function importarCorpoTemplate(params: {
   origem: 'retorno_advogado' | 'ajuste_interno';
   responsavel: string;
   observacao?: string;
+  /** rótulo da versão de origem declarada na importação (Fase 7 — nunca assumida em silêncio) */
+  baseVersao?: string;
 }) {
   const orfas = variaveisSemCatalogo(extrairVariaveis(params.corpoNovo));
   if (orfas.length > 0) {
     throw new Error(`Importação bloqueada: variáveis fora do catálogo — ${orfas.join(', ')}. Adicione-as ao catálogo antes.`);
   }
+  const observacao = [params.baseVersao ? `[base: ${params.baseVersao}]` : null, params.observacao || null]
+    .filter(Boolean)
+    .join(' ');
   const { error } = await supabase.rpc('fn_atualizar_corpo_template', {
     p_template_id: params.templateId,
     p_corpo: params.corpoNovo,
     p_origem: params.origem,
     p_responsavel: params.responsavel,
-    p_observacao: params.observacao ?? null,
+    p_observacao: observacao || null,
   });
   if (error) throw error;
-  // variáveis do template acompanham o corpo novo
+  // Fase 7/13: nova redação SEMPRE reinicia o workflow — o template volta a RASCUNHO e a
+  // aprovação anterior deixa de valer (importar retorno ≠ aprovado juridicamente). As variáveis
+  // acompanham o corpo novo.
   const { error: e2 } = await supabase
     .from('contrato_templates')
-    .update({ variaveis: extrairVariaveis(params.corpoNovo) })
+    .update({ variaveis: extrairVariaveis(params.corpoNovo), status: 'rascunho' })
     .eq('id', params.templateId);
   if (e2) throw e2;
 }

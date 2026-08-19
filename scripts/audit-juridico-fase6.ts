@@ -134,8 +134,9 @@ check('H', secoesChecklist.length === 15, `checklist do advogado tem as 15 seç�
 check('H', (checklist.match(/\[ \] APROVAR/g) ?? []).length >= 40, 'checklist tem campos de decisão em ≥40 itens');
 
 const pacoteSrc = fs.readFileSync(path.join(RAIZ, 'src/features/contracts/juridico/pages/JuridicoPacoteAdvogadoPage.tsx'), 'utf8');
-const PASTAS = ['00_CAPA', '01_INSTRUCOES', '02_CONTRATO_MASTER', '03_TERMOS', '04_ADITIVOS', '05_RENOVACAO', '06_SINISTROS', '07_RESCISOES', '08_LGPD', '09_SEGURO', '10_MATRIZ_VARIAVEIS', '11_MATRIZ_COBERTURA', '12_CONFLITOS', '13_PENDENCIAS_JURIDICAS', '14_DECISOES_PRODUTO', '15_DECISOES_OPERACIONAIS', '16_HISTORICO_VERSOES', '17_GLOSSARIO', '18_CHECKLIST_ADVOGADO'];
-check('H', PASTAS.every((p) => pacoteSrc.includes(p)), 'pacote 2.0 monta as 19 pastas (00_CAPA … 18_CHECKLIST_ADVOGADO)');
+// Fase 7 renumerou o pacote (missão, Fase 19): 21 pastas, com 19_COMPARACAO e 20_ARQUIVOS_ORIGINAIS.
+const PASTAS = ['00_CAPA', '01_INSTRUCOES', '02_CONTRATO_MASTER', '03_TERMOS', '04_ADITIVOS', '05_RENOVACAO', '06_SEGURO', '07_SINISTRO', '08_RESCISAO', '09_LGPD', '10_VARIAVEIS', '11_COBERTURA', '12_CONFLITOS', '13_PENDENCIAS', '14_DECISOES_PRODUTO', '15_DECISOES_OPERACIONAIS', '16_HISTORICO', '17_GLOSSARIO', '18_CHECKLIST', '19_COMPARACAO', '20_ARQUIVOS_ORIGINAIS'];
+check('H', PASTAS.every((p) => pacoteSrc.includes(p)), 'pacote monta as 21 pastas (00_CAPA … 20_ARQUIVOS_ORIGINAIS)');
 
 const bibliotecaSrc = fs.readFileSync(path.join(RAIZ, 'src/features/contracts/juridico/biblioteca.ts'), 'utf8');
 for (const trava of ['seguro.apolice', 'sinistro.tipo', 'rescisao.solicitante', 'aditivo.tipo', 'rescisao.valores']) {

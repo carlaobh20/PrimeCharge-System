@@ -6,7 +6,29 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-18, fim da Fase 6 do Centro Jurídico (Legal QA).
+**Última atualização:** 2026-08-18, fim da Fase 7 do Centro Jurídico (Oficina Jurídica).
+
+## 0.-1 Fase 7 — Oficina Jurídica / retorno do advogado (2026-08-18, após 8076a0c)
+
+- Comparador de versões POR CLÁUSULA (`comparador.ts`: parser master/termos/texto plano,
+  adicionada/removida/ALTERADA/MOVIDA, subitens N.N, chave id#ocorrência p/ variantes
+  condicionais, análise de impacto, protocolo, versão de origem por hash) + `docx.ts`
+  (extração .docx via fflate, heurística de títulos revisável). PDF NUNCA é fonte editável.
+- Fluxo único de importação (`ImportarRetorno.tsx`, 3 passos no diálogo do template): fonte
+  (colar/.md/.txt/.docx; PDF só arquiva com protocolo) → análise (impacto, cláusulas removidas
+  com decisão obrigatória, variáveis novas com substituir/remover/tarefa, pendências com
+  confirmação humana, conflitos antes×depois, QA estrutural bloqueante) → confirmação (hashes)
+  → arquiva original+protocolo (`arquivos` entidade contrato_template — RLS staff-only JÁ
+  existente 0036/0039/0041) + RPC 0046 + template volta a RASCUNHO (importar ≠ aprovado).
+- Caixa "Retornos do Advogado" (/juridico/retornos) com status DERIVADO recebido/incorporado;
+  aba "Contratos impactados" (decisão humana de migração em juridico_parametros); histórico com
+  VER/EXPORTAR/comparação por cláusula; auditoria cruzada Master×Termos na Sala e no publicar;
+  Pacote com 21 pastas (19_COMPARACAO + 20_ARQUIVOS_ORIGINAIS).
+- ZERO migration nova (schema auditado antes — reuso provado; última continua 0046).
+- Testes: audit-juridico-fase7.ts 54/54; harness 239/239; fase6 61/61 (pastas atualizadas);
+  demais audits verdes; tsc/oxlint/build ok. Produção intocada.
+- SANDBOX RESETOU 3ª VEZ no início da Fase 7 — recuperado do origin/dev (Carlos tinha pushado
+  as Fases 5+6; receita da seção 0).
 
 ## 0.0 Fase 6 — Legal QA (2026-08-18, commit local após 5cabee8)
 

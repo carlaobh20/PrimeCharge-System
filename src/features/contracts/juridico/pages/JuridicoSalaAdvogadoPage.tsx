@@ -12,9 +12,10 @@ import { formatDataSimples } from '@/shared/lib/format';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { corpoMinutaMaster } from '../minutaMaster';
 import { extrairPendenciasJuridicas, type PendenciaJuridicaMinuta } from '../pendenciasMinuta';
+import { useTemplatesJuridico } from '../hooks';
 import { useParametrosJuridicos, useSaveParametro } from '../hooksFase3';
 import { BIBLIOTECA } from '../biblioteca';
-import { calcularIndiceCompletude } from '../qa';
+import { auditoriaCruzada, calcularIndiceCompletude } from '../qa';
 import {
   CONFLITOS_POTENCIAIS,
   MATRIZ_COBERTURA,
@@ -49,6 +50,7 @@ export function JuridicoSalaAdvogadoPage() {
   const { data: usuario } = useCurrentUsuario();
   const empresaId = usuario?.empresa_id ?? undefined;
   const { data: parametros } = useParametrosJuridicos();
+  const { data: templatesDb } = useTemplatesJuridico();
   const salvar = useSaveParametro();
 
   const pendencias = extrairPendenciasJuridicas(corpoMinutaMaster());
@@ -64,6 +66,13 @@ export function JuridicoSalaAdvogadoPage() {
   const pendenciasPorTermo = termosBiblioteca.map((e) => ({ entrada: e, pendencias: extrairPendenciasJuridicas(e.corpo) }));
   const totalPendencias = pendencias.length + pendenciasPorTermo.reduce((acc, t) => acc + t.pendencias.length, 0);
   const conflitosAbertos = CONFLITOS_POTENCIAIS.filter((c) => c.status === 'aberto');
+  // Auditoria cruzada sobre os templates do BANCO (redação viva — reflete retornos importados);
+  // cai para a biblioteca em código quando a biblioteca ainda não foi instalada.
+  const masterDb = (templatesDb ?? []).find((t) => t.tipo === 'contrato');
+  const termosDb = (templatesDb ?? []).filter((t) => t.tipo !== 'contrato' && t.status !== 'arquivado');
+  const alertasCruzados = masterDb
+    ? auditoriaCruzada(masterDb.corpo, termosDb.map((t) => ({ nome: t.nome, corpo: t.corpo })))
+    : auditoriaCruzada(BIBLIOTECA[0].corpo, termosBiblioteca.map((e) => ({ nome: e.nome, corpo: e.corpo })));
   const indice = calcularIndiceCompletude({
     temas: MATRIZ_COBERTURA,
     conflitosAbertos: conflitosAbertos.length,
@@ -291,6 +300,27 @@ export function JuridicoSalaAdvogadoPage() {
               <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">Pergunta ao advogado: {c.perguntaAdvogado}</p>
               {c.tratamento && <p className="mt-1 text-[11px] text-neutral-500">Tratamento: {c.tratamento}</p>}
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== Auditoria cruzada Master × Termos (Fase 7/15) — sinaliza, nunca corrige ===== */}
+      <section className="mt-10 max-w-4xl">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          Auditoria cruzada Master × Termos ({alertasCruzados.length} alerta(s))
+        </h2>
+        <p className="mt-1 text-[11px] text-neutral-500">
+          Roda automaticamente sobre a redação VIVA dos templates instalados (inclusive após importar retorno do advogado).
+          Divergência aqui é pendência de revisão humana — o sistema não corrige nada sozinho.
+        </p>
+        <div className="mt-3 space-y-1.5">
+          {alertasCruzados.length === 0 && (
+            <p className="text-sm text-neutral-500">Nenhuma divergência de conceito ou peça citada sem template.</p>
+          )}
+          {alertasCruzados.map((a, i) => (
+            <p key={i} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300">
+              {a.detalhe}
+            </p>
           ))}
         </div>
       </section>

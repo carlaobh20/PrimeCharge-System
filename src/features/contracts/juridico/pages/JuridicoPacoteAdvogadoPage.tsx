@@ -14,6 +14,8 @@ import { listHistoricoTemplate, ORIGEM_HISTORICO_LABEL, registrarEnvioAdvogado }
 import { BIBLIOTECA, CATEGORIA_BIBLIOTECA_LABEL, type CategoriaBiblioteca } from '../biblioteca';
 import { extrairPendenciasJuridicas } from '../pendenciasMinuta';
 import { DECISOES_OPERACIONAIS, DECISOES_PRODUTO } from '../qaBiblioteca';
+import { analisarImpacto } from '../comparador';
+import { baixarArquivoRetorno, CATEGORIA_RETORNO, listRetornosAdvogado } from '../apiRetornos';
 import matrizRaw from '../../../../../docs/juridico/MATRIZ-VARIAVEIS.md?raw';
 import coberturaRaw from '../../../../../docs/juridico/MATRIZ-COBERTURA.md?raw';
 import conflitosRaw from '../../../../../docs/juridico/CONFLITOS.md?raw';
@@ -47,10 +49,10 @@ function pastaDoTemplate(t: ContratoTemplate): string {
   if (t.tipo === 'contrato') return '02_CONTRATO_MASTER';
   if (slug === 'termo-renovacao') return '05_RENOVACAO';
   if (t.tipo === 'aditivo') return '04_ADITIVOS';
-  if (t.tipo === 'sinistro') return '06_SINISTROS';
-  if (t.tipo === 'rescisao') return '07_RESCISOES';
-  if (t.tipo === 'lgpd') return '08_LGPD';
-  if (t.tipo === 'seguro') return '09_SEGURO';
+  if (t.tipo === 'seguro') return '06_SEGURO';
+  if (t.tipo === 'sinistro') return '07_SINISTRO';
+  if (t.tipo === 'rescisao') return '08_RESCISAO';
+  if (t.tipo === 'lgpd') return '09_LGPD';
   return '03_TERMOS';
 }
 
@@ -93,15 +95,17 @@ export function JuridicoPacoteAdvogadoPage() {
           '01_INSTRUCOES — como revisar e como devolver',
           '02_CONTRATO_MASTER — o contrato principal (parametrizável)',
           '03_TERMOS — termos operacionais, de responsabilidade e de ciência',
-          '04_ADITIVOS · 05_RENOVACAO · 06_SINISTROS · 07_RESCISOES · 08_LGPD · 09_SEGURO',
-          '10_MATRIZ_VARIAVEIS — todas as variáveis {{...}} com origem no sistema',
-          '11_MATRIZ_COBERTURA — tema a tema, onde cada assunto está documentado',
+          '04_ADITIVOS · 05_RENOVACAO · 06_SEGURO · 07_SINISTRO · 08_RESCISAO · 09_LGPD',
+          '10_VARIAVEIS — todas as variáveis {{...}} com origem no sistema',
+          '11_COBERTURA — tema a tema, onde cada assunto está documentado',
           '12_CONFLITOS — divergências detectadas, com a pergunta para o advogado',
-          '13_PENDENCIAS_JURIDICAS — todas as marcações [VALIDAR COM ADVOGADO] por documento',
+          '13_PENDENCIAS — todas as marcações [VALIDAR COM ADVOGADO] por documento',
           '14_DECISOES_PRODUTO · 15_DECISOES_OPERACIONAIS — o que NÃO é decisão jurídica',
-          '16_HISTORICO_VERSOES — trilha de redações de cada documento (imutável no sistema)',
+          '16_HISTORICO — trilha de redações de cada documento (imutável no sistema)',
           '17_GLOSSARIO — vocabulário e equivalências de termos',
-          '18_CHECKLIST_ADVOGADO — roteiro de revisão com campos de decisão',
+          '18_CHECKLIST — roteiro de revisão com campos de decisão',
+          '19_COMPARACAO — o que mudou entre a última fotografia e a redação atual de cada documento',
+          '20_ARQUIVOS_ORIGINAIS — os arquivos efetivamente recebidos do advogado (sem modificação)',
           '',
           '## Conteúdo documental',
           ...incluidos.map((t) => `- ${pastaDoTemplate(t)}/${nomeArq(t)} (v${t.versao_template})`),
@@ -113,14 +117,14 @@ export function JuridicoPacoteAdvogadoPage() {
         [
           '# INSTRUÇÕES DE REVISÃO E DEVOLUÇÃO',
           '',
-          '1. Comece pelo 18_CHECKLIST_ADVOGADO (roteiro A–O) e pela 11_MATRIZ_COBERTURA.',
+          '1. Comece pelo 18_CHECKLIST (roteiro A–O) e pela 11_COBERTURA.',
           '2. As divergências já detectadas estão em 12_CONFLITOS — cada uma com a pergunta objetiva.',
           '3. Toda marcação [VALIDAR COM ADVOGADO] no texto é decisão pendente (lista completa em 13).',
-          '4. As variáveis {{...}} são preenchidas pelo sistema (origem de cada uma em 10) — mantenha-as.',
+          '4. As variáveis {{...}} são preenchidas pelo sistema (origem de cada uma em 10_VARIAVEIS) — mantenha-as.',
           '5. Devolva cada documento revisado como arquivo .md (texto). Alterar redação, remover ou',
           '   acrescentar cláusulas é livre; variável nova fora do catálogo é bloqueada na importação.',
           '6. A importação no sistema preserva AUTOMATICAMENTE a redação anterior (histórico imutável',
-          '   com hash SHA-256) — nenhuma versão se perde (trilha em 16_HISTORICO_VERSOES).',
+          '   com hash SHA-256) — nenhuma versão se perde (trilha em 16_HISTORICO; comparação em 19).',
           '',
           '---',
           '',
@@ -136,11 +140,11 @@ export function JuridicoPacoteAdvogadoPage() {
       for (const t of incluidos) entradas[`${pastaDoTemplate(t)}/${nomeArq(t)}`] = strToU8(t.corpo);
 
       // 10..12, 17, 18 — materiais gerados (fonte única: catálogo + qaBiblioteca)
-      entradas['10_MATRIZ_VARIAVEIS/MATRIZ-VARIAVEIS.md'] = strToU8(matrizRaw);
-      entradas['11_MATRIZ_COBERTURA/MATRIZ-COBERTURA.md'] = strToU8(coberturaRaw);
+      entradas['10_VARIAVEIS/MATRIZ-VARIAVEIS.md'] = strToU8(matrizRaw);
+      entradas['11_COBERTURA/MATRIZ-COBERTURA.md'] = strToU8(coberturaRaw);
       entradas['12_CONFLITOS/CONFLITOS.md'] = strToU8(conflitosRaw);
       entradas['17_GLOSSARIO/GLOSSARIO.md'] = strToU8(glossarioRaw);
-      entradas['18_CHECKLIST_ADVOGADO/CHECKLIST-ADVOGADO.md'] = strToU8(checklistRaw);
+      entradas['18_CHECKLIST/CHECKLIST-ADVOGADO.md'] = strToU8(checklistRaw);
 
       // 13 — pendências jurídicas (marcações por documento + decisões já registradas na Sala)
       const linhasPend: string[] = ['# PENDÊNCIAS JURÍDICAS ([VALIDAR COM ADVOGADO])', ''];
@@ -158,7 +162,7 @@ export function JuridicoPacoteAdvogadoPage() {
         const v = d.valor as { status?: string; decisao?: string; responsavel?: string };
         linhasPend.push(`- ${d.chave}: [${v.status ?? 'pendente'}] ${v.decisao ?? ''} ${v.responsavel ? `(${v.responsavel})` : ''}`);
       }
-      entradas['13_PENDENCIAS_JURIDICAS/PENDENCIAS.md'] = strToU8(linhasPend.join('\n'));
+      entradas['13_PENDENCIAS/PENDENCIAS.md'] = strToU8(linhasPend.join('\n'));
 
       // 14/15 — decisões de produto e operacionais (fonte única: qaBiblioteca)
       entradas['14_DECISOES_PRODUTO/DECISOES-PRODUTO.md'] = strToU8(
@@ -168,8 +172,15 @@ export function JuridicoPacoteAdvogadoPage() {
         ['# DECISÕES OPERACIONAIS (não são decisões jurídicas)', '', ...DECISOES_OPERACIONAIS.map((d) => `- ${d}`), ''].join('\n'),
       );
 
-      // 16 — histórico de versões (0046)
+      // 16 — histórico de versões (0046) + 19 — comparação (última fotografia × redação atual)
       const linhasHist: string[] = ['# HISTÓRICO DE VERSÕES DOS TEMPLATES', ''];
+      const linhasComp: string[] = [
+        '# COMPARAÇÃO DE VERSÕES — última fotografia × redação atual',
+        '',
+        '> Resumo OPERACIONAL do que mudou em cada documento desde a redação anterior. Sem',
+        '> interpretação jurídica — a análise cláusula a cláusula está disponível no sistema.',
+        '',
+      ];
       for (const t of incluidos) {
         const hist = await listHistoricoTemplate(t.id);
         linhasHist.push(`## ${t.nome} — atual v${t.versao_template}`, '');
@@ -180,8 +191,43 @@ export function JuridicoPacoteAdvogadoPage() {
           );
         }
         linhasHist.push('');
+        if (hist.length > 0) {
+          const imp = analisarImpacto(hist[0].corpo, t.corpo);
+          linhasComp.push(
+            `## ${t.nome} (fotografia de ${formatDataSimples(hist[0].criado_em)} → v${t.versao_template})`,
+            '',
+            `- Cláusulas/seções: ${imp.contagem.alteradas} alteradas · ${imp.contagem.adicionadas} adicionadas · ${imp.contagem.removidas} removidas · ${imp.contagem.movidas} movidas`,
+            `- Variáveis: +${imp.variaveis.adicionadas.length} / −${imp.variaveis.removidas.length}`,
+            `- Pendências: ${imp.pendencias.novas.length} novas · ${imp.pendencias.possivelmenteResolvidas.length} possivelmente resolvidas · ${imp.pendencias.mantidas} mantidas`,
+            ...imp.secoes
+              .filter((x) => x.status !== 'igual')
+              .slice(0, 30)
+              .map((x) => `  - ${x.status.toUpperCase()}: ${x.id} ${x.titulo}`),
+            '',
+          );
+        }
       }
-      entradas['16_HISTORICO_VERSOES/HISTORICO.md'] = strToU8(linhasHist.join('\n'));
+      entradas['16_HISTORICO/HISTORICO.md'] = strToU8(linhasHist.join('\n'));
+      if (linhasComp.length <= 5) linhasComp.push('Nenhum documento tem redação anterior ainda.', '');
+      entradas['19_COMPARACAO/COMPARACAO.md'] = strToU8(linhasComp.join('\n'));
+
+      // 20 — arquivos efetivamente recebidos do advogado (originais, sem modificação)
+      try {
+        const retornos = (await listRetornosAdvogado()).filter((r) => r.categoria === CATEGORIA_RETORNO);
+        if (retornos.length === 0) {
+          entradas['20_ARQUIVOS_ORIGINAIS/LEIA-ME.md'] = strToU8('Nenhum arquivo de retorno arquivado ainda.\n');
+        }
+        for (const r of retornos) {
+          try {
+            const blob = await baixarArquivoRetorno(r.caminho_storage);
+            entradas[`20_ARQUIVOS_ORIGINAIS/${r.criado_em.slice(0, 10)}-${r.nome_arquivo}`] = new Uint8Array(await blob.arrayBuffer());
+          } catch {
+            entradas[`20_ARQUIVOS_ORIGINAIS/FALHA-${r.nome_arquivo}.md`] = strToU8(`Download falhou para ${r.nome_arquivo} (${r.caminho_storage}).\n`);
+          }
+        }
+      } catch {
+        entradas['20_ARQUIVOS_ORIGINAIS/LEIA-ME.md'] = strToU8('Não foi possível listar os arquivos de retorno nesta exportação.\n');
+      }
 
       const zip = zipSync(entradas);
       const blob = new Blob([zip.slice().buffer as ArrayBuffer], { type: 'application/zip' });
@@ -201,7 +247,7 @@ export function JuridicoPacoteAdvogadoPage() {
     },
     onSuccess: (r) =>
       toast.success(
-        `Pacote 2.0 exportado (${r.total} documentos, 19 pastas)`,
+        `Pacote 3.0 exportado (${r.total} documentos, 21 pastas)`,
         r.registrado ? 'Envio registrado — os templates aparecem como "Enviado ao advogado".' : 'Envio NÃO registrado (informe o destinatário para registrar).',
       ),
     onError: (e) => toast.error('Exportação falhou', extrairMensagemDeErro(e)),
@@ -216,9 +262,9 @@ export function JuridicoPacoteAdvogadoPage() {
         <Gavel className="h-6 w-6 text-emerald-600" aria-hidden /> Pacote para Advogado
       </h1>
       <p className="mt-1 max-w-3xl text-sm text-neutral-500">
-        Exporta um ZIP único com 19 pastas: capa, instruções, documentos por assunto, matriz de variáveis, matriz de
-        cobertura, conflitos, pendências, decisões de produto/operacionais, histórico de versões, glossário e checklist de
-        revisão. Quando o advogado devolver, importe cada retorno na biblioteca — a redação anterior é preservada
+        Exporta um ZIP único com 21 pastas: capa, instruções, documentos por assunto, matriz de variáveis, matriz de
+        cobertura, conflitos, pendências, decisões de produto/operacionais, histórico de versões, glossário, checklist de
+        revisão, comparação de versões e os arquivos originais recebidos do advogado. Quando o advogado devolver, importe cada retorno na biblioteca — a redação anterior é preservada
         automaticamente.
       </p>
 

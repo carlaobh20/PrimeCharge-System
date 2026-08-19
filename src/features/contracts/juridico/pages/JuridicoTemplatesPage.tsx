@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, ChevronLeft, Copy, Download, Eye, FileStack, Gavel, Import, Pencil, Upload } from 'lucide-react';
+import { BookOpen, ChevronLeft, Copy, Download, Eye, FileStack, Gavel, Pencil, Upload } from 'lucide-react';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Dialog } from '@/shared/components/ui/dialog';
@@ -18,7 +18,6 @@ import { REVISAO_JURIDICA_STATUS_LABEL, type RevisaoJuridicaStatus } from '../ap
 import {
   contarContratosPorTemplate,
   ehVersaoOficial,
-  importarCorpoTemplate,
   instalarBiblioteca,
   listHistoricoTemplate,
   ORIGEM_HISTORICO_LABEL,
@@ -27,6 +26,11 @@ import {
   type StatusBiblioteca,
 } from '../apiBiblioteca';
 import { BIBLIOTECA, CATEGORIA_BIBLIOTECA_LABEL, type CategoriaBiblioteca } from '../biblioteca';
+import { DECISAO_MIGRACAO_OPCOES, listContratosPorTemplate } from '../apiRetornos';
+import { auditoriaCruzada } from '../qa';
+import { compararVersoes } from '../comparador';
+import { ImportarRetorno } from '../components/ImportarRetorno';
+import { useParametrosJuridicos, useSaveParametro } from '../hooksFase3';
 import { extrairVariaveis } from '../lib';
 import { avaliarPublicacao } from '../qa';
 import { extrairPendenciasJuridicas } from '../pendenciasMinuta';
@@ -73,12 +77,12 @@ export function JuridicoTemplatesPage() {
   const criarRevisao = useCreateRevisao();
 
   const [aberto, setAberto] = useState<ContratoTemplate | null>(null);
-  const [abaAberta, setAbaAberta] = useState<'documento' | 'historico' | 'importar' | 'revisao'>('documento');
+  const [abaAberta, setAbaAberta] = useState<'documento' | 'historico' | 'importar' | 'revisao' | 'contratos'>('documento');
   const [editando, setEditando] = useState(false);
   const [corpoEdit, setCorpoEdit] = useState('');
-  const [importForm, setImportForm] = useState({ corpo: '', responsavel: '', observacao: '', origem: 'retorno_advogado' as 'retorno_advogado' | 'ajuste_interno' });
   const [revForm, setRevForm] = useState({ status: 'em_analise' as RevisaoJuridicaStatus, responsavel: '', observacoes: '' });
   const [diffDe, setDiffDe] = useState<string | null>(null);
+  const [verCorpoDe, setVerCorpoDe] = useState<string | null>(null);
 
   const idsTemplates = useMemo(() => (templates ?? []).map((t) => t.id), [templates]);
   const contratosUsando = useQuery({
@@ -108,24 +112,6 @@ export function JuridicoTemplatesPage() {
       qc.invalidateQueries({ queryKey: ['juridico'] });
     },
     onError: (e) => toast.error('Instalação falhou', extrairMensagemDeErro(e)),
-  });
-
-  const importar = useMutation({
-    mutationFn: () =>
-      importarCorpoTemplate({
-        templateId: aberto!.id,
-        corpoNovo: importForm.corpo,
-        origem: importForm.origem,
-        responsavel: importForm.responsavel.trim(),
-        observacao: importForm.observacao || undefined,
-      }),
-    onSuccess: () => {
-      toast.success('Nova redação importada', 'A redação anterior foi fotografada no histórico — nada se perdeu.');
-      setImportForm({ corpo: '', responsavel: '', observacao: '', origem: 'retorno_advogado' });
-      qc.invalidateQueries({ queryKey: ['juridico'] });
-      setAberto(null);
-    },
-    onError: (e) => toast.error('Importação bloqueada', extrairMensagemDeErro(e)),
   });
 
   const exportarMd = (t: ContratoTemplate) => {
@@ -169,7 +155,24 @@ export function JuridicoTemplatesPage() {
     atualizar.mutate(
       { id: t.id, payload: { status } },
       {
-        onSuccess: () => toast.success(`Template ${status === 'publicado' ? 'publicado (nova versão se republicação)' : status}`),
+        onSuccess: () => {
+          toast.success(`Template ${status === 'publicado' ? 'publicado (nova versão se republicação)' : status}`);
+          if (status === 'publicado') {
+            // Fase 7/16: publicar NUNCA altera contratos existentes — e dizemos isso na cara.
+            const usando = contratosUsando.data?.get(t.id) ?? 0;
+            if (usando > 0) {
+              toast.info(`Existem ${usando} contrato(s) utilizando versões anteriores`, 'Esta publicação NÃO altera contratos já gerados — decisão de migração é humana (aba Contratos impactados).');
+            }
+            // Fase 7/15: auditoria cruzada automática Master × termos após publicar o Master
+            if (t.tipo === 'contrato') {
+              const termos = (templates ?? []).filter((x) => x.tipo !== 'contrato' && x.status !== 'arquivado').map((x) => ({ nome: x.nome, corpo: x.corpo }));
+              const alertas = auditoriaCruzada(t.corpo, termos);
+              if (alertas.length > 0) {
+                toast.info(`Auditoria cruzada Master × Termos: ${alertas.length} alerta(s)`, `${alertas[0].detalhe} Lista completa na Sala do Advogado.`);
+              }
+            }
+          }
+        },
         onError: (e) => toast.error('Não foi possível mudar o status', extrairMensagemDeErro(e)),
       },
     );
@@ -206,6 +209,9 @@ export function JuridicoTemplatesPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Link to="/juridico/retornos" className="inline-flex h-9 items-center gap-2 rounded-md border border-neutral-300 px-4 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800">
+            Retornos do Advogado
+          </Link>
           <Link to="/juridico/pacote-advogado" className="inline-flex h-9 items-center gap-2 rounded-md border border-neutral-300 px-4 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800">
             <Gavel className="h-4 w-4" aria-hidden /> Pacote para Advogado
           </Link>
@@ -298,6 +304,7 @@ export function JuridicoTemplatesPage() {
                   ['historico', `Histórico (${historico.data?.length ?? 0})`],
                   ['importar', 'Importar retorno'],
                   ['revisao', 'Revisão jurídica'],
+                  ['contratos', 'Contratos impactados'],
                 ] as const
               ).map(([aba, rotulo]) => (
                 <button
@@ -360,6 +367,10 @@ export function JuridicoTemplatesPage() {
 
             {abaAberta === 'historico' && (
               <div className="space-y-2">
+                <p className="text-[11px] text-neutral-400">
+                  Linha do tempo das redações: v{aberto.versao_template} (atual) ← fotografias abaixo, da mais recente para a
+                  mais antiga. Fotografias são IMUTÁVEIS (trigger de banco) — nunca podem ser alteradas nem apagadas.
+                </p>
                 {(historico.data ?? []).length === 0 && (
                   <p className="text-sm text-neutral-500">Nenhuma redação anterior — o histórico nasce na primeira alteração de corpo.</p>
                 )}
@@ -372,11 +383,34 @@ export function JuridicoTemplatesPage() {
                         {h.responsavel_nome && ` · ${h.responsavel_nome}`}
                         {h.observacao && ` — ${h.observacao}`}
                       </p>
-                      <button type="button" className="text-xs font-medium text-emerald-600 hover:underline" onClick={() => setDiffDe(diffDe === h.id ? null : h.id)}>
-                        {diffDe === h.id ? 'Fechar comparação' : 'Comparar com o atual'}
-                      </button>
+                      <span className="flex shrink-0 gap-2">
+                        <button type="button" className="text-xs font-medium text-emerald-600 hover:underline" onClick={() => setVerCorpoDe(verCorpoDe === h.id ? null : h.id)}>
+                          {verCorpoDe === h.id ? 'Fechar' : 'Ver'}
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-emerald-600 hover:underline"
+                          onClick={() => {
+                            const blob = new Blob([h.corpo], { type: 'text/markdown' });
+                            const url = URL.createObjectURL(blob);
+                            const el = document.createElement('a');
+                            el.href = url;
+                            el.download = `${aberto.nome.replace(/[^\w-]+/g, '_')}-fotografia-v${h.versao_template}-${h.criado_em.slice(0, 10)}.md`;
+                            el.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                        >
+                          Exportar
+                        </button>
+                        <button type="button" className="text-xs font-medium text-emerald-600 hover:underline" onClick={() => setDiffDe(diffDe === h.id ? null : h.id)}>
+                          {diffDe === h.id ? 'Fechar comparação' : 'Comparar com o atual'}
+                        </button>
+                      </span>
                     </div>
                     {h.hash_sha256 && <p className="mt-0.5 break-all font-mono text-[9px] text-neutral-400">SHA-256 {h.hash_sha256}</p>}
+                    {verCorpoDe === h.id && (
+                      <pre className="mt-2 max-h-[30vh] overflow-y-auto whitespace-pre-wrap rounded border border-neutral-200 p-2 font-mono text-[10px] text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">{h.corpo}</pre>
+                    )}
                     {diffDe === h.id && (
                       <DiffTemplate anterior={h.corpo} atual={aberto.corpo} />
                     )}
@@ -386,42 +420,14 @@ export function JuridicoTemplatesPage() {
             )}
 
             {abaAberta === 'importar' && (
-              <div className="space-y-3">
-                <p className="text-xs text-neutral-500">
-                  Cole a redação devolvida pelo advogado (ou o ajuste interno). A redação ATUAL será fotografada automaticamente no
-                  histórico — nada é sobrescrito de forma irreversível. Variável fora do catálogo bloqueia a importação.
-                </p>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div>
-                    <Label>Origem</Label>
-                    <select
-                      className="mt-1 h-9 w-full rounded-md border border-neutral-300 bg-transparent px-2 text-sm dark:border-neutral-700"
-                      value={importForm.origem}
-                      onChange={(e) => setImportForm((f) => ({ ...f, origem: e.target.value as typeof f.origem }))}
-                    >
-                      <option value="retorno_advogado">Retorno do advogado</option>
-                      <option value="ajuste_interno">Ajuste interno</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Responsável</Label>
-                    <Input className="mt-1" value={importForm.responsavel} onChange={(e) => setImportForm((f) => ({ ...f, responsavel: e.target.value }))} placeholder="Quem produziu esta redação" />
-                  </div>
-                  <div>
-                    <Label>Observação</Label>
-                    <Input className="mt-1" value={importForm.observacao} onChange={(e) => setImportForm((f) => ({ ...f, observacao: e.target.value }))} placeholder="Ex.: 2ª rodada de revisão" />
-                  </div>
-                </div>
-                <div>
-                  <Label>Nova redação (markdown com {'{{variáveis}}'})</Label>
-                  <Textarea className="mt-1 min-h-[38vh] font-mono text-xs" value={importForm.corpo} onChange={(e) => setImportForm((f) => ({ ...f, corpo: e.target.value }))} />
-                </div>
-                <div className="flex justify-end">
-                  <Button disabled={importar.isPending || importForm.corpo.trim().length < 50 || importForm.responsavel.trim().length < 3} onClick={() => importar.mutate()}>
-                    <Import className="h-4 w-4" aria-hidden /> {importar.isPending ? 'Importando…' : 'Importar nova redação'}
-                  </Button>
-                </div>
-              </div>
+              <ImportarRetorno
+                template={aberto}
+                historico={historico.data ?? []}
+                onDone={() => {
+                  qc.invalidateQueries({ queryKey: ['juridico'] });
+                  setAberto(null);
+                }}
+              />
             )}
 
             {abaAberta === 'revisao' && (
@@ -502,6 +508,8 @@ export function JuridicoTemplatesPage() {
                 </div>
               </div>
             )}
+
+            {abaAberta === 'contratos' && <ContratosImpactados templateId={aberto.id} />}
           </div>
         )}
       </Dialog>
@@ -509,14 +517,59 @@ export function JuridicoTemplatesPage() {
   );
 }
 
-/** Diff visual redação anterior × atual (só mostra linhas alteradas). */
+/** Comparação de versões: por linhas OU por cláusula (Fase 7) — sem interpretação jurídica. */
 function DiffTemplate({ anterior, atual }: { anterior: string; atual: string }) {
+  const [modo, setModo] = useState<'linhas' | 'clausulas'>('clausulas');
   const linhas = useMemo(() => diffLinhas(anterior, atual), [anterior, atual]);
+  const secoes = useMemo(() => compararVersoes(anterior, atual), [anterior, atual]);
   const resumo = resumoDiff(linhas);
+  if (modo === 'clausulas') {
+    const mudadas = secoes.filter((x) => x.status !== 'igual');
+    return (
+      <div className="mt-2">
+        <p className="mb-1 flex items-center justify-between text-[11px] text-neutral-500">
+          <span>
+            Comparação de versões por cláusula: {mudadas.length} seção(ões) diferente(s) de {secoes.length}.
+          </span>
+          <button type="button" className="font-medium text-emerald-600 hover:underline" onClick={() => setModo('linhas')}>
+            ver por linhas
+          </button>
+        </p>
+        <div className="max-h-[35vh] space-y-1 overflow-y-auto">
+          {mudadas.length === 0 && <p className="px-2 py-1 text-[11px] text-neutral-500">Redações idênticas.</p>}
+          {mudadas.map((x) => (
+            <div key={`${x.status}-${x.id}`} className="rounded border border-neutral-200 px-2 py-1.5 text-[11px] dark:border-neutral-800">
+              <p className="font-medium text-neutral-700 dark:text-neutral-300">
+                {x.status === 'adicionada' ? '🟢 NOVA CLÁUSULA' : x.status === 'removida' ? '🔴 CLÁUSULA REMOVIDA' : x.status === 'movida' ? `🔵 MOVIDA (era ${x.idAnterior})` : '🟡 ALTERADA'}{' '}
+                — {x.id} {x.titulo}
+              </p>
+              {x.status === 'alterada' && x.antes && x.depois && (
+                <div className="mt-1 grid gap-1 md:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] uppercase text-neutral-400">Antes</p>
+                    <pre className="max-h-[16vh] overflow-y-auto whitespace-pre-wrap rounded bg-red-50 p-1.5 font-mono text-[10px] text-red-800 dark:bg-red-900/10 dark:text-red-300">{x.antes.corpo}</pre>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase text-neutral-400">Depois</p>
+                    <pre className="max-h-[16vh] overflow-y-auto whitespace-pre-wrap rounded bg-emerald-50 p-1.5 font-mono text-[10px] text-emerald-800 dark:bg-emerald-900/10 dark:text-emerald-300">{x.depois.corpo}</pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="mt-2">
-      <p className="mb-1 text-[11px] text-neutral-500">
-        {resumo.removidas} linha(s) removida(s) · {resumo.adicionadas} adicionada(s) — sem interpretação jurídica, só diferenças.
+      <p className="mb-1 flex items-center justify-between text-[11px] text-neutral-500">
+        <span>
+          {resumo.removidas} linha(s) removida(s) · {resumo.adicionadas} adicionada(s) — sem interpretação jurídica, só diferenças.
+        </span>
+        <button type="button" className="font-medium text-emerald-600 hover:underline" onClick={() => setModo('clausulas')}>
+          ver por cláusula
+        </button>
       </p>
       <div className="max-h-[35vh] overflow-y-auto rounded border border-neutral-200 font-mono text-[10px] leading-relaxed dark:border-neutral-800">
         {linhas.map((l, i) =>
@@ -535,6 +588,69 @@ function DiffTemplate({ anterior, atual }: { anterior: string; atual: string }) 
         )}
         {resumo.removidas === 0 && resumo.adicionadas === 0 && <p className="px-2 py-1 text-neutral-500">Redações idênticas.</p>}
       </div>
+    </div>
+  );
+}
+
+/** Fase 7/16-17 — contratos usando o template: publicar NUNCA os altera; a decisão de migração
+ * é humana, registrada em juridico_parametros (migracao_<contrato>) — sem tabela nova. */
+function ContratosImpactados({ templateId }: { templateId: string }) {
+  const { data: usuario } = useCurrentUsuario();
+  const empresaId = usuario?.empresa_id ?? undefined;
+  const { data: parametros } = useParametrosJuridicos();
+  const salvar = useSaveParametro();
+  const contratos = useQuery({
+    queryKey: ['juridico', 'contratos-por-template', templateId],
+    queryFn: () => listContratosPorTemplate(templateId),
+  });
+
+  const decisaoDe = (contratoId: string): string => {
+    const p = parametros?.find((x) => x.chave === `migracao_${contratoId.slice(0, 8)}`);
+    return (p?.valor as { decisao?: string })?.decisao ?? 'nao_alterar';
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="rounded-lg bg-neutral-50 px-3 py-2 text-[11px] text-neutral-500 dark:bg-neutral-900">
+        Publicar uma nova versão do template <span className="font-semibold">NÃO altera contratos já gerados</span> — cada um
+        permanece congelado na versão que assinou. A decisão por contrato é humana e fica registrada aqui.
+      </p>
+      {contratos.isLoading && <p className="text-sm text-neutral-500">Carregando…</p>}
+      {(contratos.data ?? []).length === 0 && !contratos.isLoading && (
+        <p className="text-sm text-neutral-500">Nenhum contrato gerado a partir deste template.</p>
+      )}
+      {(contratos.data ?? []).map((c) => (
+        <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-xs dark:border-neutral-800">
+          <div className="min-w-0">
+            <p className="font-medium text-neutral-800 dark:text-neutral-200">
+              Contrato {c.contrato_id.slice(0, 8).toUpperCase()} · {c.motoristaNome ?? '—'}
+            </p>
+            <p className="mt-0.5 text-neutral-500">
+              doc {c.rotulo ?? `nº ${c.numero}`} ({c.status}) · template v{c.versaoTemplateUsada ?? '?'} · {formatDataSimples(c.criado_em)}
+              {c.hash_sha256 && <span className="ml-1 break-all font-mono text-[9px] text-neutral-400">SHA-256 {c.hash_sha256.slice(0, 16)}…</span>}
+            </p>
+          </div>
+          <select
+            className="h-8 rounded border border-neutral-300 bg-transparent px-1 text-[11px] dark:border-neutral-700"
+            value={decisaoDe(c.contrato_id)}
+            onChange={(e) =>
+              empresaId &&
+              salvar.mutate({
+                empresaId,
+                chave: `migracao_${c.contrato_id.slice(0, 8)}`,
+                valor: { decisao: e.target.value, contrato_id: c.contrato_id, template_id: templateId, responsavel: usuario?.nome_completo, data: new Date().toISOString() },
+                usuarioId: usuario?.id,
+              })
+            }
+          >
+            {DECISAO_MIGRACAO_OPCOES.map((o) => (
+              <option key={o.valor} value={o.valor}>
+                {o.rotulo}
+              </option>
+            ))}
+          </select>
+        </div>
+      ))}
     </div>
   );
 }

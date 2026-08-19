@@ -220,6 +220,57 @@ export function mapearVocabulario(docs: { nome: string; corpo: string }[]): UsoV
 }
 
 // ---------------------------------------------------------------------------
+// AUDITORIA CRUZADA MASTER × TERMOS (Fase 7/15): depois que o Master muda (retorno/publicação),
+// conferir se os termos não ficaram órfãos de conceito ou citados sem peça. NUNCA corrige —
+// devolve alertas para revisão humana.
+// ---------------------------------------------------------------------------
+
+export type AlertaCruzado = { tipo: 'conceito_ausente_no_master' | 'peca_citada_sem_template'; detalhe: string };
+
+const CONCEITOS_CRUZADOS = ['caução', 'seguro', 'franquia', 'telemetria', 'rastreamento', 'quilometragem', 'multa', 'vistoria', 'sinistro', 'rescisão'];
+
+/** Peças que o Master cita nominalmente → precisa existir um termo com esse nome na biblioteca. */
+const PECAS_CITADAS: { citacao: RegExp; nomeContem: string }[] = [
+  { citacao: /Termo de Entrega/i, nomeContem: 'Entrega' },
+  { citacao: /Termos? de Entrega e de Devolução|Termo de Devolução/i, nomeContem: 'Devolução' },
+  { citacao: /Termo de Ciência do Seguro/i, nomeContem: 'Seguro' },
+  { citacao: /Termo de Ciência sobre Rastreamento/i, nomeContem: 'Rastreamento' },
+  { citacao: /Termo de Ciência sobre Tratamento de Dados/i, nomeContem: 'Dados' },
+  { citacao: /Comunicação de Sinistro/i, nomeContem: 'Comunicação' },
+  { citacao: /Termo de Rescisão/i, nomeContem: 'Rescisão' },
+  { citacao: /Termo de Encerramento/i, nomeContem: 'Encerramento' },
+  { citacao: /termo de renovação/i, nomeContem: 'Renovação' },
+];
+
+export function auditoriaCruzada(masterCorpo: string, termos: { nome: string; corpo: string }[]): AlertaCruzado[] {
+  const alertas: AlertaCruzado[] = [];
+  const semVars = (t: string) => t.replace(/\{\{[^}]*\}\}/g, ' ');
+  // nomes comparados sem acento e sem separadores — vale para nome de template E nome de arquivo
+  const chaveNome = (t: string) =>
+    t.normalize('NFD').replace(/\p{M}/gu, '').replace(/[-_]/g, ' ').toLowerCase();
+  const masterLimpo = semVars(masterCorpo);
+  for (const conceito of CONCEITOS_CRUZADOS) {
+    const re = new RegExp(conceito, 'i');
+    const termosComConceito = termos.filter((t) => re.test(semVars(t.corpo))).map((t) => t.nome);
+    if (termosComConceito.length > 0 && !re.test(masterLimpo)) {
+      alertas.push({
+        tipo: 'conceito_ausente_no_master',
+        detalhe: `"${conceito}" aparece em ${termosComConceito.length} termo(s) (${termosComConceito.slice(0, 3).join('; ')}${termosComConceito.length > 3 ? '…' : ''}) mas não existe mais no Master — revisar com o advogado.`,
+      });
+    }
+  }
+  for (const peca of PECAS_CITADAS) {
+    if (peca.citacao.test(masterLimpo) && !termos.some((t) => chaveNome(t.nome).includes(chaveNome(peca.nomeContem)))) {
+      alertas.push({
+        tipo: 'peca_citada_sem_template',
+        detalhe: `O Master cita uma peça de "${peca.nomeContem}" mas não há template com esse nome na biblioteca.`,
+      });
+    }
+  }
+  return alertas;
+}
+
+// ---------------------------------------------------------------------------
 // ÍNDICE DE COMPLETUDE DOCUMENTAL (Fase 16): métrica OPERACIONAL de organização do material.
 // NÃO é score jurídico, NÃO mede "segurança jurídica" — mede se o pacote está estruturalmente
 // completo para o advogado revisar.

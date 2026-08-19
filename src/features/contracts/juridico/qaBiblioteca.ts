@@ -107,6 +107,13 @@ export type ConflitoPotencial = {
   prioridade: 'critico' | 'alto' | 'medio' | 'baixo';
   status: 'aberto' | 'tratado_fase6';
   tratamento?: string;
+  /**
+   * Detector textual (Fase 7): quando o conflito é detectável no TEXTO de um documento
+   * específico, permite comparar retorno do advogado ANTES × DEPOIS ("continua" ×
+   * "possivelmente resolvido — confirmar"). Conflitos entre documentos/dados sem assinatura
+   * textual única não têm detector — permanecem de atualização humana.
+   */
+  detector?: { docSlug: string; presenteRe: string };
 };
 
 export const CONFLITOS_POTENCIAIS: ConflitoPotencial[] = [
@@ -119,6 +126,7 @@ export const CONFLITOS_POTENCIAIS: ConflitoPotencial[] = [
     perguntaAdvogado: 'Como redigir o vencimento para periodicidade semanal/diária (ex.: "toda segunda-feira", "no ato")? A redação atual só é precisa para cobrança mensal.',
     prioridade: 'critico',
     status: 'aberto',
+    detector: { docSlug: 'contrato-master', presenteRe: 'dia \\{\\{contrato\\.dia_vencimento\\}\\} de cada per\u00edodo' },
   },
   {
     id: 'C2',
@@ -129,6 +137,7 @@ export const CONFLITOS_POTENCIAIS: ConflitoPotencial[] = [
     perguntaAdvogado: 'Definir a lista de hipóteses de BO obrigatório num só lugar (Master) e referenciá-la no termo — quais hipóteses?',
     prioridade: 'medio',
     status: 'aberto',
+    detector: { docSlug: 'comunicacao-sinistro', presenteRe: 'obrigat\u00f3rio em furto, roubo' },
   },
   {
     id: 'C3',
@@ -150,6 +159,7 @@ export const CONFLITOS_POTENCIAIS: ConflitoPotencial[] = [
     perguntaAdvogado: 'Criar campo/versão da declaração para condutor autorizado? Qual o efeito sobre seguro e responsabilidade?',
     prioridade: 'medio',
     status: 'aberto',
+    detector: { docSlug: 'declaracao-sinistro', presenteRe: 'era eu quem conduzia' },
   },
   {
     id: 'C5',
@@ -160,6 +170,7 @@ export const CONFLITOS_POTENCIAIS: ConflitoPotencial[] = [
     perguntaAdvogado: 'Se a quitação não for adotada, qual redação substitui a referência no encerramento?',
     prioridade: 'baixo',
     status: 'aberto',
+    detector: { docSlug: 'termo-encerramento', presenteRe: 'Termo de Quita\u00e7\u00e3o' },
   },
   {
     id: 'C6',
@@ -170,6 +181,7 @@ export const CONFLITOS_POTENCIAIS: ConflitoPotencial[] = [
     perguntaAdvogado: 'Manter a citação (com o contrato valendo como o próprio resumo) ou criar a peça? (também é decisão de produto)',
     prioridade: 'baixo',
     status: 'aberto',
+    detector: { docSlug: 'contrato-master', presenteRe: 'Resumo das condi\u00e7\u00f5es comerciais' },
   },
   {
     id: 'C7',
@@ -270,4 +282,35 @@ const REGRAS_PRIORIDADE: { re: RegExp; prioridade: PrioridadeOperacional }[] = [
 export function prioridadePendencia(texto: string): PrioridadeOperacional {
   for (const r of REGRAS_PRIORIDADE) if (r.re.test(texto)) return r.prioridade;
   return 'baixo';
+}
+
+// ---------------------------------------------------------------------------
+// CONFLITOS ANTES × DEPOIS do retorno (Fase 7/10). Só para conflitos com detector textual no
+// documento em questão. "Possivelmente resolvido" NUNCA fecha o conflito sozinho — a lista
+// curada (status) é atualizada por humano; isto é um FAROL para a revisão.
+// ---------------------------------------------------------------------------
+
+export type SituacaoConflitoRetorno = {
+  conflito: ConflitoPotencial;
+  antes: boolean;
+  depois: boolean;
+  situacao: 'continua' | 'possivelmente_resolvido' | 'surgiu';
+};
+
+export function compararConflitosDoc(docSlug: string, corpoAntes: string, corpoDepois: string): SituacaoConflitoRetorno[] {
+  const resultado: SituacaoConflitoRetorno[] = [];
+  for (const c of CONFLITOS_POTENCIAIS) {
+    if (!c.detector || c.detector.docSlug !== docSlug) continue;
+    const re = new RegExp(c.detector.presenteRe, 'i');
+    const antes = re.test(corpoAntes);
+    const depois = re.test(corpoDepois);
+    if (!antes && !depois) continue;
+    resultado.push({
+      conflito: c,
+      antes,
+      depois,
+      situacao: antes && !depois ? 'possivelmente_resolvido' : !antes && depois ? 'surgiu' : 'continua',
+    });
+  }
+  return resultado;
 }
