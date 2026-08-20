@@ -31,10 +31,12 @@ import {
   custoPorDiaPlanejado,
   custoPorHoraReal,
   eficienciaVsPremissa,
+  horasParaValor,
   janelaOperacional,
   mediaRealPorDia,
   mediaRealPorHora,
   mediasPorDiaSemana,
+  metaDeAmanha,
   metaDeHoje,
   montarCalendario,
   normalizarMensal,
@@ -45,9 +47,12 @@ import {
   projecoesDuplas,
   qualidadeDados,
   rebalancear,
+  resumoSemana,
   ritmoDoMes,
   saldoHoras,
   saldoMeta,
+  seEuPararAgora,
+  simularHorasExtras,
   tendencia,
   type DespesaMeta,
   type GanhoDia,
@@ -207,6 +212,47 @@ export function useMinhaMeta() {
     const custoDiaCarro = custoPorDiaPlanejado(totais.carro, diasTrabalho);
     const custoHoraCarro = meta.horasMes != null && meta.horasMes > 0 ? Math.round((totais.carro / meta.horasMes) * 100) / 100 : null;
 
+    // ===== FASE 11 — plano operacional do dia (reusa hojeCockpit/ritmo/realHora14) =====
+    const diasDepoisDeHoje = ritmo.diasRestantesPlanejados;
+    const planoHoje = {
+      horasPremissa: horasParaValor(hojeCockpit.metaHoje, meta.rendaHora),
+      horasHistorico: horasParaValor(hojeCockpit.metaHoje, realHora14?.valor ?? null),
+      rsHoraHoje:
+        ganhoHoje && ganhoHoje.horas != null && ganhoHoje.horas > 0 && ganhoHoje.valor > 0
+          ? Math.round((ganhoHoje.valor / ganhoHoje.horas) * 100) / 100
+          : null,
+      pararAgora: seEuPararAgora({
+        metaMensal: meta.metaMensal,
+        realizadoAcumuladoIncluindoHoje: progresso.realizado,
+        diasRestantesDepoisDeHoje: diasDepoisDeHoje,
+        metaHoje: hojeCockpit.metaHoje,
+        realizadoHoje: hojeCockpit.realizadoHoje,
+      }),
+      simulacoes: [1, 2, 3, -1, -2]
+        .map((h) =>
+          simularHorasExtras({
+            horas: h,
+            premissaHora: meta.rendaHora,
+            historicoHora: realHora14?.valor ?? null,
+            metaHoje: hojeCockpit.metaHoje,
+            realizadoHoje: hojeCockpit.realizadoHoje ?? 0,
+            metaMensal: meta.metaMensal,
+            realizadoAcumuladoIncluindoHoje: progresso.realizado,
+            diasRestantesDepoisDeHoje: diasDepoisDeHoje,
+          }),
+        )
+        .filter((s): s is NonNullable<typeof s> => s != null),
+      amanha: metaDeAmanha({
+        metaMensal: meta.metaMensal,
+        realizadoAcumuladoIncluindoHoje: progresso.realizado,
+        diasRestantesDepoisDeHoje: diasDepoisDeHoje,
+        metaDiariaOriginal: meta.metaDiaria,
+      }),
+      horasRestantesMesDia: ritmo.metaRestanteDia != null ? horasParaValor(ritmo.metaRestanteDia, meta.rendaHora) : null,
+    };
+    const semana = resumoSemana(ganhos60, hojeStr, meta.metaDiaria, diasTrabalho, diasNoMes);
+    const horasCarroHoje = horasParaValor(custoDiaCarro, meta.rendaHora);
+
     const mesAnterior = snapAnterior;
     const alertas = [
       ...alertasMeta({
@@ -268,6 +314,10 @@ export function useMinhaMeta() {
       melhoresDias,
       projecoes,
       custoHoraRealMes,
+      // Fase 11 — plano operacional diário
+      planoHoje,
+      semana,
+      horasCarroHoje,
       temDados: despesasAtivas.some((d) => d.ativa) || aluguelCarroMensal > 0,
       precisaOnboarding: !despesasAtivas.some((d) => d.ativa) && !config,
     };

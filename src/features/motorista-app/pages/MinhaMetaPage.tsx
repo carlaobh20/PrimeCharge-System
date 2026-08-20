@@ -9,6 +9,8 @@ import { HeroHoje } from '../components/meta/HeroHoje';
 import { RitmoMesCard } from '../components/meta/RitmoMesCard';
 import { CarroCard } from '../components/meta/CarroCard';
 import { OperacaoRealCard } from '../components/meta/OperacaoRealCard';
+import { PlanoDeHoje } from '../components/meta/PlanoDeHoje';
+import { SemanaCard } from '../components/meta/SemanaCard';
 import { useMinhaMeta } from '../hooks/useMinhaMeta';
 import {
   CATEGORIAS_CARRO,
@@ -149,6 +151,22 @@ export function MinhaMetaPage() {
         onEncerrarDia={({ valor, horas }) => m.mGanho.mutate({ data: hojeIso(), valor, horas, observacao: 'dia_encerrado' })}
       />
 
+      {/* ===== PLANO DE HOJE (Fase 11 — depois do hero, antes do cockpit) ===== */}
+      <PlanoDeHoje
+        hoje={d.hojeCockpit}
+        ritmo={d.ritmo}
+        horasPremissa={d.planoHoje.horasPremissa}
+        horasHistorico={d.planoHoje.horasHistorico}
+        historicoHora={d.realHora14?.valor ?? null}
+        premissaHora={meta.rendaHora}
+        rsHoraHoje={d.planoHoje.rsHoraHoje}
+        custoHoraRealMes={d.custoHoraRealMes}
+        pararAgora={d.planoHoje.pararAgora}
+        simulacoes={d.planoHoje.simulacoes}
+        amanha={d.planoHoje.amanha}
+        horasRestantesMesDia={d.planoHoje.horasRestantesMesDia}
+      />
+
       {/* ===== 5 · RITMO DO MÊS (F9: 3/4/6/7/15/16/22 · F10: projeções duplas) ===== */}
       <RitmoMesCard ritmo={d.ritmo} bancoMeta={d.bancoMeta} bancoHoras={d.bancoHoras} projecao={d.projecao} projecoes={d.projecoes} recuperacao={d.recuperacao} />
 
@@ -257,6 +275,7 @@ export function MinhaMetaPage() {
         custoOperacao={d.custoOperacao}
         custoDiaCarro={d.custoDiaCarro}
         custoHoraCarro={d.custoHoraCarro}
+        horasCarroHoje={d.horasCarroHoje}
       />
 
       {/* ===== ponto de equilíbrio (Módulo 13) ===== */}
@@ -281,6 +300,9 @@ export function MinhaMetaPage() {
           )}
         </Secao>
       )}
+
+      {/* ===== VISÃO SEMANAL (Fase 11 — Módulos 14/15) ===== */}
+      <SemanaCard semana={d.semana} />
 
       {/* ===== 9 · CALENDÁRIO (Módulo 17) ===== */}
       <CalendarioMeta
@@ -310,6 +332,7 @@ export function MinhaMetaPage() {
               </div>
               <p className="mt-1 text-[11px] text-neutral-500">
                 {formatBRL(o.valor_atual)} de {formatBRL(o.valor_meta)} ({pctObj}%) · falta {formatBRL(Math.max(0, o.valor_meta - o.valor_atual))}
+                {` · ${diasDisp} dia(s) de trabalho`}
                 {o.prazo && ` · prazo ${o.prazo.slice(8, 10)}/${o.prazo.slice(5, 7)}/${o.prazo.slice(0, 4)}`}
               </p>
               {porDia != null && porDia > 0 && (

@@ -116,6 +116,9 @@ export function RitmoMesCard({
         {projecoes && (
           <div className="mt-1.5 space-y-1 border-t border-neutral-200/60 pt-1.5 dark:border-white/10">
             <p className="text-[12px] text-neutral-700 dark:text-neutral-200">
+              <span className="font-semibold">META:</span> {formatBRL(ritmo.metaMensal)}
+            </p>
+            <p className="text-[12px] text-neutral-700 dark:text-neutral-200">
               <span className="font-semibold">PELA PREMISSA:</span> {formatBRL(projecoes.pelaPremissa.valor)}
             </p>
             <p className="text-[10px] text-neutral-400">{projecoes.pelaPremissa.formula}.</p>

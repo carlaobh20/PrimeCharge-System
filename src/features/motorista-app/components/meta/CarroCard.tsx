@@ -1,5 +1,5 @@
 import { Secao, Linha, Pill } from '../ui';
-import { CATEGORIA_LABEL, formatBRL } from '../../lib/metas';
+import { CATEGORIA_LABEL, formatBRL, formatHoras } from '../../lib/metas';
 
 // SEU CARRO CUSTA (Módulos 10/11/12) — composição por categoria; aluguel vem do CONTRATO
 // PrimeCharge com badge (não editável aqui — edição de despesas manuais fica no detalhamento).
@@ -23,6 +23,7 @@ export function CarroCard({
   custoOperacao,
   custoDiaCarro,
   custoHoraCarro,
+  horasCarroHoje,
 }: {
   totalCarro: number;
   totalGeral: number;
@@ -34,6 +35,8 @@ export function CarroCard({
   custoDiaCarro?: number | null;
   /** Fase 10 (Módulo 12): carro mensal ÷ horas previstas no mês (premissa) */
   custoHoraCarro?: number | null;
+  /** Fase 11 (Módulo 17): horas para cobrir o custo do carro de hoje (ESTIMATIVA na premissa) */
+  horasCarroHoje?: number | null;
 }) {
   const pctCarro = totalGeral > 0 ? Math.round((totalCarro / totalGeral) * 1000) / 10 : 0;
   const categorias = Object.entries(porCategoria).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
@@ -82,6 +85,14 @@ export function CarroCard({
             <p className="text-sm font-bold text-neutral-900 dark:text-white">{custoHoraCarro != null ? formatBRL(custoHoraCarro) : 'SEM DADO'}</p>
           </div>
         </div>
+      )}
+
+      {/* Fase 11 (Módulo 17) — cobrir o carro hoje */}
+      {custoDiaCarro != null && custoDiaCarro > 0 && horasCarroHoje != null && (
+        <p className="mt-1.5 text-[12px] text-neutral-600 dark:text-neutral-300">
+          Para cobrir o custo estimado do carro hoje: <strong>{formatBRL(custoDiaCarro)}</strong> ≈{' '}
+          <strong>{formatHoras(horasCarroHoje)}</strong> na premissa — ESTIMATIVA.
+        </p>
       )}
 
       {/* Módulo 11 — impacto factual */}

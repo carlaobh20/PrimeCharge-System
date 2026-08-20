@@ -6,7 +6,23 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-20, fim da Fase 10 (Inteligência Operacional Real do Motorista).
+**Última atualização:** 2026-08-20, fim da Fase 11 (Plano Operacional do Motorista).
+
+## 0.-6 Fase 11 — Plano Operacional do Motorista (2026-08-20, sobre a Fase 10)
+
+- Bloco PLANO DE HOJE (novo componente, MESMA página/motor/hook): meta original × rebalanceada;
+  horas pela PREMISSA × pelo HISTÓRICO; realizado com R$/h; SEU DIA EM NÚMEROS; SE EU PARAR
+  AGORA (null sem lançamento → "Não é possível calcular"); simulador ±1/2/3h (histórico quando
+  existe, origem declarada, imutável — testado); falta/dias/meta-dia/horas-dia; META DE AMANHÃ.
+- Motor (metas.ts): horasParaValor, seEuPararAgora, simularHorasExtras, metaDeAmanha,
+  resumoSemana — TODOS reusam rebalancear/mediaRealPorHora (asserts de reuso). montarCalendario
+  ganhou rsHora + encerrado (observacao). SemanaCard (Seg→Dom, barras CSS, meta semanal
+  ESTIMATIVA com fórmula). RitmoMesCard projeta META × PREMISSA × HISTÓRICO. CarroCard: horas
+  p/ cobrir o carro hoje. Objetivos: dias + meta/dia. Encerrar Dia continua único.
+- ZERO migration. Testes: audit-motorista-plano.ts **62/62** (458,33 · 11h27 · 9h35 ·
+  imutabilidade · vocabulário "matematicamente"/"A escolha é sua" · ordem hero→plano→cockpit);
+  regressão total verde (harness 293/293 + 14 scripts); tsc/oxlint/build ok
+  (MinhaMetaPage ~97KB/23KB gzip, lazy).
 
 ## 0.-5 Fase 10 — Inteligência Operacional Real (2026-08-20, sobre a Fase 9)
 

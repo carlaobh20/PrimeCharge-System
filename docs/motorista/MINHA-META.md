@@ -1,5 +1,22 @@
 # MINHA META — Inteligência Financeira Pessoal do Motorista
 
+> **Fase 11 — Plano Operacional do Motorista**: a aba vira um plano diário. Bloco PLANO DE HOJE
+> (entre o hero e o cockpit): meta original × rebalanceada × diferença (a original nunca muda);
+> horas necessárias PELA PREMISSA × PELO MEU HISTÓRICO (histórico nunca é garantia); realizado
+> de hoje com R$/h; SEU DIA EM NÚMEROS (grade 2×2); SE EU PARAR AGORA (diferença de hoje + nova
+> média nos dias restantes — sem lançamento → "Não é possível calcular"); simulador ±1/2/3h
+> (taxa = histórico quando existe, senão premissa; origem declarada; "Se você trabalhar +2h,
+> matematicamente…"; SIMULAÇÃO — nada é gravado; imutabilidade testada); falta/dias/meta-dia/
+> horas-dia factuais; META DE AMANHÃ (original × rebalanceada). Visão SEMANAL Seg→Dom em barras
+> CSS + "Como estou indo?" (registrado, horas, R$/h, meta semanal ESTIMADA com fórmula
+> declarada, diferença). Calendário: dia aberto mostra R$/h e encerrado/não encerrado; sem
+> registro = SEM DADO. Projeção do ritmo agora lista META × PELA PREMISSA × PELO HISTÓRICO.
+> Carro: "para cobrir o custo estimado do carro hoje ≈ XhXX" (ESTIMATIVA). Objetivos ganham
+> dias de trabalho + meta/dia. Encerrar Dia continua ÚNICO. Tudo REUSA `rebalancear`/
+> `calcularMetaHoje`/`mediaRealPorHora` (asserts). **ZERO migration.** Testes:
+> `audit-motorista-plano.ts` 62/62 (obrigatórios: 10.000−4.500=5.500 → 458,33/dia →
+> 11h27 a R$40/h → 9h35 a R$47,80/h; imutabilidade das simulações).
+
 > **Fase 10 — Inteligência Operacional Real**: camada de análise sobre os REGISTROS do
 > motorista, sempre rotulada (DADO REGISTRADO × IMPORTADO DO PRIMECHARGE × PREMISSA ×
 > ESTIMATIVA — nunca misturados). O sistema NÃO tem telemetria, km/dia, corridas nem dados de

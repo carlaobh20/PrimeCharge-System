@@ -195,13 +195,16 @@ export type DiaCalendario = {
   diferenca: number | null;
   horas: number | null;
   status: StatusDiaMeta;
+  /** Fase 11 (Módulo 13): R$/h do dia quando valor E horas existem */
+  rsHora: number | null;
+  encerrado: boolean;
 };
 
 export function montarCalendario(
   ano: number,
   mes1a12: number,
   metaDiaria: number,
-  ganhos: { data: string; valor: number; horas: number | null }[],
+  ganhos: { data: string; valor: number; horas: number | null; observacao?: string | null }[],
 ): DiaCalendario[] {
   const diasNoMes = new Date(ano, mes1a12, 0).getDate();
   const porDia = new Map(ganhos.map((g) => [Number(g.data.slice(8, 10)), g]));
@@ -209,18 +212,21 @@ export function montarCalendario(
   for (let dia = 1; dia <= diasNoMes; dia++) {
     const g = porDia.get(dia);
     if (!g) {
-      out.push({ dia, meta: seguro(metaDiaria), realizado: null, diferenca: null, horas: null, status: 'sem_dado' });
+      out.push({ dia, meta: seguro(metaDiaria), realizado: null, diferenca: null, horas: null, status: 'sem_dado', rsHora: null, encerrado: false });
       continue;
     }
     const realizado = seguro(g.valor);
     const dif = arred(realizado - seguro(metaDiaria));
+    const horas = g.horas != null && Number.isFinite(g.horas) ? g.horas : null;
     out.push({
       dia,
       meta: seguro(metaDiaria),
       realizado,
       diferenca: dif,
-      horas: g.horas != null && Number.isFinite(g.horas) ? g.horas : null,
+      horas,
       status: dif > 0.005 ? 'acima' : dif < -0.005 ? 'abaixo' : 'atingida',
+      rsHora: horas != null && horas > 0 && realizado > 0 ? arred(realizado / horas) : null,
+      encerrado: g.observacao === 'dia_encerrado',
     });
   }
   return out;
@@ -884,6 +890,191 @@ export function projecoesDuplas(i: {
           formula: `${formatBRL(realizado)} registrados + SUA média registrada (${formatBRL(i.mediaRealDia as number)}/dia, ${i.diasRegistrados} dias) × ${restantes} dia(s)`,
         }
       : null,
+  };
+}
+
+// ===========================================================================
+// FASE 11 — PLANO OPERACIONAL DIÁRIO (mesmo motor; TUDO reusa rebalancear/
+// calcularMetaHoje/mediaRealPorHora. Cálculo, nunca conselho: "Se você ...,
+// matematicamente ..." — a decisão é do motorista.)
+// ===========================================================================
+
+/** Horas para gerar um valor numa taxa (premissa OU histórico) — null-safe, nunca Infinity. */
+export function horasParaValor(valor: number, taxaHora: number | null): number | null {
+  if (taxaHora == null || !Number.isFinite(taxaHora) || taxaHora <= 0) return null;
+  return seguro(valor) / taxaHora;
+}
+
+// ---------------------------------------------------------------------------
+// SE EU PARAR AGORA (Módulo 5) — consequência matemática, sem incentivo.
+// ---------------------------------------------------------------------------
+
+export type PararAgora = {
+  realizadoHoje: number;
+  metaHoje: number;
+  diferencaHoje: number; // realizado − meta (negativa quando abaixo)
+  novaMetaDia: number | null; // média necessária nos dias DEPOIS de hoje (null no último dia c/ falta)
+  faltaDepoisDeHoje: number;
+};
+
+export function seEuPararAgora(i: {
+  metaMensal: number;
+  realizadoAcumuladoIncluindoHoje: number;
+  diasRestantesDepoisDeHoje: number;
+  metaHoje: number;
+  realizadoHoje: number | null;
+}): PararAgora | null {
+  if (i.realizadoHoje == null) return null; // sem lançamento → "não é possível calcular" (nada inventado)
+  const realizadoHoje = seguro(i.realizadoHoje);
+  const metaHoje = seguro(i.metaHoje);
+  const faltaDepois = Math.max(0, seguro(i.metaMensal) - seguro(i.realizadoAcumuladoIncluindoHoje));
+  return {
+    realizadoHoje,
+    metaHoje,
+    diferencaHoje: arred(realizadoHoje - metaHoje),
+    novaMetaDia: rebalancear(i.metaMensal, i.realizadoAcumuladoIncluindoHoje, i.diasRestantesDepoisDeHoje),
+    faltaDepoisDeHoje: arred(faltaDepois),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// SE EU TRABALHAR MAIS/MENOS (Módulos 6/7) — SIMULAÇÃO pura; nada é gravado.
+// ---------------------------------------------------------------------------
+
+export type SimulacaoHoras = {
+  horas: number; // pode ser negativa (−1h, −2h)
+  taxaUsada: number;
+  origemTaxa: 'historico' | 'premissa';
+  ganhoAdicional: number; // negativo quando horas < 0
+  novaFaltaHoje: number;
+  novaMetaRestanteDia: number | null; // impacto nos dias DEPOIS de hoje
+};
+
+export function simularHorasExtras(i: {
+  horas: number;
+  premissaHora: number;
+  historicoHora: number | null; // usa histórico quando disponível (origem declarada)
+  metaHoje: number;
+  realizadoHoje: number;
+  metaMensal: number;
+  realizadoAcumuladoIncluindoHoje: number;
+  diasRestantesDepoisDeHoje: number;
+}): SimulacaoHoras | null {
+  const temHistorico = i.historicoHora != null && Number.isFinite(i.historicoHora) && i.historicoHora > 0;
+  const taxa = temHistorico ? (i.historicoHora as number) : seguro(i.premissaHora);
+  if (taxa <= 0 || !Number.isFinite(i.horas) || i.horas === 0) return null;
+  const ganhoAdicional = arred(i.horas * taxa);
+  const novoRealizadoHoje = Math.max(0, seguro(i.realizadoHoje) + ganhoAdicional);
+  const novoAcumulado = Math.max(0, seguro(i.realizadoAcumuladoIncluindoHoje) + ganhoAdicional);
+  return {
+    horas: i.horas,
+    taxaUsada: taxa,
+    origemTaxa: temHistorico ? 'historico' : 'premissa',
+    ganhoAdicional,
+    novaFaltaHoje: arred(Math.max(0, seguro(i.metaHoje) - novoRealizadoHoje)),
+    novaMetaRestanteDia: rebalancear(i.metaMensal, novoAcumulado, i.diasRestantesDepoisDeHoje),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// META DE AMANHÃ (Módulo 12) — original NUNCA muda; rebalanceada é derivada.
+// ---------------------------------------------------------------------------
+
+export function metaDeAmanha(i: {
+  metaMensal: number;
+  realizadoAcumuladoIncluindoHoje: number;
+  diasRestantesDepoisDeHoje: number;
+  metaDiariaOriginal: number;
+}): { original: number; rebalanceada: number | null } {
+  return {
+    original: arred(seguro(i.metaDiariaOriginal)),
+    rebalanceada: rebalancear(i.metaMensal, i.realizadoAcumuladoIncluindoHoje, i.diasRestantesDepoisDeHoje),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// VISÃO SEMANAL + "COMO ESTOU INDO?" (Módulos 14/15) — semana Seg→Dom corrente.
+// ---------------------------------------------------------------------------
+
+export type DiaSemanaResumo = {
+  label: string; // SEG..DOM
+  data: string;
+  valor: number | null;
+  horas: number | null;
+  status: StatusDiaMeta;
+  encerrado: boolean;
+  futuro: boolean;
+};
+
+export type ResumoSemana = {
+  dias: DiaSemanaResumo[];
+  totalValor: number;
+  totalHoras: number | null;
+  rsHora: number | null;
+  diasRegistrados: number;
+  metaSemanalEstimada: number; // ESTIMATIVA: meta diária original × dias planejados/semana
+  diasPlanejadosSemana: number;
+  diferenca: number; // registrado − meta semanal estimada
+};
+
+const ORDEM_SEMANA = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'] as const;
+
+export function resumoSemana(
+  ganhos: (GanhoDia & { observacao?: string | null })[],
+  hojeIso: string,
+  metaDiariaOriginal: number,
+  diasPlanejadosMes: number,
+  diasNoMes: number,
+): ResumoSemana {
+  const hoje = new Date(`${hojeIso}T12:00:00`);
+  const dow = hoje.getDay(); // 0=DOM
+  const offsetSegunda = dow === 0 ? 6 : dow - 1;
+  const porData = new Map(ganhos.map((g) => [g.data, g]));
+  const dias: DiaSemanaResumo[] = [];
+  let totalValor = 0;
+  let totalHoras = 0;
+  let temHoras = false;
+  let registrados = 0;
+  for (let idx = 0; idx < 7; idx++) {
+    const dt = new Date(hoje.getTime() + (idx - offsetSegunda) * 86_400_000);
+    const iso = dt.toISOString().slice(0, 10);
+    const g = porData.get(iso);
+    const futuro = iso > hojeIso;
+    if (g) {
+      registrados++;
+      totalValor += seguro(g.valor);
+      if (g.horas != null && Number.isFinite(g.horas) && g.horas > 0) {
+        temHoras = true;
+        totalHoras += g.horas;
+      }
+      const dif = seguro(g.valor) - seguro(metaDiariaOriginal);
+      dias.push({
+        label: ORDEM_SEMANA[idx],
+        data: iso,
+        valor: seguro(g.valor),
+        horas: g.horas != null && Number.isFinite(g.horas) ? g.horas : null,
+        status: dif > 0.005 ? 'acima' : dif < -0.005 ? 'abaixo' : 'atingida',
+        encerrado: g.observacao === 'dia_encerrado',
+        futuro,
+      });
+    } else {
+      dias.push({ label: ORDEM_SEMANA[idx], data: iso, valor: null, horas: null, status: 'sem_dado', encerrado: false, futuro });
+    }
+  }
+  const rsH = mediaRealPorHora(dias.filter((d) => d.valor != null).map((d) => ({ data: d.data, valor: d.valor as number, horas: d.horas })));
+  const planejMes = Number.isFinite(diasPlanejadosMes) && diasPlanejadosMes >= 1 ? Math.min(Math.floor(diasPlanejadosMes), 31) : 26;
+  const noMes = Number.isFinite(diasNoMes) && diasNoMes >= 28 ? diasNoMes : 30;
+  const diasPlanejadosSemana = Math.min(7, Math.max(1, Math.round((planejMes * 7) / noMes)));
+  const metaSemanal = arred(seguro(metaDiariaOriginal) * diasPlanejadosSemana);
+  return {
+    dias,
+    totalValor: arred(totalValor),
+    totalHoras: temHoras ? Math.round(totalHoras * 10) / 10 : null,
+    rsHora: rsH?.valor ?? null,
+    diasRegistrados: registrados,
+    metaSemanalEstimada: metaSemanal,
+    diasPlanejadosSemana,
+    diferenca: arred(totalValor - metaSemanal),
   };
 }
 

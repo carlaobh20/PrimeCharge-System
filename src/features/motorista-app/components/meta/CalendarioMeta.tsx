@@ -71,12 +71,16 @@ export function CalendarioMeta({
           <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
             Dia {diaAberto.dia} — meta {formatBRL(diaAberto.meta)}
           </p>
-          {diaAberto.realizado != null && (
+          {diaAberto.realizado != null ? (
             <p className="text-[11px] text-neutral-500">
-              Realizado: {formatBRL(diaAberto.realizado)} ({STATUS_DIA_LABEL[diaAberto.status]}
+              Registrado: {formatBRL(diaAberto.realizado)} ({STATUS_DIA_LABEL[diaAberto.status]}
               {diaAberto.diferenca != null && `, ${diaAberto.diferenca >= 0 ? '+' : ''}${formatBRL(diaAberto.diferenca)}`})
               {diaAberto.horas != null && ` · ${formatHoras(diaAberto.horas)} trabalhadas`}
+              {diaAberto.rsHora != null && ` · ${formatBRL(diaAberto.rsHora)}/h`}
+              {diaAberto.encerrado ? ' · dia encerrado' : ' · dia não encerrado'}
             </p>
+          ) : (
+            <p className="text-[11px] text-neutral-500">SEM DADO — nenhum registro neste dia.</p>
           )}
           <div className="grid grid-cols-2 gap-2">
             <input className="h-10 rounded-xl border border-neutral-200 bg-transparent px-3 text-sm dark:border-white/10" placeholder="Quanto você fez? (R$)" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} />
