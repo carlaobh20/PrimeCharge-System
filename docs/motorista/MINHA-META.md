@@ -1,5 +1,21 @@
 # MINHA META — Inteligência Financeira Pessoal do Motorista
 
+> **Fase 9 — Cockpit Financeiro** (evolução, nada reconstruído): a tela agora abre respondendo
+> "quanto eu preciso fazer HOJE?" — meta de hoje REBALANCEADA (falta do mês ÷ dias restantes,
+> hoje incluso; a meta diária original não muda), status do dia (AINDA NÃO COMEÇOU / ABAIXO /
+> NO RITMO / ACIMA / DIA ENCERRADO — ícone + texto + %, nunca só cor), ritmo do mês (dias
+> planejados × trabalhados × restantes; dias sem produção como FATO, sem julgamento), saldo de
+> meta (Σ realizado − meta por dia lançado — não é dinheiro guardado) e saldo de horas (só nos
+> dias com horas lançadas), projeção com fórmula declarada (mín. 3 dias, senão "Sem dados
+> suficientes"), "Como recuperar?" (3 opções matemáticas, sem recomendação), cenários prontos
+> (+1h, +2h, +R$5/h, −10% custos, +2 dias), card SEU CARRO CUSTA (composição + badge IMPORTADO
+> DO CONTRATO + % de impacto), vida × operação separados, comparação mensal via snapshots e
+> botão ENCERRAR DIA (grava ganho+horas com `observacao='dia_encerrado'` — reuso da 0047,
+> correção livre pelo calendário). Snapshot mensal agora fotografa também meta/dias/renda/
+> reserva dentro do `por_grupo` jsonb. **ZERO migration nova.** Testes:
+> `audit-motorista-cockpit.ts` 81/81 (casos obrigatórios: 10.000/25=400; 400/40=10h;
+> 10.000−4.500=5.500; 5.500/12=458,33).
+
 > Área do APP DO MOTORISTA (`/motorista/meta`). Objetivo: o motorista entender **quanto custa a
 > vida dele e quanto precisa trabalhar para pagar essa vida**. Não é ERP, não é planilha, não é
 > aconselhamento financeiro — é uma ferramenta de organização pessoal, mobile-first.

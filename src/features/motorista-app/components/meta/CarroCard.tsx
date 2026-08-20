@@ -1,0 +1,79 @@
+import { Secao, Linha, Pill } from '../ui';
+import { CATEGORIA_LABEL, formatBRL } from '../../lib/metas';
+
+// SEU CARRO CUSTA (Módulos 10/11/12) — composição por categoria; aluguel vem do CONTRATO
+// PrimeCharge com badge (não editável aqui — edição de despesas manuais fica no detalhamento).
+// Impacto = % factual sobre o custo total. Vida × Operação separados (Módulo 12).
+
+export function CarroCard({
+  totalCarro,
+  totalGeral,
+  aluguelContrato,
+  porCategoria,
+  custoVida,
+  custoOperacao,
+}: {
+  totalCarro: number;
+  totalGeral: number;
+  aluguelContrato: { valorMensal: number; origem: string } | null;
+  porCategoria: Record<string, number>;
+  custoVida: number;
+  custoOperacao: number;
+}) {
+  const pctCarro = totalGeral > 0 ? Math.round((totalCarro / totalGeral) * 1000) / 10 : 0;
+  const categorias = Object.entries(porCategoria).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+
+  return (
+    <Secao titulo="Seu carro custa">
+      <p className="text-2xl font-extrabold text-neutral-900 dark:text-white">
+        {formatBRL(totalCarro)}<span className="text-sm font-normal text-neutral-400">/mês</span>
+      </p>
+
+      <div className="mt-2 space-y-1">
+        {aluguelContrato && (
+          <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 dark:bg-emerald-500/10">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-neutral-800 dark:text-neutral-100">
+                Aluguel <Pill tom="verde">IMPORTADO DO CONTRATO</Pill>
+              </p>
+              <p className="truncate text-[10px] text-neutral-500">{aluguelContrato.origem}</p>
+            </div>
+            <span className="shrink-0 text-sm font-semibold text-emerald-700 dark:text-emerald-400">{formatBRL(aluguelContrato.valorMensal)}</span>
+          </div>
+        )}
+        {categorias.map(([cat, valor]) => (
+          <Linha key={cat} label={CATEGORIA_LABEL[cat] ?? cat} value={`${formatBRL(valor)}/mês`} />
+        ))}
+        {categorias.length === 0 && !aluguelContrato && (
+          <p className="text-sm text-neutral-400">Nenhum custo do carro cadastrado ainda.</p>
+        )}
+      </div>
+
+      {/* Módulo 11 — impacto factual */}
+      {totalGeral > 0 && totalCarro > 0 && (
+        <>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-white/10" role="img" aria-label={`O carro representa ${pctCarro}% dos custos cadastrados`}>
+            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, pctCarro)}%` }} />
+          </div>
+          <p className="mt-1 text-[12px] text-neutral-600 dark:text-neutral-300">
+            O carro representa <strong>{String(pctCarro).replace('.', ',')}%</strong> dos custos cadastrados.
+          </p>
+        </>
+      )}
+
+      {/* Módulo 12 — vida × operação */}
+      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-neutral-100 pt-2 dark:border-white/10">
+        <div className="rounded-xl bg-neutral-50 p-2 text-center dark:bg-white/5">
+          <p className="text-[10px] uppercase tracking-wide text-neutral-400">Custo de vida</p>
+          <p className="text-sm font-bold text-neutral-900 dark:text-white">{formatBRL(custoVida)}</p>
+          <p className="text-[10px] text-neutral-400">vida + família</p>
+        </div>
+        <div className="rounded-xl bg-neutral-50 p-2 text-center dark:bg-white/5">
+          <p className="text-[10px] uppercase tracking-wide text-neutral-400">Custo operacional</p>
+          <p className="text-sm font-bold text-neutral-900 dark:text-white">{formatBRL(custoOperacao)}</p>
+          <p className="text-[10px] text-neutral-400">carro + trabalho</p>
+        </div>
+      </div>
+    </Secao>
+  );
+}

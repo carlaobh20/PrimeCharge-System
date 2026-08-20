@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Secao } from '../ui';
-import { formatBRL, formatHoras, simular } from '../../lib/metas';
+import { formatBRL, formatHoras, simular, type Cenario } from '../../lib/metas';
 
-// SIMULADOR "E SE?" (Módulo 25) — mexe em CÓPIAS locais; nunca altera os dados reais.
+// SIMULADOR "E SE?" (Módulo 25; expandido na Fase 9 — Módulo 23 com cenários prontos).
+// Mexe em CÓPIAS locais; nunca altera os dados reais. Cenários são SIMULAÇÃO, não recomendação.
 
-export function SimuladorESe({ base }: { base: { custoTotal: number; diasTrabalho: number; rendaHora: number } }) {
+export function SimuladorESe({ base, cenarios = [] }: { base: { custoTotal: number; diasTrabalho: number; rendaHora: number }; cenarios?: Cenario[] }) {
   const [dias, setDias] = useState(base.diasTrabalho);
   const [renda, setRenda] = useState(base.rendaHora);
   const [custo, setCusto] = useState(base.custoTotal);
@@ -48,6 +49,22 @@ export function SimuladorESe({ base }: { base: { custoTotal: number; diasTrabalh
             ? `Diferença: ${formatBRL(Math.abs(r.diferencaDiaria))} a MENOS por dia.`
             : `Diferença: ${formatBRL(r.diferencaDiaria)} a MAIS por dia.`}
         </p>
+      )}
+
+      {/* Módulo 23 — cenários prontos (impacto matemático; a escolha é do motorista) */}
+      {cenarios.length > 0 && (
+        <div className="mt-3 border-t border-neutral-100 pt-2 dark:border-white/10">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Cenários prontos</p>
+          <ul className="mt-1 space-y-1.5">
+            {cenarios.map((c) => (
+              <li key={c.rotulo} className="rounded-xl bg-neutral-50 px-3 py-2 dark:bg-white/5">
+                <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{c.rotulo}</p>
+                <p className="text-[11px] text-neutral-500">{c.impacto}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-[10px] text-neutral-400">Simulações matemáticas com as suas premissas — não são recomendações.</p>
+        </div>
       )}
     </Secao>
   );

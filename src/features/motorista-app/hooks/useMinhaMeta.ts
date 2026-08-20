@@ -19,14 +19,23 @@ import {
   type MetaConfig,
 } from '../api/financasPessoais';
 import {
+  alertasCockpit,
   alertasMeta,
   calcularMeta,
+  calcularMetaHoje,
   calcularTotais,
+  cenariosPredefinidos,
+  compararMeses,
   metaDeHoje,
   montarCalendario,
   normalizarMensal,
+  opcoesRecuperacao,
   progressoDoMes,
+  projecaoMes,
   rebalancear,
+  ritmoDoMes,
+  saldoHoras,
+  saldoMeta,
   type DespesaMeta,
 } from '../lib/metas';
 
@@ -85,13 +94,75 @@ export function useMinhaMeta() {
 
     const calendario = montarCalendario(hoje.getFullYear(), hoje.getMonth() + 1, meta.metaDiaria, ganhos);
 
-    const mesAnterior = snapshots.find((s) => s.mes.slice(0, 7) !== anoMes);
-    const alertas = alertasMeta({
-      totais,
-      progresso: progresso.realizado > 0 ? progresso : null,
-      snapshotAnteriorTotal: mesAnterior?.total ?? null,
-      diasRestantes: diasTrabalhoRestantes,
+    // ===== FASE 9 — COCKPIT (mesmos dados, mais inteligência; nada duplicado) =====
+    // Ritmo do mês (Módulos 3/4): dias planejados decorridos são proporcionais ao calendário.
+    const ritmo = ritmoDoMes({
+      metaMensal: meta.metaMensal,
+      metaDiariaOriginal: meta.metaDiaria,
+      realizado: progresso.realizado,
+      diasPlanejados: diasTrabalho,
+      diasTrabalhados: progresso.diasComLancamento,
+      diaAtual: hoje.getDate(),
+      diasNoMes,
     });
+
+    // Meta de HOJE rebalanceada (Módulo 5): falta do mês (sem contar hoje) ÷ dias restantes
+    // incluindo hoje. "Dia encerrado" fica gravado em observacao do ganho (reuso da 0047).
+    const realizadoAntesDeHoje = progresso.realizado - (ganhoHoje?.valor ?? 0);
+    const diaEncerrado = ganhoHoje?.observacao === 'dia_encerrado';
+    const hojeCockpit = calcularMetaHoje({
+      metaMensal: meta.metaMensal,
+      metaDiariaOriginal: meta.metaDiaria,
+      realizadoAcumuladoAntesDeHoje: realizadoAntesDeHoje,
+      diasRestantesIncluindoHoje: ritmo.diasRestantesPlanejados + 1, // decorridos já incluem hoje
+
+      rendaHora: meta.rendaHora,
+      realizadoHoje: ganhoHoje ? ganhoHoje.valor : null,
+      horasTrabalhadasHoje: ganhoHoje?.horas ?? null,
+      diaEncerrado,
+    });
+
+    const bancoMeta = progresso.diasComLancamento > 0 ? saldoMeta(meta.metaDiaria, ganhos) : null;
+    const bancoHoras = saldoHoras(meta.horasPorDia, ganhos);
+    const projecao = projecaoMes({
+      realizado: progresso.realizado,
+      diasTrabalhados: progresso.diasComLancamento,
+      diasRestantesPlanejados: ritmo.diasRestantesPlanejados,
+      metaMensal: meta.metaMensal,
+    });
+    const recuperacao = progresso.falta > 0 && ritmo.ritmo === 'abaixo'
+      ? opcoesRecuperacao({ faltaMes: progresso.falta, metaDiariaOriginal: meta.metaDiaria, diasRestantes: ritmo.diasRestantesPlanejados, rendaHora: meta.rendaHora })
+      : [];
+    const cenarios = cenariosPredefinidos({ custoTotal: totais.total, diasTrabalho, rendaHora: meta.rendaHora });
+
+    // Comparação mensal (Módulo 20) — snapshot do mês anterior mais recente
+    const snapAnterior = snapshots.find((s) => s.mes.slice(0, 7) !== anoMes) ?? null;
+    const comparacao = compararMeses(
+      { mes: `${anoMes}-01`, total: totais.total, por_grupo: { vida: totais.vida, familia: totais.familia, carro: totais.carro, trabalho: totais.trabalho } },
+      snapAnterior,
+    );
+
+    // Composição do carro por categoria (Módulo 10) + vida × operação (Módulo 12)
+    const carroPorCategoria = despesasAtivas
+      .filter((d) => d.ativa && d.grupo === 'carro')
+      .reduce<Record<string, number>>((acc, d) => {
+        const mensal = normalizarMensal(d.valor, d.periodicidade);
+        acc[d.categoria] = (acc[d.categoria] ?? 0) + mensal;
+        return acc;
+      }, {});
+    const custoVida = Math.round((totais.vida + totais.familia) * 100) / 100;
+    const custoOperacao = Math.round((totais.carro + totais.trabalho) * 100) / 100;
+
+    const mesAnterior = snapAnterior;
+    const alertas = [
+      ...alertasMeta({
+        totais,
+        progresso: progresso.realizado > 0 ? progresso : null,
+        snapshotAnteriorTotal: mesAnterior?.total ?? null,
+        diasRestantes: diasTrabalhoRestantes,
+      }),
+      ...alertasCockpit({ ritmo: progresso.realizado > 0 ? ritmo : null, objetivos: base.data.objetivos }),
+    ];
 
     // Módulo 32 — divergência: motorista cadastrou "aluguel do carro" manual ≠ contrato
     const aluguelManual = despesasAtivas.find((d) => d.ativa && d.grupo === 'carro' && d.categoria === 'aluguel_veiculo');
@@ -113,6 +184,19 @@ export function useMinhaMeta() {
       alertas,
       divergenciaAluguel,
       config,
+      // Fase 9 — cockpit
+      ritmo,
+      hojeCockpit,
+      diaEncerrado,
+      bancoMeta,
+      bancoHoras,
+      projecao,
+      recuperacao,
+      cenarios,
+      comparacao,
+      carroPorCategoria,
+      custoVida,
+      custoOperacao,
       temDados: despesasAtivas.some((d) => d.ativa) || aluguelCarroMensal > 0,
       precisaOnboarding: !despesasAtivas.some((d) => d.ativa) && !config,
     };

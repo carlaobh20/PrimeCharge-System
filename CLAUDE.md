@@ -6,8 +6,28 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-20, fim da fase "Minha Meta" (Inteligência Financeira Pessoal
-do App do Motorista).
+**Última atualização:** 2026-08-20, fim da Fase 9 (Cockpit Financeiro do Motorista).
+
+## 0.-4 Fase 9 — Cockpit Financeiro do Motorista (2026-08-20, sobre a Minha Meta)
+
+- EVOLUÇÃO da Minha Meta (nada reconstruído, ZERO migration — 0047 continua a última). Motor
+  `metas.ts` ganhou: `calcularMetaHoje` (meta de hoje REBALANCEADA + status do dia com 5
+  estados), `ritmoDoMes` (dias planejados decorridos proporcionais ao calendário; dias sem
+  produção como fato), `saldoMeta`/`saldoHoras` (bancos — desempenho contra meta, não dinheiro),
+  `projecaoMes` (mín. 3 dias; fórmula declarada), `opcoesRecuperacao` (3 opções matemáticas, sem
+  conselho), `cenariosPredefinidos`, `compararMeses`, `alertasCockpit`. `ritmoDoMes` REUSA
+  `rebalancear`; auditoria de duplicação mecânica (uma única definição dos fatores mensais).
+- UI na ordem do Módulo 26: HeroHoje (meta de hoje grande + status + encerrar dia) →
+  RitmoMesCard (dias/saldos/projeção/recuperação) → alertas → custo total com "Ver detalhamento"
+  (blocos de despesas ficam ocultos por padrão) → CarroCard (badge IMPORTADO DO CONTRATO, % de
+  impacto, vida × operação) → equilíbrio → calendário → objetivos (impacto diário) → reserva →
+  histórico + comparação mensal → simulador com cenários.
+- ENCERRAR DIA reusa `motorista_ganhos.observacao='dia_encerrado'` (upsert parcial do calendário
+  preserva a marca). Snapshot mensal agora fotografa meta/dias/renda/reserva no `por_grupo` jsonb.
+- Testes: `audit-motorista-cockpit.ts` **81/81** (obrigatórios 10000/25=400, 400/40=10h,
+  5500/12=458,33; ordem da tela; vocabulário; zero duplicação); harness segue **293/293**;
+  audit-meta 94/94 (check do disclaimer agora olha página+hero); demais audits verdes;
+  tsc/oxlint/build ok (MinhaMetaPage ~64KB/16KB gzip, ainda lazy). Produção intocada.
 
 ## 0.-3 Minha Meta — Inteligência Financeira Pessoal do Motorista (2026-08-20, após 098c78e)
 

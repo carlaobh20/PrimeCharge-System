@@ -208,8 +208,9 @@ check('K', fonteApp.every(({ s }) => !s.includes("from 'recharts'") && !s.includ
 const arquivosMeta = fonteApp.filter(({ p }) => /minhameta|minha-meta|\/meta\/|financasPessoais|lib\/metas/i.test(p));
 check('K', arquivosMeta.length >= 7, 'varredura encontrou os arquivos da Minha Meta');
 check('K', arquivosMeta.every(({ s }) => !/features\/contracts\/juridico/.test(s)), 'Minha Meta NÃO importa nada do Centro Jurídico (Módulo 1 — jurídico não recebe features novas)');
-const pageMeta = readFileSync(join(raiz, 'src/features/motorista-app/pages/MinhaMetaPage.tsx'), 'utf8');
-check('K', /Estimativa baseada na renda média informada/.test(pageMeta) || /renda média informada/.test(pageMeta), 'disclaimer de estimativa presente na página');
+const pageMeta = readFileSync(join(raiz, 'src/features/motorista-app/pages/MinhaMetaPage.tsx'), 'utf8')
+  + readFileSync(join(raiz, 'src/features/motorista-app/components/meta/HeroHoje.tsx'), 'utf8');
+check('K', /renda média informada|não é rendimento real/.test(pageMeta), 'disclaimer de estimativa presente na tela (página ou hero)');
 check('K', /Não é aconselhamento financeiro/.test(pageMeta), 'rodapé "Não é aconselhamento financeiro" presente');
 
 // =============================== L — arquitetura: rota lazy + RLS 0047 =======================

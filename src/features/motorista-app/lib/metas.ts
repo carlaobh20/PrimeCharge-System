@@ -306,6 +306,339 @@ export function alertasMeta(i: {
   return alertas;
 }
 
+// ===========================================================================
+// FASE 9 — COCKPIT FINANCEIRO (evolução da Minha Meta; MESMO motor, nada duplicado)
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// META DE HOJE + STATUS DO DIA (Módulos 1/2/5/8/14/18)
+// ---------------------------------------------------------------------------
+
+export type StatusDia = 'nao_comecou' | 'abaixo_ritmo' | 'no_ritmo' | 'acima_ritmo' | 'encerrado';
+
+export const STATUS_DIA_HOJE_LABEL: Record<StatusDia, string> = {
+  nao_comecou: 'Ainda não começou',
+  abaixo_ritmo: 'Abaixo do ritmo',
+  no_ritmo: 'No ritmo',
+  acima_ritmo: 'Acima do ritmo',
+  encerrado: 'Dia encerrado',
+};
+
+export type MetaHojeCockpit = {
+  metaHoje: number; // meta REBALANCEADA de hoje (falta do mês ÷ dias restantes, incluindo hoje)
+  metaDiariaOriginal: number;
+  realizadoHoje: number | null;
+  faltanteHoje: number | null;
+  horasRestantes: number | null; // na renda/hora premissa
+  horasNecessariasHoje: number | null;
+  horasTrabalhadasHoje: number | null;
+  sobreAMeta: number | null; // realizado − meta de hoje (pode ser negativo)
+  pctDia: number | null; // 0..100+ do dia coberto
+  status: StatusDia;
+};
+
+/**
+ * Módulo 5 — motor puro da META DE HOJE. A meta de hoje é a REBALANCEADA: o que falta no mês
+ * dividido pelos dias de trabalho restantes (hoje incluso). Guards: 0, negativo, NaN, Infinity,
+ * dias restantes 0 (→ o que falta no mês inteiro vira a meta do dia, nunca divisão por zero).
+ * O "ritmo" intradia só é calculado quando o motorista LANÇOU horas (nada é inventado): esperado
+ * até agora = metaHoje × min(1, horasTrabalhadas / horasNecessárias) — fórmula transparente na
+ * premissa de renda/hora informada.
+ */
+export function calcularMetaHoje(i: {
+  metaMensal: number;
+  metaDiariaOriginal: number;
+  realizadoAcumuladoAntesDeHoje: number;
+  diasRestantesIncluindoHoje: number;
+  rendaHora: number;
+  realizadoHoje: number | null;
+  horasTrabalhadasHoje: number | null;
+  diaEncerrado: boolean;
+}): MetaHojeCockpit {
+  const faltaMes = Math.max(0, seguro(i.metaMensal) - seguro(i.realizadoAcumuladoAntesDeHoje));
+  const diasRest = Number.isFinite(i.diasRestantesIncluindoHoje) && i.diasRestantesIncluindoHoje >= 1
+    ? Math.floor(i.diasRestantesIncluindoHoje)
+    : 1; // 0 dias restantes → hoje carrega o que falta (nunca ÷0)
+  const metaHoje = arred(faltaMes / diasRest);
+  const renda = seguro(i.rendaHora);
+  const horasNecessariasHoje = renda > 0 ? metaHoje / renda : null;
+  const realizadoHoje = i.realizadoHoje != null && Number.isFinite(i.realizadoHoje) ? Math.max(0, i.realizadoHoje) : null;
+  const horasHoje = i.horasTrabalhadasHoje != null && Number.isFinite(i.horasTrabalhadasHoje) && i.horasTrabalhadasHoje > 0
+    ? Math.min(i.horasTrabalhadasHoje, 24)
+    : null;
+
+  const faltanteHoje = realizadoHoje != null ? arred(Math.max(0, metaHoje - realizadoHoje)) : null;
+  const horasRestantes = faltanteHoje != null && renda > 0 ? faltanteHoje / renda : null;
+  const sobreAMeta = realizadoHoje != null ? arred(realizadoHoje - metaHoje) : null;
+  const pctDia = realizadoHoje != null && metaHoje > 0 ? Math.round((realizadoHoje / metaHoje) * 100) : null;
+
+  let status: StatusDia;
+  if (i.diaEncerrado) status = 'encerrado';
+  else if (realizadoHoje == null) status = 'nao_comecou';
+  else if (metaHoje <= 0) status = 'acima_ritmo';
+  else {
+    // esperado até agora: proporcional às horas lançadas; sem horas lançadas, compara com o dia inteiro
+    const esperado = horasHoje != null && horasNecessariasHoje != null && horasNecessariasHoje > 0
+      ? metaHoje * Math.min(1, horasHoje / horasNecessariasHoje)
+      : metaHoje;
+    const razao = esperado > 0 ? realizadoHoje / esperado : 1;
+    status = razao >= 1.05 ? 'acima_ritmo' : razao >= 0.95 ? 'no_ritmo' : 'abaixo_ritmo';
+  }
+
+  return {
+    metaHoje,
+    metaDiariaOriginal: arred(seguro(i.metaDiariaOriginal)),
+    realizadoHoje,
+    faltanteHoje,
+    horasRestantes,
+    horasNecessariasHoje,
+    horasTrabalhadasHoje: horasHoje,
+    sobreAMeta,
+    pctDia,
+    status,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// RITMO DO MÊS + DIAS SEM PRODUÇÃO (Módulos 3/4)
+// ---------------------------------------------------------------------------
+
+export type RitmoMes = {
+  metaMensal: number;
+  metaDiariaOriginal: number; // conceito DIFERENTE da meta restante (Módulo 3)
+  realizado: number;
+  cobertura: number; // %
+  diasPlanejados: number;
+  diasTrabalhados: number; // dias com lançamento
+  diasPlanejadosDecorridos: number; // estimativa proporcional ao calendário (fórmula declarada)
+  diasRestantesPlanejados: number;
+  diasSemProducao: number; // planejados decorridos − trabalhados (nunca negativo)
+  metaRestanteDia: number | null; // falta ÷ dias restantes (null sem dias restantes)
+  esperadoAteAgora: number; // meta diária original × dias planejados decorridos
+  deltaRitmo: number; // realizado − esperado (negativo = abaixo do ritmo)
+  ritmo: 'acima' | 'no_ritmo' | 'abaixo' | 'sem_dado';
+};
+
+/** Módulos 3/4 — ritmo do mês. Dias planejados decorridos = proporcional aos dias corridos
+ *  (diaAtual × diasPlanejados ÷ diasNoMes) — o sistema NÃO conhece a escala real do motorista,
+ *  e a fórmula fica declarada. Sem lançamento nenhum → ritmo 'sem_dado' (nada inventado). */
+export function ritmoDoMes(i: {
+  metaMensal: number;
+  metaDiariaOriginal: number;
+  realizado: number;
+  diasPlanejados: number;
+  diasTrabalhados: number;
+  diaAtual: number; // dia do mês (1..31)
+  diasNoMes: number;
+}): RitmoMes {
+  const planejados = Number.isFinite(i.diasPlanejados) && i.diasPlanejados >= 1 ? Math.min(Math.floor(i.diasPlanejados), 31) : 26;
+  const noMes = Number.isFinite(i.diasNoMes) && i.diasNoMes >= 28 ? i.diasNoMes : 30;
+  const diaAtual = Math.min(Math.max(seguro(i.diaAtual), 1), noMes);
+  const trabalhados = Math.max(0, Math.floor(seguro(i.diasTrabalhados)));
+  const decorridos = Math.min(planejados, Math.round((diaAtual * planejados) / noMes));
+  const restantes = Math.max(0, planejados - decorridos);
+  const meta = seguro(i.metaMensal);
+  const realizado = seguro(i.realizado);
+  const esperado = arred(seguro(i.metaDiariaOriginal) * decorridos);
+  const delta = arred(realizado - esperado);
+  return {
+    metaMensal: meta,
+    metaDiariaOriginal: arred(seguro(i.metaDiariaOriginal)),
+    realizado: arred(realizado),
+    cobertura: meta > 0 ? Math.round((realizado / meta) * 100) : 0,
+    diasPlanejados: planejados,
+    diasTrabalhados: trabalhados,
+    diasPlanejadosDecorridos: decorridos,
+    diasRestantesPlanejados: restantes,
+    diasSemProducao: Math.max(0, decorridos - trabalhados),
+    metaRestanteDia: rebalancear(meta, realizado, restantes),
+    esperadoAteAgora: esperado,
+    deltaRitmo: delta,
+    ritmo: trabalhados === 0 ? 'sem_dado' : delta > esperado * 0.02 + 0.005 ? 'acima' : delta < -(esperado * 0.02) - 0.005 ? 'abaixo' : 'no_ritmo',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// BANCO DE DIAS (saldo de meta) + BANCO DE HORAS (Módulos 15/16)
+// ---------------------------------------------------------------------------
+
+/** Módulo 15 — desempenho acumulado contra a meta diária NOS DIAS TRABALHADOS.
+ *  NÃO é dinheiro guardado — é a soma dos (realizado − meta) de cada dia lançado. */
+export function saldoMeta(metaDiariaOriginal: number, ganhos: { valor: number }[]): number {
+  const meta = seguro(metaDiariaOriginal);
+  return arred(ganhos.reduce((s, g) => s + (seguro(g.valor) - meta), 0));
+}
+
+/** Módulo 16 — horas realizadas × horas necessárias, SÓ nos dias em que o motorista lançou
+ *  horas (nada estimado onde não há dado). null = nenhum dia com horas lançadas. */
+export function saldoHoras(horasNecessariasPorDia: number | null, ganhos: { horas: number | null }[]): { saldo: number; diasComHoras: number } | null {
+  if (horasNecessariasPorDia == null || !Number.isFinite(horasNecessariasPorDia) || horasNecessariasPorDia <= 0) return null;
+  const comHoras = ganhos.filter((g) => g.horas != null && Number.isFinite(g.horas) && g.horas > 0);
+  if (comHoras.length === 0) return null;
+  const realizadas = comHoras.reduce((s, g) => s + (g.horas as number), 0);
+  const necessarias = horasNecessariasPorDia * comHoras.length;
+  return { saldo: Math.round((realizadas - necessarias) * 100) / 100, diasComHoras: comHoras.length };
+}
+
+// ---------------------------------------------------------------------------
+// PROJEÇÃO DO MÊS (Módulo 22) — fórmula transparente, nunca inventa.
+// ---------------------------------------------------------------------------
+
+export type ProjecaoMes = {
+  projecao: number;
+  mediaPorDiaTrabalhado: number;
+  diasUsados: number;
+  diasRestantes: number;
+  diferencaDaMeta: number;
+  formula: string; // declarada na tela (Módulo 22: "a fórmula precisa ser transparente")
+} | null;
+
+/** Projeção = realizado + (média por dia trabalhado × dias de trabalho restantes).
+ *  Exige no MÍNIMO 3 dias lançados — senão retorna null ("Sem dados suficientes para projetar"). */
+export function projecaoMes(i: { realizado: number; diasTrabalhados: number; diasRestantesPlanejados: number; metaMensal: number }): ProjecaoMes {
+  const dias = Math.floor(seguro(i.diasTrabalhados));
+  if (dias < 3) return null;
+  const restantes = Math.max(0, Math.floor(seguro(i.diasRestantesPlanejados)));
+  const media = arred(seguro(i.realizado) / dias);
+  const projecao = arred(seguro(i.realizado) + media * restantes);
+  return {
+    projecao,
+    mediaPorDiaTrabalhado: media,
+    diasUsados: dias,
+    diasRestantes: restantes,
+    diferencaDaMeta: arred(projecao - seguro(i.metaMensal)),
+    formula: `${formatBRL(seguro(i.realizado))} já lançados + média de ${formatBRL(media)}/dia trabalhado × ${restantes} dia(s) restante(s)`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// RECUPERAÇÃO (Módulo 7) — só matemática; NUNCA recomenda qual opção escolher.
+// ---------------------------------------------------------------------------
+
+export type OpcaoRecuperacao = { rotulo: string; detalhe: string };
+
+export function opcoesRecuperacao(i: {
+  faltaMes: number;
+  metaDiariaOriginal: number;
+  diasRestantes: number;
+  rendaHora: number;
+}): OpcaoRecuperacao[] {
+  const falta = seguro(i.faltaMes);
+  const dias = Math.max(0, Math.floor(seguro(i.diasRestantes)));
+  if (falta <= 0 || dias <= 0) return [];
+  const out: OpcaoRecuperacao[] = [];
+  const novaMedia = arred(falta / dias);
+  const extraPorDia = arred(Math.max(0, novaMedia - seguro(i.metaDiariaOriginal)));
+  if (extraPorDia > 0) {
+    out.push({
+      rotulo: `+${formatBRL(extraPorDia)} por dia`,
+      detalhe: `Média de ${formatBRL(novaMedia)}/dia nos ${dias} dia(s) restante(s), em vez de ${formatBRL(seguro(i.metaDiariaOriginal))}.`,
+    });
+  }
+  const mediaComDiaExtra = arred(falta / (dias + 1));
+  out.push({
+    rotulo: '+1 dia trabalhado',
+    detalhe: `Com ${dias + 1} dia(s), a média necessária cai para ${formatBRL(mediaComDiaExtra)}/dia.`,
+  });
+  const renda = seguro(i.rendaHora);
+  if (renda > 0 && extraPorDia > 0) {
+    const horasExtras = extraPorDia / renda;
+    out.push({
+      rotulo: `+${formatHoras(horasExtras)} por dia`,
+      detalhe: `${formatHoras(horasExtras)} a mais por dia na premissa de ${formatBRL(renda)}/h cobrem os ${formatBRL(extraPorDia)}/dia extras.`,
+    });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// CENÁRIOS PREDEFINIDOS (Módulo 23) — simulação matemática; não é recomendação.
+// ---------------------------------------------------------------------------
+
+export type Cenario = { rotulo: string; impacto: string };
+
+export function cenariosPredefinidos(base: { custoTotal: number; diasTrabalho: number; rendaHora: number }): Cenario[] {
+  const atual = calcularMeta(base.custoTotal, base.diasTrabalho, base.rendaHora);
+  const out: Cenario[] = [];
+  if (atual.horasPorDia != null && atual.rendaHora > 0) {
+    const ganhoDia = arred(1 * atual.rendaHora);
+    out.push({ rotulo: '+1h por dia', impacto: `≈ +${formatBRL(ganhoDia)}/dia (+${formatBRL(arred(ganhoDia * atual.diasTrabalho))}/mês) na premissa de ${formatBRL(atual.rendaHora)}/h.` });
+    out.push({ rotulo: '+2h por dia', impacto: `≈ +${formatBRL(arred(2 * atual.rendaHora))}/dia (+${formatBRL(arred(2 * atual.rendaHora * atual.diasTrabalho))}/mês) na mesma premissa.` });
+    const r5 = calcularMeta(base.custoTotal, base.diasTrabalho, base.rendaHora + 5);
+    if (r5.horasPorDia != null) {
+      out.push({ rotulo: `+R$ 5/h (${formatBRL(base.rendaHora + 5)}/h)`, impacto: `Horas necessárias caem de ${formatHoras(atual.horasPorDia)} para ${formatHoras(r5.horasPorDia)}/dia.` });
+    }
+  }
+  const c90 = calcularMeta(base.custoTotal * 0.9, base.diasTrabalho, base.rendaHora);
+  out.push({ rotulo: '−10% nos custos', impacto: `Meta diária cai de ${formatBRL(atual.metaDiaria)} para ${formatBRL(c90.metaDiaria)}.` });
+  const d2 = calcularMeta(base.custoTotal, base.diasTrabalho + 2, base.rendaHora);
+  out.push({ rotulo: '+2 dias trabalhados', impacto: `Meta diária cai de ${formatBRL(atual.metaDiaria)} para ${formatBRL(d2.metaDiaria)} (${d2.diasTrabalho} dias).` });
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// COMPARAÇÃO MENSAL (Módulo 20) — snapshots existentes; mês sem dado = NÃO INFORMADO.
+// ---------------------------------------------------------------------------
+
+export type ComparacaoMensal = {
+  mesAtual: string;
+  mesAnterior: string;
+  totalAtual: number;
+  totalAnterior: number;
+  variacao: number;
+  variacaoPct: number | null; // null quando o anterior é 0 (sem % inventado)
+  porGrupo: { grupo: string; atual: number | null; anterior: number | null; variacao: number | null }[];
+};
+
+export function compararMeses(
+  atual: { mes: string; total: number; por_grupo: Record<string, number> },
+  anterior: { mes: string; total: number; por_grupo: Record<string, number> } | null,
+): ComparacaoMensal | null {
+  if (!anterior) return null;
+  const variacao = arred(seguro(atual.total) - seguro(anterior.total));
+  const grupos = ['vida', 'familia', 'carro', 'trabalho'];
+  return {
+    mesAtual: atual.mes,
+    mesAnterior: anterior.mes,
+    totalAtual: arred(seguro(atual.total)),
+    totalAnterior: arred(seguro(anterior.total)),
+    variacao,
+    variacaoPct: seguro(anterior.total) > 0 ? Math.round((variacao / anterior.total) * 1000) / 10 : null,
+    porGrupo: grupos.map((g) => {
+      const a = atual.por_grupo?.[g];
+      const b = anterior.por_grupo?.[g];
+      const temA = a != null && Number.isFinite(a);
+      const temB = b != null && Number.isFinite(b);
+      return {
+        grupo: g,
+        atual: temA ? arred(a) : null,
+        anterior: temB ? arred(b) : null,
+        variacao: temA && temB ? arred(a - b) : null,
+      };
+    }),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// ALERTAS DO COCKPIT (Módulo 21) — complementa alertasMeta; SEMPRE factual.
+// ---------------------------------------------------------------------------
+
+export function alertasCockpit(i: {
+  ritmo: RitmoMes | null;
+  objetivos: { nome: string; valor_meta: number; valor_atual: number }[];
+}): string[] {
+  const alertas: string[] = [];
+  if (i.ritmo && i.ritmo.ritmo !== 'sem_dado' && Math.abs(i.ritmo.deltaRitmo) >= 1) {
+    if (i.ritmo.ritmo === 'abaixo') alertas.push(`Você está ${formatBRL(Math.abs(i.ritmo.deltaRitmo))} abaixo do ritmo estimado.`);
+    if (i.ritmo.ritmo === 'acima') alertas.push(`Você está ${formatBRL(i.ritmo.deltaRitmo)} acima do ritmo estimado.`);
+  }
+  for (const o of i.objetivos) {
+    const falta = arred(Math.max(0, seguro(o.valor_meta) - seguro(o.valor_atual)));
+    if (falta > 0) alertas.push(`Faltam ${formatBRL(falta)} para o objetivo "${o.nome}".`);
+  }
+  return alertas;
+}
+
 // ---------------------------------------------------------------------------
 // CATEGORIAS SUGERIDAS (UX — Módulos 4/5/6/7)
 // ---------------------------------------------------------------------------
