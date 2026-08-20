@@ -1,5 +1,22 @@
 # MINHA META — Inteligência Financeira Pessoal do Motorista
 
+> **Fase 12.2 — Inteligência Operacional** (ZERO migration — tudo derivado de 0047/0048): o
+> sistema DESCREVE os registros, sem julgar nem aconselhar. Janelas 7/14/30/**90** ampliadas
+> (dias com horas, km, km/dia, R$/km, corridas, R$/corrida, recargas, custo registrado,
+> custo/km); EVOLUÇÃO período × período anterior equivalente (10 campos; <3 dias de um lado →
+> "SEM COMPARAÇÃO"; 90×90 fica sem comparação de propósito — exigiria 180 dias de busca);
+> recargas agregadas (nº, custo total/médio, kWh total/médio, **R$/kWh só com custo E kWh**);
+> ENERGIA: kWh ESTIMADOS (ficha × km) × kWh REGISTRADOS — "diferença entre fontes de registro",
+> nunca somados, nunca elegendo a correta; QUALIDADE em camadas (com ganho/horas/km/corridas/
+> recarga/COMPLETOS — definição explícita: ganho+horas+km; sem nota, sem ranking);
+> INCONSISTÊNCIAS factuais (achado/origem/o que falta — nunca "você fez errado"); TRÊS NÚMEROS
+> (META × REAL × PROJEÇÃO com fonte declarada, "não é promessa"); carro em TRÊS camadas (FIXO
+> importado × OPERACIONAL registrado × ENERGÉTICO estimado); cenários operacionais EMBUTEM os
+> 5 da Fase 9 + (+3h, +1 dia, +2h na média registrada — "matematicamente", nunca "você vai
+> ganhar"); histórico e operação com 90d; semana com R$/h. Fetch ampliado 60→90 dias na MESMA
+> consulta. Testes: `audit-motorista-inteligencia.ts` **62/62** (casos obrigatórios,
+> imutabilidade, vocabulário proibido do Módulo 22, zero migration).
+
 > **Fase 12.1 — Diário Operacional Real** (migration **0048**, LOCAL): Encerrar Dia (fluxo
 > ÚNICO mantido) ganha "+ Detalhes (opcional)": odômetro inicial/final, corridas, apps
 > (Uber/99/Outro/Nenhum, múltiplos). km_rodado é **DERIVADO** (fim − inicio; um só odômetro →

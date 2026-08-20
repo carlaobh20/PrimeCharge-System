@@ -702,19 +702,36 @@ export function custoPorHoraReal(custoPeriodo: number, horasRegistradas: number)
 // JANELAS 7/14/30 DIAS (Módulo 8) + TENDÊNCIA (Módulo 9)
 // ---------------------------------------------------------------------------
 
+/** GanhoDia + campos opcionais do diário (Fase 12.1) — km_rodado continua derivado. */
+export type GanhoJanela = GanhoDia & {
+  km_inicio?: number | null;
+  km_fim?: number | null;
+  corridas?: number | null;
+};
+
 export type JanelaOperacional = {
   dias: number; // tamanho da janela
   diasRegistrados: number;
+  diasComHoras: number;
   ganhoTotal: number;
   horasTotal: number | null; // null quando nenhum dia tem horas
   rsDia: number | null;
   rsHora: number | null;
   custoEstimado: number; // ESTIMATIVA: custo/dia planejado × dias registrados (fórmula declarada)
   cobertura: number | null; // ganho − custo estimado (SOBRA REGISTRADA — nunca "lucro")
+  // Fase 12.2 — diário agregado na janela (só REGISTROS; ausente → null)
+  kmTotal: number | null;
+  kmPorDia: number | null; // km ÷ dias com km
+  rpkm: number | null;
+  corridasTotal: number | null;
+  rpCorrida: number | null;
+  recargasQtd: number;
+  custoOperacionalRegistrado: number; // Σ recargas da janela
+  custoPorKmRegistrado: number | null; // recargas ÷ km
 };
 
 /** Filtra ganhos numa janela de N dias terminando em `ateIso` (inclusive). */
-export function ganhosNaJanela(ganhos: GanhoDia[], diasJanela: number, ateIso: string): GanhoDia[] {
+export function ganhosNaJanela<T extends GanhoDia>(ganhos: T[], diasJanela: number, ateIso: string): T[] {
   const fim = new Date(`${ateIso}T12:00:00`).getTime();
   const inicio = fim - (Math.max(1, Math.floor(diasJanela)) - 1) * 86_400_000;
   return ganhos.filter((g) => {
@@ -723,22 +740,52 @@ export function ganhosNaJanela(ganhos: GanhoDia[], diasJanela: number, ateIso: s
   });
 }
 
-export function janelaOperacional(ganhos: GanhoDia[], diasJanela: number, ateIso: string, custoDiaPlanejado: number): JanelaOperacional {
+export function janelaOperacional(
+  ganhos: GanhoJanela[],
+  diasJanela: number,
+  ateIso: string,
+  custoDiaPlanejado: number,
+  recargas: RecargaDia[] = [],
+): JanelaOperacional {
   const doPeriodo = ganhosNaJanela(ganhos, diasJanela, ateIso);
   const ganhoTotal = arred(doPeriodo.reduce((s, g) => s + seguro(g.valor), 0));
   const comHoras = doPeriodo.filter((g) => g.horas != null && Number.isFinite(g.horas) && g.horas > 0);
   const horasTotal = comHoras.length > 0 ? Math.round(comHoras.reduce((s, g) => s + (g.horas as number), 0) * 10) / 10 : null;
   const rsHoraInfo = mediaRealPorHora(doPeriodo);
   const custoEstimado = arred(seguro(custoDiaPlanejado) * doPeriodo.length);
+  // Fase 12.2 — km/corridas/recargas da janela (nada preenchido quando ausente)
+  const comKm = doPeriodo
+    .map((g) => calcularKmRodados(g.km_inicio ?? null, g.km_fim ?? null))
+    .filter((km): km is number => km != null);
+  const kmTotal = comKm.length > 0 ? Math.round(comKm.reduce((s, km) => s + km, 0) * 10) / 10 : null;
+  const corridasDias = doPeriodo.filter((g) => g.corridas != null && Number.isFinite(g.corridas) && (g.corridas as number) > 0);
+  const corridasTotal = corridasDias.length > 0 ? corridasDias.reduce((s, g) => s + Math.floor(g.corridas as number), 0) : null;
+  const recargasJanela = recargas.filter((r) => {
+    const t = new Date(`${r.data}T12:00:00`).getTime();
+    const fim = new Date(`${ateIso}T12:00:00`).getTime();
+    return Number.isFinite(t) && t >= fim - (Math.max(1, Math.floor(diasJanela)) - 1) * 86_400_000 && t <= fim;
+  });
+  const custoOperacional = arred(recargasJanela.reduce((s, r) => s + seguro(r.custo), 0));
   return {
     dias: diasJanela,
     diasRegistrados: doPeriodo.length,
+    diasComHoras: comHoras.length,
     ganhoTotal,
     horasTotal,
     rsDia: doPeriodo.length > 0 ? arred(ganhoTotal / doPeriodo.length) : null,
     rsHora: rsHoraInfo?.valor ?? null,
     custoEstimado,
     cobertura: doPeriodo.length > 0 ? arred(ganhoTotal - custoEstimado) : null,
+    kmTotal,
+    kmPorDia: kmTotal != null && comKm.length > 0 ? Math.round((kmTotal / comKm.length) * 10) / 10 : null,
+    rpkm: calcularRpKm(ganhoTotal, kmTotal),
+    corridasTotal,
+    rpCorrida: corridasTotal != null
+      ? calcularRpCorrida(arred(corridasDias.reduce((s, g) => s + seguro(g.valor), 0)), corridasTotal)
+      : null,
+    recargasQtd: recargasJanela.length,
+    custoOperacionalRegistrado: custoOperacional,
+    custoPorKmRegistrado: calcularCustoKm(custoOperacional, kmTotal),
   };
 }
 
@@ -1187,6 +1234,196 @@ export function resumoDiaOperacional(
 
 export const APPS_DIARIO = ['uber', '99', 'outro', 'nenhum'] as const;
 export const APP_LABEL: Record<string, string> = { uber: 'Uber', '99': '99', outro: 'Outro', nenhum: 'Nenhum' };
+
+// ===========================================================================
+// FASE 12.2 — INTELIGÊNCIA OPERACIONAL (o sistema DESCREVE os registros; não
+// julga, não aconselha, não afirma causalidade. Tudo deriva de 0047/0048.)
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// EVOLUÇÃO período × período anterior equivalente (Módulos 4/5)
+// ---------------------------------------------------------------------------
+
+export type CampoEvolucao = {
+  rotulo: string;
+  atual: number | null;
+  anterior: number | null;
+  variacaoAbs: number | null;
+  variacaoPct: number | null; // null quando anterior é 0/ausente (nunca Infinity)
+};
+
+export type Evolucao = { dias: number; campos: CampoEvolucao[] } | null;
+
+function campoEvolucao(rotulo: string, atual: number | null, anterior: number | null): CampoEvolucao {
+  const temAmbos = atual != null && anterior != null && Number.isFinite(atual) && Number.isFinite(anterior);
+  return {
+    rotulo,
+    atual,
+    anterior,
+    variacaoAbs: temAmbos ? arred(atual - anterior) : null,
+    variacaoPct: temAmbos && anterior !== 0 ? Math.round(((atual - anterior) / Math.abs(anterior)) * 1000) / 10 : null,
+  };
+}
+
+/** Compara a janela atual com a imediatamente anterior (mesmo tamanho). REUSA janelaOperacional
+ *  dos dois lados. Anterior com < 3 dias registrados → null ("SEM COMPARAÇÃO" — nada inventado). */
+export function evolucaoPeriodo(
+  ganhos: GanhoJanela[],
+  recargas: RecargaDia[],
+  diasJanela: number,
+  ateIso: string,
+  custoDiaPlanejado: number,
+): Evolucao {
+  const atual = janelaOperacional(ganhos, diasJanela, ateIso, custoDiaPlanejado, recargas);
+  const fimAnterior = new Date(new Date(`${ateIso}T12:00:00`).getTime() - diasJanela * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const anterior = janelaOperacional(ganhos, diasJanela, fimAnterior, custoDiaPlanejado, recargas);
+  if (atual.diasRegistrados < 3 || anterior.diasRegistrados < 3) return null;
+  return {
+    dias: diasJanela,
+    campos: [
+      campoEvolucao('Ganho', atual.ganhoTotal, anterior.ganhoTotal),
+      campoEvolucao('Horas', atual.horasTotal, anterior.horasTotal),
+      campoEvolucao('R$/h', atual.rsHora, anterior.rsHora),
+      campoEvolucao('R$/dia', atual.rsDia, anterior.rsDia),
+      campoEvolucao('Km', atual.kmTotal, anterior.kmTotal),
+      campoEvolucao('Km/dia', atual.kmPorDia, anterior.kmPorDia),
+      campoEvolucao('R$/km', atual.rpkm, anterior.rpkm),
+      campoEvolucao('Corridas', atual.corridasTotal, anterior.corridasTotal),
+      campoEvolucao('Custos registrados', atual.custoOperacionalRegistrado, anterior.custoOperacionalRegistrado),
+      campoEvolucao('Custo/km', atual.custoPorKmRegistrado, anterior.custoPorKmRegistrado),
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// RECARGAS agregadas (Módulo 7) + ENERGIA (Módulo 8)
+// ---------------------------------------------------------------------------
+
+export type ResumoRecargas = {
+  quantidade: number;
+  custoTotal: number;
+  custoMedio: number | null;
+  kwhTotal: number | null; // só recargas COM kWh informado
+  kwhMedio: number | null;
+  recargasComKwh: number;
+  rsPorKwh: number | null; // custo das recargas COM kWh ÷ kWh delas — nunca sem kWh
+};
+
+export function resumoRecargas(recargas: { custo: number; kwh: number | null }[]): ResumoRecargas {
+  const qtd = recargas.length;
+  const custoTotal = arred(recargas.reduce((s, r) => s + seguro(r.custo), 0));
+  const comKwh = recargas.filter((r) => r.kwh != null && Number.isFinite(r.kwh) && (r.kwh as number) > 0);
+  const kwhTotal = comKwh.length > 0 ? Math.round(comKwh.reduce((s, r) => s + (r.kwh as number), 0) * 100) / 100 : null;
+  const custoComKwh = arred(comKwh.reduce((s, r) => s + seguro(r.custo), 0));
+  return {
+    quantidade: qtd,
+    custoTotal,
+    custoMedio: qtd > 0 ? arred(custoTotal / qtd) : null,
+    kwhTotal,
+    kwhMedio: kwhTotal != null && comKwh.length > 0 ? Math.round((kwhTotal / comKwh.length) * 100) / 100 : null,
+    recargasComKwh: comKwh.length,
+    rsPorKwh: kwhTotal != null && kwhTotal > 0 ? Math.round((custoComKwh / kwhTotal) * 100) / 100 : null,
+  };
+}
+
+/** kWh ESTIMADO (ficha × km) × kWh REGISTRADO (recargas) — só compara com os DOIS presentes.
+ *  A diferença é "entre fontes de registro"; o motor NUNCA diz qual está correta. */
+export function compararEnergia(kwhEstimado: number | null, kwhRegistrado: number | null): {
+  estimado: number;
+  registrado: number;
+  diferenca: number;
+} | null {
+  if (kwhEstimado == null || kwhRegistrado == null) return null;
+  if (!Number.isFinite(kwhEstimado) || !Number.isFinite(kwhRegistrado) || kwhEstimado <= 0 || kwhRegistrado <= 0) return null;
+  return {
+    estimado: Math.round(kwhEstimado * 100) / 100,
+    registrado: Math.round(kwhRegistrado * 100) / 100,
+    diferenca: Math.round((kwhRegistrado - kwhEstimado) * 100) / 100,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// QUALIDADE DOS REGISTROS em camadas (Módulo 6) — sem nota, sem juízo.
+// ---------------------------------------------------------------------------
+
+export type QualidadeOperacional = QualidadeDados & {
+  comKm: number;
+  comCorridas: number;
+  comRecarga: number;
+  /** COMPLETO (definição explícita): ganho > 0 E horas informadas E km calculável (início+fim). */
+  completosDiario: number;
+};
+
+export function qualidadeOperacional(ganhos: GanhoJanela[], datasComRecarga: Set<string>): QualidadeOperacional {
+  const base = qualidadeDados(ganhos); // REUSO da Fase 10
+  let comKm = 0, comCorridas = 0, comRecarga = 0, completosDiario = 0;
+  for (const g of ganhos) {
+    const km = calcularKmRodados(g.km_inicio ?? null, g.km_fim ?? null);
+    const temHoras = g.horas != null && Number.isFinite(g.horas) && g.horas > 0;
+    if (km != null) comKm++;
+    if (g.corridas != null && Number.isFinite(g.corridas) && (g.corridas as number) > 0) comCorridas++;
+    if (datasComRecarga.has(g.data)) comRecarga++;
+    if (seguro(g.valor) > 0 && temHoras && km != null) completosDiario++;
+  }
+  return { ...base, comKm, comCorridas, comRecarga, completosDiario };
+}
+
+// ---------------------------------------------------------------------------
+// INCONSISTÊNCIAS FACTUAIS (Módulo 10) — o que foi encontrado / origem / o que falta.
+// ---------------------------------------------------------------------------
+
+export type Inconsistencia = { achado: string; origem: string; falta: string };
+
+export function inconsistenciasOperacionais(i: {
+  ganhos: GanhoJanela[];
+  recargas: { data: string; custo: number; kwh: number | null }[];
+  temRecorrenciaRecarga: boolean;
+  divergenciaOdometroKm: number | null;
+}): Inconsistencia[] {
+  const out: Inconsistencia[] = [];
+  const semHoras = i.ganhos.filter((g) => seguro(g.valor) > 0 && (g.horas == null || g.horas <= 0)).length;
+  if (semHoras > 0) out.push({ achado: `${semHoras} dia(s) com ganho e sem horas`, origem: 'seus lançamentos de dia', falta: 'as horas trabalhadas desses dias' });
+  const horasSemGanho = i.ganhos.filter((g) => seguro(g.valor) === 0 && g.horas != null && g.horas > 0).length;
+  if (horasSemGanho > 0) out.push({ achado: `${horasSemGanho} dia(s) com horas e ganho zero`, origem: 'seus lançamentos de dia', falta: 'o ganho do dia (ou confirmar que foi zero mesmo)' });
+  const kmSemGanho = i.ganhos.filter((g) => seguro(g.valor) === 0 && calcularKmRodados(g.km_inicio ?? null, g.km_fim ?? null) != null && (calcularKmRodados(g.km_inicio ?? null, g.km_fim ?? null) as number) > 0).length;
+  if (kmSemGanho > 0) out.push({ achado: `${kmSemGanho} dia(s) com km rodados e ganho zero`, origem: 'odômetro do diário', falta: 'o ganho correspondente' });
+  const corridasSemGanho = i.ganhos.filter((g) => seguro(g.valor) === 0 && g.corridas != null && (g.corridas as number) > 0).length;
+  if (corridasSemGanho > 0) out.push({ achado: `${corridasSemGanho} dia(s) com corridas e ganho zero`, origem: 'corridas do diário', falta: 'o ganho correspondente' });
+  const kmIncompleto = i.ganhos.filter((g) => (g.km_inicio == null) !== (g.km_fim == null)).length;
+  if (kmIncompleto > 0) out.push({ achado: `${kmIncompleto} dia(s) com KM INCOMPLETO (um odômetro só)`, origem: 'odômetro do diário', falta: 'o outro odômetro para calcular os km' });
+  const recargaSemKwh = i.recargas.filter((r) => r.kwh == null).length;
+  if (recargaSemKwh > 0) out.push({ achado: `${recargaSemKwh} recarga(s) sem kWh`, origem: 'suas recargas registradas', falta: 'o kWh para calcular R$/kWh e comparar com a estimativa' });
+  if (i.temRecorrenciaRecarga && i.recargas.length > 0) out.push({ achado: 'despesa recorrente de recarga E recargas individuais ao mesmo tempo', origem: 'despesas recorrentes + recargas registradas', falta: 'sua escolha: manter ou pausar a recorrência (nada muda sozinho)' });
+  if (i.divergenciaOdometroKm != null && Math.abs(i.divergenciaOdometroKm) > 0) out.push({ achado: `odômetro do diário difere da última vistoria em ${Math.abs(i.divergenciaOdometroKm)} km`, origem: 'seu registro × vistoria do PrimeCharge', falta: 'nada — os valores foram registrados em fontes diferentes' });
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// CENÁRIOS OPERACIONAIS (Módulo 11) — EMBUTE os cenários da Fase 9 e acrescenta
+// +3h, +1 dia e a linha com a média REGISTRADA (quando existir). Simulação pura.
+// ---------------------------------------------------------------------------
+
+export function cenariosOperacionais(
+  base: { custoTotal: number; diasTrabalho: number; rendaHora: number },
+  historicoHora: number | null,
+): Cenario[] {
+  const out = [...cenariosPredefinidos(base)]; // REUSO — nunca duplicar os 5 da Fase 9
+  const atual = calcularMeta(base.custoTotal, base.diasTrabalho, base.rendaHora);
+  if (atual.rendaHora > 0) {
+    out.push({ rotulo: '+3h por dia', impacto: `≈ +${formatBRL(arred(3 * atual.rendaHora))}/dia (+${formatBRL(arred(3 * atual.rendaHora * atual.diasTrabalho))}/mês) na premissa de ${formatBRL(atual.rendaHora)}/h.` });
+  }
+  const d1 = calcularMeta(base.custoTotal, base.diasTrabalho + 1, base.rendaHora);
+  out.push({ rotulo: '+1 dia trabalhado', impacto: `Meta diária cai de ${formatBRL(atual.metaDiaria)} para ${formatBRL(d1.metaDiaria)} (${d1.diasTrabalho} dias).` });
+  if (historicoHora != null && Number.isFinite(historicoHora) && historicoHora > 0) {
+    out.push({
+      rotulo: `+2h na SUA média registrada (${formatBRL(historicoHora)}/h)`,
+      impacto: `Com sua média registrada, +2 horas representariam matematicamente ${formatBRL(arred(2 * historicoHora))} adicionais no dia — simulação, não é promessa.`,
+    });
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // CATEGORIAS SUGERIDAS (UX — Módulos 4/5/6/7)

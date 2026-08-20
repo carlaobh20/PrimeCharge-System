@@ -14,6 +14,8 @@ import { SemanaCard } from '../components/meta/SemanaCard';
 import { MeuDiaCard } from '../components/meta/MeuDiaCard';
 import { RecargasCard } from '../components/meta/RecargasCard';
 import { HistoricoOperacionalCard } from '../components/meta/HistoricoOperacionalCard';
+import { TresNumerosCard } from '../components/meta/TresNumerosCard';
+import { InconsistenciasCard } from '../components/meta/InconsistenciasCard';
 import { useMinhaMeta } from '../hooks/useMinhaMeta';
 import {
   CATEGORIAS_CARRO,
@@ -175,6 +177,9 @@ export function MinhaMetaPage() {
         <MeuDiaCard resumo={d.resumoHoje} janelas={d.janelas} comparacaoOdometro={d.comparacaoOdometro} />
       )}
 
+      {/* ===== TRÊS NÚMEROS (Fase 12.2 — META × REAL × PROJEÇÃO com fonte) ===== */}
+      <TresNumerosCard meta={meta.metaMensal} real={d.progresso.realizado} projecoes={d.projecoes} />
+
       {/* ===== 5 · RITMO DO MÊS (F9: 3/4/6/7/15/16/22 · F10: projeções duplas) ===== */}
       <RitmoMesCard ritmo={d.ritmo} bancoMeta={d.bancoMeta} bancoHoras={d.bancoHoras} projecao={d.projecao} projecoes={d.projecoes} recuperacao={d.recuperacao} />
 
@@ -190,13 +195,19 @@ export function MinhaMetaPage() {
         janelas={d.janelas}
         tendencia7={d.tendencia7}
         confianca={d.confianca}
-        qualidade={d.qualidade}
+        qualidade={d.qualidadeOp}
+        evolucao={d.evolucao}
+        recargasResumo={d.recargasResumo30}
+        energia={d.energia30}
         equilibrio={d.equilibrio}
         melhoresDias={d.melhoresDias}
         ganhosJanela={d.ganhos14}
         salvandoPremissa={m.mConfig.isPending}
         onUsarComoPremissa={(valor) => m.mConfig.mutate({ renda_hora: valor })}
       />
+
+      {/* ===== INCONSISTÊNCIAS FACTUAIS (Fase 12.2 — Módulo 10) ===== */}
+      <InconsistenciasCard itens={d.inconsistencias} />
 
       {/* ===== alertas factuais (Módulo 21) ===== */}
       {d.alertas.length > 0 && (
@@ -285,6 +296,8 @@ export function MinhaMetaPage() {
         custoHoraCarro={d.custoHoraCarro}
         horasCarroHoje={d.horasCarroHoje}
         custoOperacionalRegistrado30={d.custoOperacionalRegistrado30}
+        custoEnergeticoEstimado30={d.custoEnergeticoEstimado30}
+        custoPorKmRegistrado={d.janelas[30].custoPorKmRegistrado}
       />
 
       {/* ===== RECARGAS (Fase 12.1 — eventos ≠ recorrência) ===== */}

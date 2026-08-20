@@ -9,14 +9,14 @@ export function HistoricoOperacionalCard({ dias, hojeIso }: {
   dias: { data: string; resumo: ResumoDiaOperacional }[];
   hojeIso: string;
 }) {
-  const [janela, setJanela] = useState<7 | 14 | 30>(7);
+  const [janela, setJanela] = useState<7 | 14 | 30 | 90>(7);
   const limite = new Date(`${hojeIso}T12:00:00`).getTime() - (janela - 1) * 86_400_000;
   const doPeriodo = dias.filter((d) => new Date(`${d.data}T12:00:00`).getTime() >= limite);
 
   return (
     <Secao titulo="Meus dias">
       <div className="flex gap-1.5" role="tablist" aria-label="Período do histórico">
-        {([7, 14, 30] as const).map((n) => (
+        {([7, 14, 30, 90] as const).map((n) => (
           <button key={n} type="button" role="tab" aria-selected={janela === n} onClick={() => setJanela(n)} className={`flex-1 rounded-full border py-1.5 text-[12px] font-medium ${janela === n ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'border-neutral-200 text-neutral-500 dark:border-white/10'}`}>
             {n} dias
           </button>

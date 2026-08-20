@@ -5,10 +5,12 @@ import {
   formatBRL,
   formatHoras,
   type ConfiancaDados,
+  type Evolucao,
   type GanhoDia,
   type JanelaOperacional,
   type MediaDiaSemana,
-  type QualidadeDados,
+  type QualidadeOperacional,
+  type ResumoRecargas,
 } from '../../lib/metas';
 
 // OPERAÇÃO REAL (Fase 10, Módulos 1–9/11/14/16/17/19) — o que os REGISTROS do motorista dizem,
@@ -28,6 +30,9 @@ export function OperacaoRealCard({
   tendencia7,
   confianca,
   qualidade,
+  evolucao,
+  recargasResumo,
+  energia,
   equilibrio,
   melhoresDias,
   ganhosJanela,
@@ -41,18 +46,23 @@ export function OperacaoRealCard({
   eficiencia: number | null;
   custoDia: number;
   custoHoraRealMes: number | null;
-  janelas: Record<7 | 14 | 30, JanelaOperacional>;
+  janelas: Record<7 | 14 | 30 | 90, JanelaOperacional>;
   tendencia7: { metrica: 'rs_hora' | 'rs_dia'; atual: number; anterior: number; variacaoPct: number } | null;
   confianca: ConfiancaDados;
-  qualidade: QualidadeDados;
+  qualidade: QualidadeOperacional;
+  /** Fase 12.2: evolução período × anterior (null = SEM COMPARAÇÃO) */
+  evolucao: Record<7 | 14 | 30 | 90, Evolucao>;
+  recargasResumo: ResumoRecargas;
+  energia: { estimado: number; registrado: number; diferenca: number } | null;
   equilibrio: { estimadoHoras: number | null; observadoHoras: number | null };
   melhoresDias: MediaDiaSemana[];
   ganhosJanela: GanhoDia[];
   onUsarComoPremissa: (valor: number) => void;
   salvandoPremissa: boolean;
 }) {
-  const [janela, setJanela] = useState<7 | 14 | 30>(14);
+  const [janela, setJanela] = useState<7 | 14 | 30 | 90>(14);
   const j = janelas[janela];
+  const ev = evolucao[janela];
   const semDados = qualidade.registrados < 3;
 
   // Módulo 11 — horas × resultado: dias completos da janela de 14, barras CSS (sem Recharts)
@@ -68,7 +78,7 @@ export function OperacaoRealCard({
       acao={<Pill tom={confianca === 'relevante' ? 'verde' : confianca === 'insuficiente' ? 'neutro' : 'azul'}>{CONFIANCA_LABEL[confianca]}</Pill>}
     >
       <p className="text-[10px] text-neutral-400">
-        Classificação pela QUANTIDADE de registros (não é confiança estatística). Tudo abaixo vem dos SEUS lançamentos.
+        Baseado exclusivamente nos seus registros. Classificação pela QUANTIDADE de registros (não é confiança estatística).
       </p>
 
       {semDados ? (
@@ -166,7 +176,7 @@ export function OperacaoRealCard({
           {/* ===== Módulo 8 — janelas 7/14/30 ===== */}
           <div className="mt-3">
             <div className="flex gap-1.5" role="tablist" aria-label="Período">
-              {([7, 14, 30] as const).map((n) => (
+              {([7, 14, 30, 90] as const).map((n) => (
                 <button key={n} type="button" role="tab" aria-selected={janela === n} onClick={() => setJanela(n)} className={`flex-1 rounded-full border py-1.5 text-[12px] font-medium ${janela === n ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'border-neutral-200 text-neutral-500 dark:border-white/10'}`}>
                   {n} dias
                 </button>
@@ -177,10 +187,16 @@ export function OperacaoRealCard({
             ) : (
               <div className="mt-2">
                 <Linha label="Dias registrados" value={String(j.diasRegistrados)} />
+                <Linha label="Dias com horas" value={String(j.diasComHoras)} />
                 <Linha label="Ganhos registrados" value={formatBRL(j.ganhoTotal)} />
                 <Linha label="Horas registradas" value={j.horasTotal != null ? formatHoras(j.horasTotal) : 'SEM DADO'} />
                 <Linha label="R$/dia" value={j.rsDia != null ? formatBRL(j.rsDia) : '—'} />
                 <Linha label="R$/hora" value={j.rsHora != null ? formatBRL(j.rsHora) : 'SEM DADO'} />
+                <Linha label="Km registrados" value={j.kmTotal != null ? `${j.kmTotal} km${j.kmPorDia != null ? ` (${j.kmPorDia} km/dia)` : ''}` : 'SEM DADO'} />
+                <Linha label="R$/km" value={j.rpkm != null ? formatBRL(j.rpkm) : 'SEM DADO'} />
+                <Linha label="Corridas · R$/corrida" value={j.corridasTotal != null ? `${j.corridasTotal} · ${j.rpCorrida != null ? formatBRL(j.rpCorrida) : '—'}` : 'SEM DADO'} />
+                <Linha label="Recargas registradas" value={j.recargasQtd > 0 ? `${j.recargasQtd} · ${formatBRL(j.custoOperacionalRegistrado)}` : 'NENHUMA'} />
+                {j.custoPorKmRegistrado != null && <Linha label="Custo/km registrado" value={`${formatBRL(j.custoPorKmRegistrado)}/km`} />}
                 <Linha label="Custo estimado do período" value={formatBRL(j.custoEstimado)} />
                 {j.cobertura != null && (
                   <Linha label="Sobra registrada (cobertura)" value={`${j.cobertura >= 0 ? '+' : '−'}${formatBRL(Math.abs(j.cobertura))}`} />
@@ -188,6 +204,52 @@ export function OperacaoRealCard({
                 <p className="mt-1 text-[9px] text-neutral-400">
                   Custo estimado = custo médio/dia ({formatBRL(custoDia)}) × {j.diasRegistrados} dia(s) registrado(s). Sobra registrada não é lucro contábil.
                 </p>
+              </div>
+            )}
+
+            {/* Fase 12.2 — EVOLUÇÃO: período atual × anterior equivalente */}
+            <div className="mt-2 rounded-xl bg-neutral-50 px-3 py-2 dark:bg-white/5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Evolução ({janela}d × {janela}d anteriores)</p>
+              {ev ? (
+                <div className="mt-1 space-y-0.5">
+                  {ev.campos.filter((c) => c.variacaoAbs != null && Math.abs(c.variacaoAbs) > 0.005).map((c) => (
+                    <p key={c.rotulo} className="text-[12px] text-neutral-600 dark:text-neutral-300">
+                      {c.rotulo}: {c.rotulo === 'Horas' ? formatHoras(c.atual ?? 0) : c.rotulo.includes('Km') || c.rotulo === 'Corridas' ? String(c.atual) : formatBRL(c.atual ?? 0)}{' '}
+                      <span className={((c.variacaoAbs ?? 0) >= 0) ? 'text-emerald-600' : 'text-amber-600'}>
+                        ({(c.variacaoAbs ?? 0) >= 0 ? '+' : '−'}
+                        {c.rotulo === 'Horas' ? formatHoras(Math.abs(c.variacaoAbs ?? 0)) : c.rotulo.includes('Km') || c.rotulo === 'Corridas' ? Math.abs(c.variacaoAbs ?? 0) : formatBRL(Math.abs(c.variacaoAbs ?? 0))}
+                        {c.variacaoPct != null && ` · ${c.variacaoPct >= 0 ? '+' : '−'}${String(Math.abs(c.variacaoPct)).replace('.', ',')}%`})
+                      </span>
+                    </p>
+                  ))}
+                  <p className="text-[9px] text-neutral-400">Variação registrada — comparação matemática, sem causalidade.</p>
+                </div>
+              ) : (
+                <p className="text-sm text-neutral-500">SEM COMPARAÇÃO — o período anterior não tem registros suficientes (mín. 3 dias de cada lado).</p>
+              )}
+            </div>
+
+            {/* Fase 12.2 — RECARGAS agregadas + R$/kWh */}
+            {recargasResumo.quantidade > 0 && (
+              <div className="mt-2 rounded-xl border border-neutral-100 px-3 py-2 dark:border-white/10">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Recargas (30 dias) · DADO REGISTRADO</p>
+                <Linha label="Recargas" value={String(recargasResumo.quantidade)} />
+                <Linha label="Custo total" value={formatBRL(recargasResumo.custoTotal)} />
+                {recargasResumo.custoMedio != null && <Linha label="Custo médio" value={formatBRL(recargasResumo.custoMedio)} />}
+                <Linha label="kWh total" value={recargasResumo.kwhTotal != null ? `${recargasResumo.kwhTotal} kWh (${recargasResumo.recargasComKwh} recarga(s) com kWh)` : 'NÃO INFORMADO'} />
+                {recargasResumo.kwhMedio != null && <Linha label="kWh médio" value={`${recargasResumo.kwhMedio} kWh`} />}
+                <Linha label="R$/kWh" value={recargasResumo.rsPorKwh != null ? `${formatBRL(recargasResumo.rsPorKwh)}/kWh` : 'NÃO INFORMADO (exige custo e kWh)'} />
+              </div>
+            )}
+
+            {/* Fase 12.2 — ENERGIA: estimado × registrado (fontes diferentes) */}
+            {energia && (
+              <div className="mt-2 rounded-xl bg-neutral-50 px-3 py-2 text-[12px] dark:bg-white/5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Energia (30 dias)</p>
+                <Linha label="kWh ESTIMADOS (ficha × km)" value={`≈ ${energia.estimado} kWh`} />
+                <Linha label="kWh REGISTRADOS (recargas)" value={`${energia.registrado} kWh`} />
+                <Linha label="Diferença" value={`${energia.diferenca >= 0 ? '+' : '−'}${Math.abs(energia.diferenca)} kWh`} />
+                <p className="mt-0.5 text-[9px] text-neutral-400">Diferença entre fontes de registro — nenhuma delas é "a correta".</p>
               </div>
             )}
           </div>
@@ -239,14 +301,26 @@ export function OperacaoRealCard({
             </div>
           )}
 
-          {/* ===== Módulo 19 — qualidade dos registros ===== */}
+          {/* ===== Qualidade dos registros (F10 + camadas F12.2) — REGISTRADO/INCOMPLETO, sem nota ===== */}
           <div className="mt-2 rounded-xl bg-neutral-50 px-3 py-2 text-[12px] dark:bg-white/5">
-            <p className="font-semibold uppercase tracking-wide text-[11px] text-neutral-400">Qualidade dos registros (30 dias)</p>
-            <p className="text-neutral-600 dark:text-neutral-300">
-              {qualidade.registrados} dia(s) registrado(s) · {qualidade.completos} completo(s) · {qualidade.incompletos} incompleto(s)
-              {qualidade.semHoras > 0 && ` · ${qualidade.semHoras} sem horas`}
-              {qualidade.horasSemGanho > 0 && ` · ${qualidade.horasSemGanho} com horas e sem ganho`}
-              {qualidade.valoresZero > 0 && ` · ${qualidade.valoresZero} com valor zero`}
+            <p className="font-semibold uppercase tracking-wide text-[11px] text-neutral-400">Qualidade dos seus registros (30 dias)</p>
+            <div className="mt-1 grid grid-cols-3 gap-1 text-center">
+              {([
+                ['com ganho', qualidade.registrados - qualidade.valoresZero],
+                ['com horas', qualidade.registrados - qualidade.semHoras - qualidade.valoresZero + qualidade.horasSemGanho],
+                ['com km', qualidade.comKm],
+                ['com corridas', qualidade.comCorridas],
+                ['com recarga', qualidade.comRecarga],
+                ['completos', qualidade.completosDiario],
+              ] as const).map(([rot, v]) => (
+                <div key={rot} className="rounded-lg bg-white/60 p-1 dark:bg-white/5">
+                  <p className="text-[13px] font-bold text-neutral-800 dark:text-neutral-100">{v}</p>
+                  <p className="text-[9px] text-neutral-400">{rot}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-1 text-[9px] text-neutral-400">
+              {qualidade.registrados} dia(s) registrado(s). "Completo" = ganho + horas + km (início e fim). Sem nota, sem ranking — só REGISTRADO × INCOMPLETO.
             </p>
           </div>
         </>

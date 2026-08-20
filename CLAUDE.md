@@ -6,7 +6,25 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-20, fim da Fase 12.1 (Diário Operacional Real do Motorista).
+**Última atualização:** 2026-08-20, fim da Fase 12.2 (Inteligência Operacional do Motorista).
+
+## 0.-8 Fase 12.2 — Inteligência Operacional (2026-08-20, sobre a 12.1; ZERO migration)
+
+- O sistema DESCREVE os registros (sem julgamento/conselho/causalidade). Motor (metas.ts):
+  janelaOperacional AMPLIADA (km/kmPorDia/rpkm/corridas/rpCorrida/recargas/custo registrado/
+  custo-km por janela; assinatura ganhou recargas opcionais — compatível com audits antigos);
+  evolucaoPeriodo (REUSA janelaOperacional dos 2 lados; <3 dias → null "SEM COMPARAÇÃO");
+  resumoRecargas (R$/kWh SÓ com custo e kWh); compararEnergia (est × reg, "fontes diferentes");
+  qualidadeOperacional (camadas + COMPLETO explícito = ganho+horas+km; REUSA qualidadeDados);
+  inconsistenciasOperacionais (achado/origem/falta); cenariosOperacionais (EMBUTE os 5 da F9
+  + 3h/+1 dia/média registrada — assert da F9 de 5 cenários intacto).
+- Hook: fetch 60→90 dias (mesma listGanhosPeriodo); janelas {7,14,30,90}; evolucao {7,14,30,
+  90:null de propósito}; recargasResumo30/qualidadeOp/energia30/custoEnergeticoEstimado30/
+  inconsistencias. UI: TresNumerosCard (META×REAL×PROJEÇÃO com fonte, após MeuDia),
+  InconsistenciasCard, OperacaoRealCard com 90d+evolução+recargas+energia+qualidade em
+  camadas, CarroCard 3 camadas (FIXO×OPERACIONAL×ENERGÉTICO), histórico 90d, semana com R$/h.
+- Testes: audit-motorista-inteligencia.ts **62/62**; regressão TOTAL verde (319 SQL + 5 audits
+  motorista + 9 jurídicos/amortização + geradores); build ok (~129KB/30KB gzip lazy).
 
 ## 0.-7 Fase 12.1 — Diário Operacional Real (2026-08-20, sobre a Fase 11; auditoria 12.0 antes)
 

@@ -25,6 +25,8 @@ export function CarroCard({
   custoHoraCarro,
   horasCarroHoje,
   custoOperacionalRegistrado30,
+  custoEnergeticoEstimado30,
+  custoPorKmRegistrado,
 }: {
   totalCarro: number;
   totalGeral: number;
@@ -40,6 +42,10 @@ export function CarroCard({
   horasCarroHoje?: number | null;
   /** Fase 12.1: recargas REGISTRADAS nos últimos 30 dias — ≠ do custo ESTIMADO */
   custoOperacionalRegistrado30?: number | null;
+  /** Fase 12.2: custo energético ESTIMADO (km 30d × ficha × R$/kWh registrado) */
+  custoEnergeticoEstimado30?: number | null;
+  /** Fase 12.2: recargas ÷ km registrados (30d) */
+  custoPorKmRegistrado?: number | null;
 }) {
   const pctCarro = totalGeral > 0 ? Math.round((totalCarro / totalGeral) * 1000) / 10 : 0;
   const categorias = Object.entries(porCategoria).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
@@ -90,18 +96,29 @@ export function CarroCard({
         </div>
       )}
 
-      {/* Fase 12.1 — ESTIMADO × REGISTRADO nunca são a mesma coisa */}
+      {/* Fase 12.1/12.2 — TRÊS camadas, nunca misturadas: FIXO (contrato) × OPERACIONAL
+          REGISTRADO (recargas) × ENERGÉTICO ESTIMADO (ficha × km × R$/kWh) */}
       {custoOperacionalRegistrado30 != null && custoOperacionalRegistrado30 > 0 && (
-        <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+        <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
           <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
-            <p className="text-[10px] uppercase tracking-wide text-neutral-400">Custo ESTIMADO do carro</p>
-            <p className="text-sm font-bold text-neutral-900 dark:text-white">{formatBRL(totalCarro)}/mês</p>
+            <p className="text-[9px] uppercase tracking-wide text-neutral-400">FIXO · IMPORTADO</p>
+            <p className="text-[13px] font-bold text-neutral-900 dark:text-white">{aluguelContrato ? `${formatBRL(aluguelContrato.valorMensal)}/mês` : 'NÃO INFORMADO'}</p>
+            <p className="text-[8px] text-neutral-400">aluguel do contrato</p>
           </div>
           <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
-            <p className="text-[10px] uppercase tracking-wide text-neutral-400">Operacional REGISTRADO (30d)</p>
-            <p className="text-sm font-bold text-neutral-900 dark:text-white">{formatBRL(custoOperacionalRegistrado30)}</p>
+            <p className="text-[9px] uppercase tracking-wide text-neutral-400">OPERACIONAL · REGISTRADO</p>
+            <p className="text-[13px] font-bold text-neutral-900 dark:text-white">{formatBRL(custoOperacionalRegistrado30)}</p>
+            <p className="text-[8px] text-neutral-400">recargas 30d</p>
+          </div>
+          <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
+            <p className="text-[9px] uppercase tracking-wide text-neutral-400">ENERGÉTICO · ESTIMADO</p>
+            <p className="text-[13px] font-bold text-neutral-900 dark:text-white">{custoEnergeticoEstimado30 != null ? `≈ ${formatBRL(custoEnergeticoEstimado30)}` : 'NÃO INFORMADO'}</p>
+            <p className="text-[8px] text-neutral-400">ficha × km × R$/kWh</p>
           </div>
         </div>
+      )}
+      {custoPorKmRegistrado != null && (
+        <p className="mt-1 text-[11px] text-neutral-500">Custo/km registrado (30d): {formatBRL(custoPorKmRegistrado)}/km.</p>
       )}
 
       {/* Fase 11 (Módulo 17) — cobrir o carro hoje */}

@@ -28,6 +28,7 @@ export function SemanaCard({ semana, extras }: {
             <span aria-label={STATUS_DIA_LABEL[d.status]} className="mt-0.5 text-[10px] text-neutral-500">{SIMBOLO[d.status]}</span>
             <span className="text-[9px] text-neutral-400">{d.valor != null ? formatBRL(d.valor).replace(/^R\$\s?/, '') : '—'}</span>
             {extras?.[d.data]?.km != null && <span className="text-[8px] text-neutral-400">{extras[d.data].km}km</span>}
+            {extras?.[d.data]?.rph != null && <span className="text-[8px] text-neutral-400">{formatBRL(extras[d.data].rph as number).replace(/^R\$\s?/, '')}/h</span>}
           </div>
         ))}
       </div>

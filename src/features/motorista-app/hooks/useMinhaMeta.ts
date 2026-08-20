@@ -29,13 +29,16 @@ import {
   calcularMeta,
   calcularMetaHoje,
   calcularTotais,
-  cenariosPredefinidos,
+  cenariosOperacionais,
+  compararEnergia,
   compararMeses,
   confiancaDados,
   custoPorDiaPlanejado,
   custoPorHoraReal,
   eficienciaVsPremissa,
+  evolucaoPeriodo,
   horasParaValor,
+  inconsistenciasOperacionais,
   janelaOperacional,
   mediaRealPorDia,
   mediaRealPorHora,
@@ -50,8 +53,10 @@ import {
   projecaoMes,
   projecoesDuplas,
   qualidadeDados,
+  qualidadeOperacional,
   rebalancear,
   resumoDiaOperacional,
+  resumoRecargas,
   resumoSemana,
   ritmoDoMes,
   saldoHoras,
@@ -78,9 +83,10 @@ export function useMinhaMeta() {
     queryKey: ['motorista', 'minha-meta', anoMes],
     enabled: !!motoristaId,
     queryFn: async () => {
-      // Fase 10: além do mês corrente, os últimos 60 dias (janelas 7/14/30 + tendência)
+      // Fase 10/12.2: além do mês corrente, os últimos 90 dias (janelas 7/14/30/90 + evolução
+      // até 30×30; a MESMA listGanhosPeriodo suporta — só o intervalo mudou)
       const hojeStr = hojeIso();
-      const inicio60 = new Date(new Date(`${hojeStr}T12:00:00`).getTime() - 59 * 86_400_000).toISOString().slice(0, 10);
+      const inicio60 = new Date(new Date(`${hojeStr}T12:00:00`).getTime() - 89 * 86_400_000).toISOString().slice(0, 10);
       const [contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias] = await Promise.all([
         listMeusContratos(),
         listDespesas(),
@@ -162,7 +168,7 @@ export function useMinhaMeta() {
     const recuperacao = progresso.falta > 0 && ritmo.ritmo === 'abaixo'
       ? opcoesRecuperacao({ faltaMes: progresso.falta, metaDiariaOriginal: meta.metaDiaria, diasRestantes: ritmo.diasRestantesPlanejados, rendaHora: meta.rendaHora })
       : [];
-    const cenarios = cenariosPredefinidos({ custoTotal: totais.total, diasTrabalho, rendaHora: meta.rendaHora });
+    // (cenários movidos para depois de realHora14 — Fase 12.2 usa a média registrada)
 
     // Comparação mensal (Módulo 20) — snapshot do mês anterior mais recente
     const snapAnterior = snapshots.find((s) => s.mes.slice(0, 7) !== anoMes) ?? null;
@@ -192,10 +198,20 @@ export function useMinhaMeta() {
     });
     const realHora14 = mediaRealPorHora(operacao14);
     const realDia14 = mediaRealPorDia(operacao14);
+    const recargasDia = base.data.recargas60; // 90 dias (mesma janela do fetch)
     const janelas = {
-      7: janelaOperacional(ganhos60, 7, hojeStr, custoDia),
-      14: janelaOperacional(ganhos60, 14, hojeStr, custoDia),
-      30: janelaOperacional(ganhos60, 30, hojeStr, custoDia),
+      7: janelaOperacional(ganhos60, 7, hojeStr, custoDia, recargasDia),
+      14: janelaOperacional(ganhos60, 14, hojeStr, custoDia, recargasDia),
+      30: janelaOperacional(ganhos60, 30, hojeStr, custoDia, recargasDia),
+      90: janelaOperacional(ganhos60, 90, hojeStr, custoDia, recargasDia),
+    } as const;
+    // Evolução período × anterior equivalente (Fase 12.2). 90×90 exigiria 180 dias de
+    // busca — fica SEM COMPARAÇÃO de propósito (nada inventado).
+    const evolucao = {
+      7: evolucaoPeriodo(ganhos60, recargasDia, 7, hojeStr, custoDia),
+      14: evolucaoPeriodo(ganhos60, recargasDia, 14, hojeStr, custoDia),
+      30: evolucaoPeriodo(ganhos60, recargasDia, 30, hojeStr, custoDia),
+      90: null,
     } as const;
     const tendencia7 = tendencia(ganhos60, 7, hojeStr);
     const confianca = confiancaDados(janelas[30].diasRegistrados);
@@ -302,6 +318,30 @@ export function useMinhaMeta() {
         }
       : null;
 
+    // ===== FASE 12.2 — inteligência descritiva (só registros; nada de julgamento) =====
+    const limite30 = new Date(`${hojeStr}T12:00:00`).getTime() - 29 * 86_400_000;
+    const recargas30 = recargas60.filter((r) => new Date(`${r.data}T12:00:00`).getTime() >= limite30);
+    const ganhos30 = ganhos60.filter((g) => new Date(`${g.data}T12:00:00`).getTime() >= limite30);
+    const recargasResumo30 = resumoRecargas(recargas30);
+    const qualidadeOp = qualidadeOperacional(ganhos30, new Set(recargas30.map((r) => r.data)));
+    const energia30 = compararEnergia(
+      janelas[30].kmTotal != null && consumoFicha != null && consumoFicha > 0
+        ? (janelas[30].kmTotal * consumoFicha) / 100
+        : null,
+      recargasResumo30.kwhTotal,
+    );
+    const custoEnergeticoEstimado30 =
+      janelas[30].kmTotal != null && consumoFicha != null && consumoFicha > 0 && recargasResumo30.rsPorKwh != null
+        ? Math.round(((janelas[30].kmTotal * consumoFicha) / 100) * recargasResumo30.rsPorKwh * 100) / 100
+        : null;
+    const inconsistencias = inconsistenciasOperacionais({
+      ganhos: ganhos30,
+      recargas: recargas30,
+      temRecorrenciaRecarga: divergenciaRecarga != null,
+      divergenciaOdometroKm: comparacaoOdometro?.diferenca ?? null,
+    });
+    const cenarios = cenariosOperacionais({ custoTotal: totais.total, diasTrabalho, rendaHora: meta.rendaHora }, realHora14?.valor ?? null);
+
     const mesAnterior = snapAnterior;
     const alertas = [
       ...alertasMeta({
@@ -375,6 +415,13 @@ export function useMinhaMeta() {
       divergenciaRecarga,
       comparacaoOdometro,
       consumoFicha,
+      // Fase 12.2 — inteligência operacional
+      evolucao,
+      recargasResumo30,
+      qualidadeOp,
+      energia30,
+      custoEnergeticoEstimado30,
+      inconsistencias,
       temDados: despesasAtivas.some((d) => d.ativa) || aluguelCarroMensal > 0,
       precisaOnboarding: !despesasAtivas.some((d) => d.ativa) && !config,
     };
