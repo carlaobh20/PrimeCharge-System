@@ -1452,3 +1452,97 @@ export const GRUPO_LABEL: Record<GrupoDespesa, string> = {
   carro: 'Meu carro',
   trabalho: 'Custo para trabalhar',
 };
+
+// ===========================================================================
+// FASE 13 — CENTRO DE CONTROLE OPERACIONAL (reuso + camadas factuais novas)
+// ===========================================================================
+
+export type StatusMes = 'sem_dados' | 'inicio' | 'em_andamento' | 'dados_consistentes' | 'projecao_disponivel';
+
+export const STATUS_MES_LABEL: Record<StatusMes, string> = {
+  sem_dados: 'Sem dados',
+  inicio: 'Início',
+  em_andamento: 'Em andamento',
+  dados_consistentes: 'Dados consistentes',
+  projecao_disponivel: 'Projeção disponível',
+};
+
+export function statusDoMes(diasComLancamento: number, diasPlanejados: number, temProjecao: boolean): StatusMes {
+  const d = Math.max(0, Math.floor(seguro(diasComLancamento)));
+  if (d === 0) return 'sem_dados';
+  if (d <= 2) return 'inicio';
+  if (temProjecao) return 'projecao_disponivel';
+  const p = Number.isFinite(diasPlanejados) && diasPlanejados > 0 ? Math.floor(diasPlanejados) : 26;
+  if (d >= Math.floor(p * 0.3)) return 'dados_consistentes';
+  return 'em_andamento';
+}
+
+export type ChecklistHoje = {
+  ganho: 'registrado' | 'nao_informado';
+  horas: 'registrado' | 'nao_informado';
+  km: 'registrado' | 'incompleto' | 'nao_informado';
+  corridas: 'registrado' | 'nao_informado' | 'nao_aplicavel';
+  apps: 'registrado' | 'nao_informado';
+  recargas: 'registrado' | 'nao_informado' | 'nao_aplicavel';
+  encerrado: 'registrado' | 'nao_informado';
+};
+
+export function checklistDoDia(
+  resumo: ResumoDiaOperacional | null,
+  temRecargaHoje: boolean,
+  encerrado: boolean,
+): ChecklistHoje {
+  if (!resumo) {
+    return {
+      ganho: 'nao_informado',
+      horas: 'nao_informado',
+      km: 'nao_informado',
+      corridas: 'nao_informado',
+      apps: 'nao_informado',
+      recargas: temRecargaHoje ? 'registrado' : 'nao_informado',
+      encerrado: encerrado ? 'registrado' : 'nao_informado',
+    };
+  }
+  return {
+    ganho: resumo.ganho > 0 ? 'registrado' : 'nao_informado',
+    horas: resumo.horas != null && resumo.horas > 0 ? 'registrado' : 'nao_informado',
+    km: resumo.kmRodados != null && resumo.kmRodados > 0 ? 'registrado' : resumo.kmIncompleto ? 'incompleto' : 'nao_informado',
+    corridas: resumo.corridas != null && resumo.corridas > 0 ? 'registrado' : 'nao_informado',
+    apps: resumo.apps.length > 0 ? 'registrado' : 'nao_informado',
+    recargas: temRecargaHoje ? 'registrado' : resumo.custoRecargasDia > 0 ? 'registrado' : 'nao_informado',
+    encerrado: encerrado ? 'registrado' : 'nao_informado',
+  };
+}
+
+export type SaudeHoje = {
+  status: 'completo' | 'incompleto' | 'sem_dados';
+  texto: string;
+};
+
+export function saudeRegistroHoje(checklist: ChecklistHoje): SaudeHoje {
+  const partes: string[] = [];
+  if (checklist.ganho === 'registrado') partes.push('ganho');
+  if (checklist.horas === 'registrado') partes.push('horas');
+  if (checklist.km === 'registrado') partes.push('KM');
+
+  if (partes.length === 0) {
+    return { status: 'sem_dados', texto: 'Seu dia ainda não possui registros de ganho, horas ou KM.' };
+  }
+
+  const faltam: string[] = [];
+  if (checklist.ganho !== 'registrado') faltam.push('ganho');
+  if (checklist.horas !== 'registrado') faltam.push('horas');
+  if (checklist.km !== 'registrado' && checklist.km !== 'incompleto') faltam.push('KM');
+  if (checklist.km === 'incompleto') faltam.push('KM (odômetro incompleto)');
+  if (checklist.corridas === 'nao_informado') faltam.push('corridas');
+
+  if (checklist.ganho === 'registrado' && checklist.horas === 'registrado' && checklist.km === 'registrado') {
+    const extras: string[] = [];
+    if (checklist.corridas === 'registrado') extras.push('corridas');
+    if (checklist.apps === 'registrado') extras.push('apps');
+    const extraTxt = extras.length > 0 ? ` Também possui ${extras.join(' e ')}.` : '';
+    return { status: 'completo', texto: `Seu dia possui ganho, horas e KM registrados.${extraTxt}` };
+  }
+
+  return { status: 'incompleto', texto: `Seu dia possui ${partes.join(', ')} registrado(s). Faltam ${faltam.join(', ')}.` };
+}
