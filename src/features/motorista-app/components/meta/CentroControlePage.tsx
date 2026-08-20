@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Secao, Linha, Pill, SkeletonPortal, ErroPortal } from '../ui';
 import { ChecklistHojeCard } from './ChecklistHojeCard';
+import { RotinaDoDiaCard } from './RotinaDoDiaCard';
+import { FechamentoCard } from './FechamentoCard';
 import { HeroHoje } from './HeroHoje';
 import { PlanoDeHoje } from './PlanoDeHoje';
 import { MeuDiaCard } from './MeuDiaCard';
@@ -91,6 +93,15 @@ export function CentroControlePage() {
     });
   };
 
+  // ===== FASE 14 — registro rápido: cada ação grava SÓ o que ela conhece.
+  // O upsert por (motorista, data) preserva os demais campos do mesmo dia.
+  const onSalvarGanho = (dd: { valor: number; horas: number | null }) =>
+    mGanho.mutate({ data: hojeIso, valor: dd.valor, horas: dd.horas });
+  const onSalvarKm = (dd: { km_inicio: number | null; km_fim: number | null; corridas: number | null }) =>
+    mGanho.mutate({ data: hojeIso, valor: d.resumoHoje?.ganho ?? 0, km_inicio: dd.km_inicio, km_fim: dd.km_fim, corridas: dd.corridas });
+  const onEncerrarSimples = () =>
+    mGanho.mutate({ data: hojeIso, valor: d.resumoHoje?.ganho ?? 0, observacao: 'dia_encerrado' });
+
   return (
     <div ref={topoRef} className="mx-auto max-w-lg space-y-4 pb-24">
       {/* ===== CABEÇALHO DO CENTRO DE CONTROLE ===== */}
@@ -112,6 +123,21 @@ export function CentroControlePage() {
         rendaHora={d.meta.rendaHora}
         onEncerrarDia={onEncerrarDia}
         salvando={mGanho.isPending}
+      />
+
+      {/* ===== 1.5 ROTINA DO DIA (Fase 14): estado + registro rápido + encerramento ===== */}
+      <RotinaDoDiaCard
+        estado={d.estadoHoje}
+        hoje={d.hojeCockpit}
+        resumo={d.resumoHoje}
+        revisao={d.revisaoHoje}
+        horasPremissa={d.planoHoje.horasPremissa}
+        horasHistorico={d.planoHoje.horasHistorico}
+        salvando={mGanho.isPending || mRecargaCriar.isPending}
+        onSalvarGanho={onSalvarGanho}
+        onSalvarKm={onSalvarKm}
+        onSalvarRecarga={(rr) => mRecargaCriar.mutate({ data: hojeIso, ...rr })}
+        onEncerrar={onEncerrarSimples}
       />
 
       {/* ===== 2. CHECKLIST DO DIA + SAÚDE ===== */}
@@ -269,6 +295,16 @@ export function CentroControlePage() {
       />
 
       {/* ===== 14. HISTÓRICO ===== */}
+      {/* ===== FECHAMENTO DA SEMANA E DO MÊS (Fase 14, Módulos 17/18) ===== */}
+      <FechamentoCard fechamento={d.fechamentoSemana} evolucao={d.evolucao[7]} periodo="semana" />
+      <FechamentoCard
+        fechamento={d.fechamentoMes}
+        evolucao={d.evolucao[30]}
+        periodo="mes"
+        metaMensal={d.meta.metaMensal}
+        realizadoMes={d.progresso.realizado}
+      />
+
       <HistoricoOperacionalCard dias={d.diarioDias} hojeIso={hojeIso} />
 
       {/* ===== 15. SIMULADOR ===== */}

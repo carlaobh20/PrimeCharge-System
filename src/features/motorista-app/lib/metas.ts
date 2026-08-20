@@ -1425,6 +1425,104 @@ export function cenariosOperacionais(
   return out;
 }
 
+// ===========================================================================
+// FASE 14 — ROTINA OPERACIONAL (abrir → registrar → acompanhar → encerrar →
+// consultar). O estado do dia é DERIVADO dos registros que já existem: nenhum
+// enum novo no banco, nenhuma linha artificial, ZERO migration.
+// ===========================================================================
+
+export type EstadoDoDia =
+  | 'sem_dados'            // motorista ainda não registrou nada, nunca
+  | 'nao_comecou'          // tem histórico, mas hoje ainda não tem registro
+  | 'em_andamento'         // existe registro de hoje, mas ainda sem ganho
+  | 'dados_parciais'       // ganho registrado, faltam campos opcionais
+  | 'pronto_para_encerrar' // ganho + horas + km completo
+  | 'encerrado';           // observacao = 'dia_encerrado'
+
+export const ESTADO_DIA_LABEL: Record<EstadoDoDia, string> = {
+  sem_dados: 'Sem dados',
+  nao_comecou: 'Ainda não começou',
+  em_andamento: 'Em andamento',
+  dados_parciais: 'Dados parciais',
+  pronto_para_encerrar: 'Pronto para encerrar',
+  encerrado: 'Dia encerrado',
+};
+
+/** Deriva o estado do dia SÓ do que está registrado (Módulo 1). Nada é gravado. */
+export function estadoDoDia(i: {
+  registroDeHoje: GanhoJanela & { observacao?: string | null } | null;
+  totalRegistrosHistorico: number;
+}): EstadoDoDia {
+  const r = i.registroDeHoje;
+  if (!r) return i.totalRegistrosHistorico > 0 ? 'nao_comecou' : 'sem_dados';
+  if (r.observacao === 'dia_encerrado') return 'encerrado';
+  const temGanho = seguro(r.valor) > 0;
+  if (!temGanho) return 'em_andamento';
+  const temHoras = r.horas != null && Number.isFinite(r.horas) && r.horas > 0;
+  const kmCompleto = calcularKmRodados(r.km_inicio ?? null, r.km_fim ?? null) != null;
+  return temHoras && kmCompleto ? 'pronto_para_encerrar' : 'dados_parciais';
+}
+
+// ---------------------------------------------------------------------------
+// REVISÃO ANTES DE ENCERRAR (Módulo 11) — avisos FACTUAIS; nunca bloqueiam.
+// ---------------------------------------------------------------------------
+
+export type ItemRevisao = { ok: boolean; rotulo: string };
+
+export function revisaoDoDia(
+  registro: GanhoJanela | null,
+  recargasDoDia: { custo: number }[],
+): ItemRevisao[] {
+  const r = registro;
+  const temGanho = r != null && seguro(r.valor) > 0;
+  const temHoras = r != null && r.horas != null && Number.isFinite(r.horas) && r.horas > 0;
+  const km = r ? calcularKmRodados(r.km_inicio ?? null, r.km_fim ?? null) : null;
+  const kmParcial = r != null && (r.km_inicio == null) !== (r.km_fim == null);
+  const temCorridas = r != null && r.corridas != null && Number.isFinite(r.corridas) && (r.corridas as number) > 0;
+  return [
+    { ok: temGanho, rotulo: temGanho ? 'Ganho registrado' : 'Ganho não informado' },
+    { ok: temHoras, rotulo: temHoras ? 'Horas registradas' : 'Horas não informadas' },
+    { ok: km != null, rotulo: km != null ? `KM completo (${km} km)` : kmParcial ? 'KM incompleto (falta um dos odômetros)' : 'KM não informado' },
+    { ok: temCorridas, rotulo: temCorridas ? 'Corridas registradas' : 'Corridas não informadas' },
+    { ok: recargasDoDia.length > 0, rotulo: recargasDoDia.length > 0 ? `${recargasDoDia.length} recarga(s) registrada(s)` : 'Nenhuma recarga registrada' },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// FECHAMENTO DE SEMANA / MÊS (Módulos 17/18) — REUSA janelaOperacional.
+// ---------------------------------------------------------------------------
+
+export type Fechamento = JanelaOperacional & {
+  diasEncerrados: number;
+  rotulo: string;
+};
+
+/** Quantos dias do período corrente já decorreram (semana Seg→hoje; mês dia 1→hoje). */
+export function diasDecorridosNoPeriodo(hojeIso: string, periodo: 'semana' | 'mes'): number {
+  const d = new Date(`${hojeIso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return 1;
+  if (periodo === 'mes') return d.getDate();
+  const dow = d.getDay(); // 0=DOM
+  return dow === 0 ? 7 : dow; // seg=1 → 1 dia decorrido
+}
+
+export function fechamentoDoPeriodo(
+  ganhos: (GanhoJanela & { observacao?: string | null })[],
+  recargas: RecargaDia[],
+  hojeIso: string,
+  periodo: 'semana' | 'mes',
+  custoDiaPlanejado: number,
+): Fechamento {
+  const dias = diasDecorridosNoPeriodo(hojeIso, periodo);
+  const base = janelaOperacional(ganhos, dias, hojeIso, custoDiaPlanejado, recargas);
+  const doPeriodo = ganhosNaJanela(ganhos, dias, hojeIso);
+  return {
+    ...base,
+    diasEncerrados: doPeriodo.filter((g) => g.observacao === 'dia_encerrado').length,
+    rotulo: periodo === 'semana' ? 'Fechamento da semana' : 'Fechamento do mês',
+  };
+}
+
 // ---------------------------------------------------------------------------
 // CATEGORIAS SUGERIDAS (UX — Módulos 4/5/6/7)
 // ---------------------------------------------------------------------------

@@ -6,7 +6,24 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-20, fim da Fase 12.2 (Inteligência Operacional do Motorista).
+**Última atualização:** 2026-08-20, fim da Fase 14 (Rotina Operacional + Fechamento Diário).
+
+## 0.-10 Fase 14 — Rotina Operacional (2026-08-20, sobre a Fase 13; ZERO migration)
+
+- Ciclo diário no MESMO Centro de Controle: ABRIR → REGISTRAR → ACOMPANHAR → ENCERRAR →
+  CONSULTAR. Nenhuma página nova, nenhum motor novo, nenhuma tabela nova.
+- Motor (metas.ts): `estadoDoDia` (6 estados DERIVADOS dos registros — sem_dados/nao_comecou/
+  em_andamento/dados_parciais/pronto_para_encerrar/encerrado; nenhum enum no banco, nenhuma
+  linha artificial); `revisaoDoDia` (5 avisos factuais, NUNCA bloqueiam); `fechamentoDoPeriodo`
+  (REUSA janelaOperacional + conta dias encerrados); `diasDecorridosNoPeriodo`.
+- UI: `RotinaDoDiaCard` no topo (estado + registro rápido GANHO/KM/RECARGA/ENCERRAR, cada um
+  com formulário mínimo; "abrir" NÃO grava linha vazia; encerramento mostra RESUMO DO SEU DIA +
+  revisão com "Encerrar mesmo assim" × "Voltar e completar"); `FechamentoCard` (semana e mês,
+  com comparação ao período anterior via evolucaoPeriodo, SEM COMPARAÇÃO quando faltam dados).
+- Registro rápido usa o upsert por (motorista, data) — cada ação grava só o que conhece e
+  preserva o resto do dia. Correção pós-encerramento continua permitida (testada).
+- Testes: `audit-motorista-rotina.ts` **60/60**; regressão TOTAL verde (SQL 319/319 + 7 audits
+  do motorista + 9 jurídicos/amortização + geradores); build ok (CentroControlePage 25KB/6,9KB).
 
 ## 0.-8 Fase 12.2 — Inteligência Operacional (2026-08-20, sobre a 12.1; ZERO migration)
 

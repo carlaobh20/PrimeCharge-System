@@ -37,6 +37,8 @@ import {
   custoPorDiaPlanejado,
   custoPorHoraReal,
   eficienciaVsPremissa,
+  estadoDoDia,
+  fechamentoDoPeriodo,
   evolucaoPeriodo,
   horasParaValor,
   inconsistenciasOperacionais,
@@ -57,6 +59,7 @@ import {
   qualidadeOperacional,
   rebalancear,
   resumoDiaOperacional,
+  revisaoDoDia,
   resumoRecargas,
   resumoSemana,
   ritmoDoMes,
@@ -343,6 +346,16 @@ export function useMinhaMeta() {
     });
     const cenarios = cenariosOperacionais({ custoTotal: totais.total, diasTrabalho, rendaHora: meta.rendaHora }, realHora14?.valor ?? null);
 
+    // ===== FASE 14 — rotina do dia (estado DERIVADO; nada gravado artificialmente) =====
+    const recargasDeHoje = recargasPorData.get(hojeStr) ?? [];
+    const estadoHoje = estadoDoDia({
+      registroDeHoje: ganhoHoje ?? null,
+      totalRegistrosHistorico: ganhos60.length,
+    });
+    const revisaoHoje = revisaoDoDia(ganhoHoje ?? null, recargasDeHoje);
+    const fechamentoSemana = fechamentoDoPeriodo(ganhos60, recargasDia, hojeStr, 'semana', custoDia);
+    const fechamentoMes = fechamentoDoPeriodo(ganhos60, recargasDia, hojeStr, 'mes', custoDia);
+
     const mesAnterior = snapAnterior;
     const alertas = [
       ...alertasMeta({
@@ -416,6 +429,12 @@ export function useMinhaMeta() {
       divergenciaRecarga,
       comparacaoOdometro,
       consumoFicha,
+      // Fase 14 — rotina operacional
+      estadoHoje,
+      revisaoHoje,
+      recargasDeHoje,
+      fechamentoSemana,
+      fechamentoMes,
       // Fase 12.2 — inteligência operacional
       evolucao,
       recargasResumo30,
