@@ -4,6 +4,7 @@ import {
   formatHoras,
   type OpcaoRecuperacao,
   type ProjecaoMes,
+  type ProjecoesDuplas,
   type RitmoMes,
 } from '../../lib/metas';
 
@@ -17,12 +18,15 @@ export function RitmoMesCard({
   bancoMeta,
   bancoHoras,
   projecao,
+  projecoes,
   recuperacao,
 }: {
   ritmo: RitmoMes;
   bancoMeta: number | null;
   bancoHoras: { saldo: number; diasComHoras: number } | null;
   projecao: ProjecaoMes;
+  /** Fase 10 (Módulo 15): projeção PELA PREMISSA × PELO HISTÓRICO — origem sempre declarada */
+  projecoes?: ProjecoesDuplas | null;
   recuperacao: OpcaoRecuperacao[];
 }) {
   const semDado = ritmo.ritmo === 'sem_dado';
@@ -93,13 +97,13 @@ export function RitmoMesCard({
         </div>
       )}
 
-      {/* Módulo 22 — projeção com fórmula transparente */}
+      {/* Módulo 22 (Fase 9) + Módulo 15 (Fase 10) — projeções com origem declarada */}
       <div className="mt-2 rounded-xl bg-neutral-50 px-3 py-2 dark:bg-white/5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Projeção do mês</p>
         {projecao ? (
           <>
             <p className="text-sm text-neutral-800 dark:text-neutral-100">
-              Se o ritmo atual se mantiver: <strong>{formatBRL(projecao.projecao)}</strong>{' '}
+              Pelo ritmo do mês: <strong>{formatBRL(projecao.projecao)}</strong>{' '}
               <span className={projecao.diferencaDaMeta >= 0 ? 'text-emerald-600' : 'text-amber-600'}>
                 ({projecao.diferencaDaMeta >= 0 ? '+' : '−'}{formatBRL(Math.abs(projecao.diferencaDaMeta))} vs meta)
               </span>
@@ -108,6 +112,24 @@ export function RitmoMesCard({
           </>
         ) : (
           <p className="text-sm text-neutral-500">Sem dados suficientes para projetar (mínimo 3 dias lançados).</p>
+        )}
+        {projecoes && (
+          <div className="mt-1.5 space-y-1 border-t border-neutral-200/60 pt-1.5 dark:border-white/10">
+            <p className="text-[12px] text-neutral-700 dark:text-neutral-200">
+              <span className="font-semibold">PELA PREMISSA:</span> {formatBRL(projecoes.pelaPremissa.valor)}
+            </p>
+            <p className="text-[10px] text-neutral-400">{projecoes.pelaPremissa.formula}.</p>
+            {projecoes.peloHistorico ? (
+              <>
+                <p className="text-[12px] text-neutral-700 dark:text-neutral-200">
+                  <span className="font-semibold">PELO HISTÓRICO REAL:</span> {formatBRL(projecoes.peloHistorico.valor)}
+                </p>
+                <p className="text-[10px] text-neutral-400">{projecoes.peloHistorico.formula}.</p>
+              </>
+            ) : (
+              <p className="text-[11px] text-neutral-500">Pelo histórico real: sem dados suficientes para projetar.</p>
+            )}
+          </div>
         )}
       </div>
 

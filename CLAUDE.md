@@ -6,7 +6,31 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-20, fim da Fase 9 (Cockpit Financeiro do Motorista).
+**Última atualização:** 2026-08-20, fim da Fase 10 (Inteligência Operacional Real do Motorista).
+
+## 0.-5 Fase 10 — Inteligência Operacional Real (2026-08-20, sobre a Fase 9)
+
+- Camada de análise sobre os REGISTROS (auditoria prévia respondeu as 15 perguntas do domínio:
+  por dia só existe motorista_ganhos manual; km/dia, corridas, Uber/99 e horários NÃO existem
+  e a tela diz isso). Rótulos obrigatórios na UI: DADO REGISTRADO × IMPORTADO × PREMISSA ×
+  ESTIMATIVA. ZERO migration (0047 segue a última — assert).
+- Motor (mesmo metas.ts): mediaRealPorHora/Dia (só dias completos; sem dado → null),
+  eficienciaVsPremissa, custoPorDiaPlanejado (REUSA calcularMeta), custoPorHoraReal,
+  ganhosNaJanela/janelaOperacional (7/14/30; custo estimado com fórmula declarada; cobertura =
+  SOBRA REGISTRADA), tendencia (7×7, mín. 3+3), pontoEquilibrioDuplo (estimado × observado),
+  confiancaDados (<3/3–6/7–13/14+ — quantidade, não estatística), qualidadeDados,
+  mediasPorDiaSemana (mín. 2 obs, "maior média registrada"), projecoesDuplas (premissa ×
+  histórico, origem declarada).
+- API: listGanhosPeriodo (única query; listGanhosDoMes delega). Hook busca 60 dias p/ janelas.
+- UI: OperacaoRealCard (número real + comparações + janelas + tendência + equilíbrio duplo +
+  dias da semana + horas×resultado em barras CSS + qualidade + badge de confiança); "USAR COMO
+  NOVA PREMISSA" é botão explícito (a premissa NUNCA muda sozinha — assert no fonte);
+  simulador com "Usar minha média registrada"; carro com custo/dia + custo/hora + componentes
+  ausentes = "NÃO INFORMADO"; RitmoMesCard com projeções duplas; snapshot fotografa
+  ganhos/dias/rs_dia/rs_hora (Módulo 21 — mesmo jsonb).
+- Testes: audit-motorista-operacao.ts **69/69** (obrigatórios 1000/20=50, 1000/10=100,
+  3000/100=30, 47,80/40=119,5%); harness 293/293; cockpit 81/81; meta 94/94; jurídicos verdes;
+  tsc/oxlint/build ok (MinhaMetaPage ~82KB/20KB gzip, lazy).
 
 ## 0.-4 Fase 9 — Cockpit Financeiro do Motorista (2026-08-20, sobre a Minha Meta)
 

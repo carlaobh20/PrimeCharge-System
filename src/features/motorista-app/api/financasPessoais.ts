@@ -110,18 +110,21 @@ export async function arquivarObjetivo(id: string): Promise<void> {
 
 export type GanhoRow = { id: string; data: string; valor: number; horas: number | null; observacao: string | null };
 
-export async function listGanhosDoMes(anoMes: string /* 'YYYY-MM' */): Promise<GanhoRow[]> {
-  const inicio = `${anoMes}-01`;
-  const [ano, mes] = anoMes.split('-').map(Number);
-  const fim = `${anoMes}-${String(new Date(ano, mes, 0).getDate()).padStart(2, '0')}`;
+/** Consulta ÚNICA por período (Fase 10) — as janelas 7/14/30 e o mês reusam esta função. */
+export async function listGanhosPeriodo(inicioIso: string, fimIso: string): Promise<GanhoRow[]> {
   const { data, error } = await supabase
     .from('motorista_ganhos')
     .select(COLS_GANHO)
-    .gte('data', inicio)
-    .lte('data', fim)
+    .gte('data', inicioIso)
+    .lte('data', fimIso)
     .order('data');
   if (error) throw error;
   return data as GanhoRow[];
+}
+
+export async function listGanhosDoMes(anoMes: string /* 'YYYY-MM' */): Promise<GanhoRow[]> {
+  const [ano, mes] = anoMes.split('-').map(Number);
+  return listGanhosPeriodo(`${anoMes}-01`, `${anoMes}-${String(new Date(ano, mes, 0).getDate()).padStart(2, '0')}`);
 }
 
 export async function lancarGanho(motoristaId: string, g: { data: string; valor: number; horas?: number | null; observacao?: string | null }): Promise<void> {

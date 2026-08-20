@@ -639,6 +639,254 @@ export function alertasCockpit(i: {
   return alertas;
 }
 
+// ===========================================================================
+// FASE 10 — INTELIGÊNCIA OPERACIONAL REAL (mesmo motor; TUDO derivado dos registros
+// manuais do motorista — o sistema NÃO tem telemetria, km/dia, corridas nem Uber/99,
+// e nada aqui finge ter. Rótulos: DADO REGISTRADO × IMPORTADO × PREMISSA × ESTIMATIVA.)
+// ===========================================================================
+
+export type GanhoDia = { data: string; valor: number; horas: number | null };
+
+// ---------------------------------------------------------------------------
+// MÉDIAS REAIS (Módulos 1/2/3) — só sobre o que foi REGISTRADO; sem dado → null.
+// ---------------------------------------------------------------------------
+
+/** R$/hora REAL: Σ valor ÷ Σ horas, SÓ nos dias com valor E horas lançados. */
+export function mediaRealPorHora(ganhos: GanhoDia[]): { valor: number; dias: number; horas: number } | null {
+  const completos = ganhos.filter((g) => seguro(g.valor) > 0 && g.horas != null && Number.isFinite(g.horas) && g.horas > 0);
+  if (completos.length === 0) return null;
+  const totalValor = completos.reduce((s, g) => s + seguro(g.valor), 0);
+  const totalHoras = completos.reduce((s, g) => s + (g.horas as number), 0);
+  if (totalHoras <= 0) return null;
+  return { valor: arred(totalValor / totalHoras), dias: completos.length, horas: Math.round(totalHoras * 10) / 10 };
+}
+
+/** R$/dia REAL: Σ valor ÷ dias registrados (qualquer registro conta como dia trabalhado). */
+export function mediaRealPorDia(ganhos: GanhoDia[]): { valor: number; dias: number } | null {
+  if (ganhos.length === 0) return null;
+  const total = ganhos.reduce((s, g) => s + seguro(g.valor), 0);
+  return { valor: arred(total / ganhos.length), dias: ganhos.length };
+}
+
+/** Módulo 14 — eficiência = real ÷ premissa, em % (119,5). null sem premissa/real. */
+export function eficienciaVsPremissa(realHora: number | null, premissa: number): number | null {
+  if (realHora == null || !Number.isFinite(realHora) || realHora <= 0) return null;
+  const p = seguro(premissa);
+  if (p <= 0) return null;
+  return Math.round((realHora / p) * 1000) / 10;
+}
+
+// ---------------------------------------------------------------------------
+// CUSTOS DERIVADOS (Módulos 4/5) — REUSA a normalização/meta existentes.
+// ---------------------------------------------------------------------------
+
+/** Custo por dia planejado: custo mensal ÷ dias planejados (mesma conta da meta diária). */
+export function custoPorDiaPlanejado(custoMensal: number, diasPlanejados: number): number {
+  return calcularMeta(custoMensal, diasPlanejados, 0).metaDiaria; // reuso — nenhuma fórmula nova
+}
+
+/** Módulo 5 — custo por hora REAL: custo do período ÷ horas registradas. null sem horas. */
+export function custoPorHoraReal(custoPeriodo: number, horasRegistradas: number): number | null {
+  const h = seguro(horasRegistradas);
+  if (h <= 0) return null;
+  return arred(seguro(custoPeriodo) / h);
+}
+
+// ---------------------------------------------------------------------------
+// JANELAS 7/14/30 DIAS (Módulo 8) + TENDÊNCIA (Módulo 9)
+// ---------------------------------------------------------------------------
+
+export type JanelaOperacional = {
+  dias: number; // tamanho da janela
+  diasRegistrados: number;
+  ganhoTotal: number;
+  horasTotal: number | null; // null quando nenhum dia tem horas
+  rsDia: number | null;
+  rsHora: number | null;
+  custoEstimado: number; // ESTIMATIVA: custo/dia planejado × dias registrados (fórmula declarada)
+  cobertura: number | null; // ganho − custo estimado (SOBRA REGISTRADA — nunca "lucro")
+};
+
+/** Filtra ganhos numa janela de N dias terminando em `ateIso` (inclusive). */
+export function ganhosNaJanela(ganhos: GanhoDia[], diasJanela: number, ateIso: string): GanhoDia[] {
+  const fim = new Date(`${ateIso}T12:00:00`).getTime();
+  const inicio = fim - (Math.max(1, Math.floor(diasJanela)) - 1) * 86_400_000;
+  return ganhos.filter((g) => {
+    const t = new Date(`${g.data}T12:00:00`).getTime();
+    return Number.isFinite(t) && t >= inicio && t <= fim;
+  });
+}
+
+export function janelaOperacional(ganhos: GanhoDia[], diasJanela: number, ateIso: string, custoDiaPlanejado: number): JanelaOperacional {
+  const doPeriodo = ganhosNaJanela(ganhos, diasJanela, ateIso);
+  const ganhoTotal = arred(doPeriodo.reduce((s, g) => s + seguro(g.valor), 0));
+  const comHoras = doPeriodo.filter((g) => g.horas != null && Number.isFinite(g.horas) && g.horas > 0);
+  const horasTotal = comHoras.length > 0 ? Math.round(comHoras.reduce((s, g) => s + (g.horas as number), 0) * 10) / 10 : null;
+  const rsHoraInfo = mediaRealPorHora(doPeriodo);
+  const custoEstimado = arred(seguro(custoDiaPlanejado) * doPeriodo.length);
+  return {
+    dias: diasJanela,
+    diasRegistrados: doPeriodo.length,
+    ganhoTotal,
+    horasTotal,
+    rsDia: doPeriodo.length > 0 ? arred(ganhoTotal / doPeriodo.length) : null,
+    rsHora: rsHoraInfo?.valor ?? null,
+    custoEstimado,
+    cobertura: doPeriodo.length > 0 ? arred(ganhoTotal - custoEstimado) : null,
+  };
+}
+
+/** Módulo 9 — tendência: janela atual × janela imediatamente anterior (mesmo tamanho).
+ *  Compara R$/h quando os dois lados têm horas; senão R$/dia; senão null. Só matemática. */
+export function tendencia(ganhos: GanhoDia[], diasJanela: number, ateIso: string): {
+  metrica: 'rs_hora' | 'rs_dia';
+  atual: number;
+  anterior: number;
+  variacaoPct: number;
+} | null {
+  const atualJ = ganhosNaJanela(ganhos, diasJanela, ateIso);
+  const fimAnterior = new Date(new Date(`${ateIso}T12:00:00`).getTime() - diasJanela * 86_400_000).toISOString().slice(0, 10);
+  const anteriorJ = ganhosNaJanela(ganhos, diasJanela, fimAnterior);
+  if (atualJ.length < 3 || anteriorJ.length < 3) return null; // dados insuficientes — nada inventado
+  const hA = mediaRealPorHora(atualJ);
+  const hB = mediaRealPorHora(anteriorJ);
+  if (hA && hB && hB.valor > 0) {
+    return { metrica: 'rs_hora', atual: hA.valor, anterior: hB.valor, variacaoPct: Math.round(((hA.valor - hB.valor) / hB.valor) * 1000) / 10 };
+  }
+  const dA = mediaRealPorDia(atualJ);
+  const dB = mediaRealPorDia(anteriorJ);
+  if (dA && dB && dB.valor > 0) {
+    return { metrica: 'rs_dia', atual: dA.valor, anterior: dB.valor, variacaoPct: Math.round(((dA.valor - dB.valor) / dB.valor) * 1000) / 10 };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// PONTO DE EQUILÍBRIO DUPLO (Módulo 7) — estimado (premissa) × observado (registros).
+// ---------------------------------------------------------------------------
+
+export function pontoEquilibrioDuplo(custoDia: number, premissaHora: number, realHora: number | null): {
+  estimadoHoras: number | null;
+  observadoHoras: number | null;
+} {
+  const c = seguro(custoDia);
+  // precisão preservada — a formatação em h/min (formatHoras) acontece só na exibição
+  return {
+    estimadoHoras: seguro(premissaHora) > 0 ? c / premissaHora : null,
+    observadoHoras: realHora != null && seguro(realHora) > 0 ? c / realHora : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// CONFIANÇA (Módulo 16) — classificação OPERACIONAL da quantidade de registros
+// (não é confiança estatística) — e QUALIDADE (Módulo 19).
+// ---------------------------------------------------------------------------
+
+export type ConfiancaDados = 'insuficiente' | 'base_inicial' | 'consistente' | 'relevante';
+
+export const CONFIANCA_LABEL: Record<ConfiancaDados, string> = {
+  insuficiente: 'Dados insuficientes',
+  base_inicial: 'Base inicial',
+  consistente: 'Base consistente',
+  relevante: 'Histórico relevante',
+};
+
+export function confiancaDados(diasRegistrados: number): ConfiancaDados {
+  const d = Math.max(0, Math.floor(seguro(diasRegistrados)));
+  if (d < 3) return 'insuficiente';
+  if (d <= 6) return 'base_inicial';
+  if (d <= 13) return 'consistente';
+  return 'relevante';
+}
+
+export type QualidadeDados = {
+  registrados: number;
+  completos: number; // valor > 0 E horas informadas
+  incompletos: number;
+  semHoras: number;
+  horasSemGanho: number; // horas > 0 com valor 0
+  valoresZero: number;
+};
+
+export function qualidadeDados(ganhos: GanhoDia[]): QualidadeDados {
+  let completos = 0, semHoras = 0, horasSemGanho = 0, valoresZero = 0;
+  for (const g of ganhos) {
+    const temValor = seguro(g.valor) > 0;
+    const temHoras = g.horas != null && Number.isFinite(g.horas) && g.horas > 0;
+    if (temValor && temHoras) completos++;
+    if (temValor && !temHoras) semHoras++;
+    if (!temValor && temHoras) horasSemGanho++;
+    if (!temValor) valoresZero++;
+  }
+  return { registrados: ganhos.length, completos, incompletos: ganhos.length - completos, semHoras, horasSemGanho, valoresZero };
+}
+
+// ---------------------------------------------------------------------------
+// MELHORES/PIORES DIAS DA SEMANA (Módulo 10) — só com observações mínimas.
+// ---------------------------------------------------------------------------
+
+export const DIA_SEMANA_LABEL = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'] as const;
+
+export type MediaDiaSemana = { diaSemana: number; label: string; media: number; observacoes: number; metrica: 'rs_hora' | 'rs_dia' };
+
+/** Agrupa por dia da semana. Exige ≥ minObs observações por dia (default 2) e só devolve os
+ *  dias que atingem o mínimo. "Maior média registrada" — NUNCA "melhor dia para trabalhar". */
+export function mediasPorDiaSemana(ganhos: GanhoDia[], minObs = 2): MediaDiaSemana[] {
+  const grupos = new Map<number, GanhoDia[]>();
+  for (const g of ganhos) {
+    const dt = new Date(`${g.data}T12:00:00`);
+    if (Number.isNaN(dt.getTime())) continue;
+    const ds = dt.getDay();
+    grupos.set(ds, [...(grupos.get(ds) ?? []), g]);
+  }
+  const out: MediaDiaSemana[] = [];
+  for (const [ds, lista] of grupos) {
+    if (lista.length < Math.max(1, minObs)) continue;
+    const porHora = mediaRealPorHora(lista);
+    if (porHora && porHora.dias >= Math.max(1, minObs)) {
+      out.push({ diaSemana: ds, label: DIA_SEMANA_LABEL[ds], media: porHora.valor, observacoes: porHora.dias, metrica: 'rs_hora' });
+      continue;
+    }
+    const porDia = mediaRealPorDia(lista);
+    if (porDia) out.push({ diaSemana: ds, label: DIA_SEMANA_LABEL[ds], media: porDia.valor, observacoes: porDia.dias, metrica: 'rs_dia' });
+  }
+  return out.sort((a, b) => b.media - a.media);
+}
+
+// ---------------------------------------------------------------------------
+// PROJEÇÕES DUPLAS (Módulo 15) — origem SEMPRE declarada.
+// ---------------------------------------------------------------------------
+
+export type ProjecoesDuplas = {
+  pelaPremissa: { valor: number; formula: string };
+  peloHistorico: { valor: number; formula: string } | null; // null com < 3 dias registrados
+};
+
+export function projecoesDuplas(i: {
+  realizado: number;
+  diasRestantes: number;
+  metaDiariaOriginal: number; // premissa (custo ÷ dias, na renda/hora informada)
+  mediaRealDia: number | null;
+  diasRegistrados: number;
+}): ProjecoesDuplas {
+  const restantes = Math.max(0, Math.floor(seguro(i.diasRestantes)));
+  const realizado = seguro(i.realizado);
+  const pelaPremissa = arred(realizado + seguro(i.metaDiariaOriginal) * restantes);
+  const temHistorico = i.mediaRealDia != null && Number.isFinite(i.mediaRealDia) && i.diasRegistrados >= 3;
+  return {
+    pelaPremissa: {
+      valor: pelaPremissa,
+      formula: `${formatBRL(realizado)} registrados + meta diária da PREMISSA (${formatBRL(seguro(i.metaDiariaOriginal))}) × ${restantes} dia(s)`,
+    },
+    peloHistorico: temHistorico
+      ? {
+          valor: arred(realizado + (i.mediaRealDia as number) * restantes),
+          formula: `${formatBRL(realizado)} registrados + SUA média registrada (${formatBRL(i.mediaRealDia as number)}/dia, ${i.diasRegistrados} dias) × ${restantes} dia(s)`,
+        }
+      : null,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // CATEGORIAS SUGERIDAS (UX — Módulos 4/5/6/7)
 // ---------------------------------------------------------------------------

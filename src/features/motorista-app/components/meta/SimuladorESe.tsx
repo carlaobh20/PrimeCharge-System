@@ -5,7 +5,12 @@ import { formatBRL, formatHoras, simular, type Cenario } from '../../lib/metas';
 // SIMULADOR "E SE?" (Módulo 25; expandido na Fase 9 — Módulo 23 com cenários prontos).
 // Mexe em CÓPIAS locais; nunca altera os dados reais. Cenários são SIMULAÇÃO, não recomendação.
 
-export function SimuladorESe({ base, cenarios = [] }: { base: { custoTotal: number; diasTrabalho: number; rendaHora: number }; cenarios?: Cenario[] }) {
+export function SimuladorESe({ base, cenarios = [], mediaRegistrada = null }: {
+  base: { custoTotal: number; diasTrabalho: number; rendaHora: number };
+  cenarios?: Cenario[];
+  /** Módulo 18 (Fase 10): média R$/h REGISTRADA — simular com ela, sem alterar dado real */
+  mediaRegistrada?: number | null;
+}) {
   const [dias, setDias] = useState(base.diasTrabalho);
   const [renda, setRenda] = useState(base.rendaHora);
   const [custo, setCusto] = useState(base.custoTotal);
@@ -24,6 +29,11 @@ export function SimuladorESe({ base, cenarios = [] }: { base: { custoTotal: numb
         <label className="block text-sm">
           <span className="text-neutral-500">Renda por hora (premissa): <strong className="text-neutral-800 dark:text-neutral-100">{formatBRL(renda)}</strong></span>
           <input type="range" min={20} max={80} step={5} value={renda} onChange={(e) => setRenda(Number(e.target.value))} className="mt-1 w-full accent-emerald-600" />
+          {mediaRegistrada != null && mediaRegistrada > 0 && Math.abs(mediaRegistrada - renda) > 0.5 && (
+            <button type="button" className="mt-1 rounded-full border border-emerald-600 px-3 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400" onClick={() => setRenda(mediaRegistrada)}>
+              Usar minha média registrada ({formatBRL(mediaRegistrada)}/h)
+            </button>
+          )}
         </label>
         <label className="block text-sm">
           <span className="text-neutral-500">Custo mensal: <strong className="text-neutral-800 dark:text-neutral-100">{formatBRL(custo)}</strong></span>

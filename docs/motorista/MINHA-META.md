@@ -1,5 +1,26 @@
 # MINHA META — Inteligência Financeira Pessoal do Motorista
 
+> **Fase 10 — Inteligência Operacional Real**: camada de análise sobre os REGISTROS do
+> motorista, sempre rotulada (DADO REGISTRADO × IMPORTADO DO PRIMECHARGE × PREMISSA ×
+> ESTIMATIVA — nunca misturados). O sistema NÃO tem telemetria, km/dia, corridas nem dados de
+> Uber/99 — e a tela não finge ter. Novidades: SEU R$/HORA REAL (média dos registros dos
+> últimos 14 dias, só dias com ganho E horas) × premissa × distância × eficiência % ("não é
+> nota"); R$/dia real × meta; custo/dia (reusa a conta da meta) e custo/hora real; janelas
+> 7/14/30 com seletor (ganhos, horas, R$/dia, R$/h, custo estimado com fórmula declarada,
+> SOBRA REGISTRADA — nunca "lucro"); tendência 7×7 anteriores (mín. 3 dias de cada lado);
+> ponto de equilíbrio ESTIMADO (premissa) × OBSERVADO (registros); médias por dia da semana
+> (mín. 2 observações, "maior média registrada" — nunca "melhor dia para trabalhar");
+> horas × resultado em barras CSS; confiança = classificação da QUANTIDADE de registros
+> (<3 insuficiente · 3–6 inicial · 7–13 consistente · 14+ relevante — não é estatística);
+> qualidade dos registros (completos/sem horas/horas sem ganho/zeros); projeções DUPLAS
+> (PELA PREMISSA × PELO HISTÓRICO, origem declarada); simulador com "Usar minha média
+> registrada". **A premissa NUNCA muda sozinha** — "Usar como nova premissa" é botão
+> explícito. Snapshot mensal fotografa também ganhos/dias/R$-dia/R$-hora. API: UMA consulta
+> por período (`listGanhosPeriodo`; o mês delega para ela); hook busca 60 dias para as
+> janelas. **ZERO migration** (0047 continua a última). Testes:
+> `audit-motorista-operacao.ts` 69/69 (obrigatórios: 1.000/20h=50 · 1.000/10d=100 ·
+> 3.000/100h=30 · 47,80/40=119,5%).
+
 > **Fase 9 — Cockpit Financeiro** (evolução, nada reconstruído): a tela agora abre respondendo
 > "quanto eu preciso fazer HOJE?" — meta de hoje REBALANCEADA (falta do mês ÷ dias restantes,
 > hoje incluso; a meta diária original não muda), status do dia (AINDA NÃO COMEÇOU / ABAIXO /

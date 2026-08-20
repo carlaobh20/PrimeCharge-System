@@ -10,6 +10,7 @@ import {
   lancarGanho,
   listDespesas,
   listGanhosDoMes,
+  listGanhosPeriodo,
   listObjetivos,
   listSnapshots,
   removerDespesa,
@@ -26,17 +27,30 @@ import {
   calcularTotais,
   cenariosPredefinidos,
   compararMeses,
+  confiancaDados,
+  custoPorDiaPlanejado,
+  custoPorHoraReal,
+  eficienciaVsPremissa,
+  janelaOperacional,
+  mediaRealPorDia,
+  mediaRealPorHora,
+  mediasPorDiaSemana,
   metaDeHoje,
   montarCalendario,
   normalizarMensal,
   opcoesRecuperacao,
+  pontoEquilibrioDuplo,
   progressoDoMes,
   projecaoMes,
+  projecoesDuplas,
+  qualidadeDados,
   rebalancear,
   ritmoDoMes,
   saldoHoras,
   saldoMeta,
+  tendencia,
   type DespesaMeta,
+  type GanhoDia,
 } from '../lib/metas';
 
 // MINHA META — agregador único da tela (uma passada de queries; motor puro faz as contas).
@@ -55,15 +69,19 @@ export function useMinhaMeta() {
     queryKey: ['motorista', 'minha-meta', anoMes],
     enabled: !!motoristaId,
     queryFn: async () => {
-      const [contratos, despesas, config, objetivos, ganhos, snapshots] = await Promise.all([
+      // Fase 10: além do mês corrente, os últimos 60 dias (janelas 7/14/30 + tendência)
+      const hojeStr = hojeIso();
+      const inicio60 = new Date(new Date(`${hojeStr}T12:00:00`).getTime() - 59 * 86_400_000).toISOString().slice(0, 10);
+      const [contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots] = await Promise.all([
         listMeusContratos(),
         listDespesas(),
         getConfig(),
         listObjetivos(),
         listGanhosDoMes(anoMes),
+        listGanhosPeriodo(inicio60, hojeStr),
         listSnapshots(),
       ]);
-      return { contratos, despesas, config, objetivos, ganhos, snapshots };
+      return { contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots };
     },
   });
 
@@ -153,6 +171,42 @@ export function useMinhaMeta() {
     const custoVida = Math.round((totais.vida + totais.familia) * 100) / 100;
     const custoOperacao = Math.round((totais.carro + totais.trabalho) * 100) / 100;
 
+    // ===== FASE 10 — inteligência operacional (tudo derivado dos REGISTROS; nada inventado) =====
+    const ganhos60: GanhoDia[] = base.data.ganhos60;
+    const hojeStr = hojeIso();
+    const custoDia = custoPorDiaPlanejado(totais.total, diasTrabalho);
+    const operacao14 = ganhos60.filter((g) => {
+      const t = new Date(`${g.data}T12:00:00`).getTime();
+      return t >= new Date(`${hojeStr}T12:00:00`).getTime() - 13 * 86_400_000;
+    });
+    const realHora14 = mediaRealPorHora(operacao14);
+    const realDia14 = mediaRealPorDia(operacao14);
+    const janelas = {
+      7: janelaOperacional(ganhos60, 7, hojeStr, custoDia),
+      14: janelaOperacional(ganhos60, 14, hojeStr, custoDia),
+      30: janelaOperacional(ganhos60, 30, hojeStr, custoDia),
+    } as const;
+    const tendencia7 = tendencia(ganhos60, 7, hojeStr);
+    const confianca = confiancaDados(janelas[30].diasRegistrados);
+    const qualidade = qualidadeDados(ganhos60.filter((g) => {
+      const t = new Date(`${g.data}T12:00:00`).getTime();
+      return t >= new Date(`${hojeStr}T12:00:00`).getTime() - 29 * 86_400_000;
+    }));
+    const eficiencia = eficienciaVsPremissa(realHora14?.valor ?? null, meta.rendaHora);
+    const equilibrio = pontoEquilibrioDuplo(custoDia, meta.rendaHora, realHora14?.valor ?? null);
+    const melhoresDias = janelas[30].diasRegistrados >= 6 ? mediasPorDiaSemana(ganhos60, 2) : [];
+    const projecoes = projecoesDuplas({
+      realizado: progresso.realizado,
+      diasRestantes: ritmo.diasRestantesPlanejados,
+      metaDiariaOriginal: meta.metaDiaria,
+      mediaRealDia: realDia14?.valor ?? null,
+      diasRegistrados: realDia14?.dias ?? 0,
+    });
+    const horasMesRegistradas = ganhos.reduce((s, g) => s + (g.horas != null && Number.isFinite(g.horas) ? g.horas : 0), 0);
+    const custoHoraRealMes = custoPorHoraReal((totais.total / (diasNoMes || 30)) * hoje.getDate(), horasMesRegistradas);
+    const custoDiaCarro = custoPorDiaPlanejado(totais.carro, diasTrabalho);
+    const custoHoraCarro = meta.horasMes != null && meta.horasMes > 0 ? Math.round((totais.carro / meta.horasMes) * 100) / 100 : null;
+
     const mesAnterior = snapAnterior;
     const alertas = [
       ...alertasMeta({
@@ -197,6 +251,23 @@ export function useMinhaMeta() {
       carroPorCategoria,
       custoVida,
       custoOperacao,
+      // Fase 10 — operação real
+      ganhos60,
+      ganhos14: operacao14,
+      custoDia,
+      custoDiaCarro,
+      custoHoraCarro,
+      realHora14,
+      realDia14,
+      janelas,
+      tendencia7,
+      confianca,
+      qualidade,
+      eficiencia,
+      equilibrio,
+      melhoresDias,
+      projecoes,
+      custoHoraRealMes,
       temDados: despesasAtivas.some((d) => d.ativa) || aluguelCarroMensal > 0,
       precisaOnboarding: !despesasAtivas.some((d) => d.ativa) && !config,
     };

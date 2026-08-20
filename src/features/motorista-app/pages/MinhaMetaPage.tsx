@@ -8,6 +8,7 @@ import { OnboardingMeta } from '../components/meta/OnboardingMeta';
 import { HeroHoje } from '../components/meta/HeroHoje';
 import { RitmoMesCard } from '../components/meta/RitmoMesCard';
 import { CarroCard } from '../components/meta/CarroCard';
+import { OperacaoRealCard } from '../components/meta/OperacaoRealCard';
 import { useMinhaMeta } from '../hooks/useMinhaMeta';
 import {
   CATEGORIAS_CARRO,
@@ -57,6 +58,11 @@ export function MinhaMetaPage() {
         renda_hora: d.meta.rendaHora,
         reserva_meta: d.config?.reserva_meta ?? 0,
         reserva_atual: d.config?.reserva_atual ?? 0,
+        // Fase 10 (Módulo 21) — fechamento mensal fotografado no MESMO snapshot
+        ganhos_registrados: d.progresso.realizado,
+        dias_trabalhados: d.progresso.diasComLancamento,
+        rs_dia: d.realDia14?.valor ?? 0,
+        rs_hora: d.realHora14?.valor ?? 0,
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,8 +149,28 @@ export function MinhaMetaPage() {
         onEncerrarDia={({ valor, horas }) => m.mGanho.mutate({ data: hojeIso(), valor, horas, observacao: 'dia_encerrado' })}
       />
 
-      {/* ===== 5 · RITMO DO MÊS (Módulos 3/4/6/7/15/16/22) ===== */}
-      <RitmoMesCard ritmo={d.ritmo} bancoMeta={d.bancoMeta} bancoHoras={d.bancoHoras} projecao={d.projecao} recuperacao={d.recuperacao} />
+      {/* ===== 5 · RITMO DO MÊS (F9: 3/4/6/7/15/16/22 · F10: projeções duplas) ===== */}
+      <RitmoMesCard ritmo={d.ritmo} bancoMeta={d.bancoMeta} bancoHoras={d.bancoHoras} projecao={d.projecao} projecoes={d.projecoes} recuperacao={d.recuperacao} />
+
+      {/* ===== OPERAÇÃO REAL (Fase 10 — registros × premissa, nunca misturados) ===== */}
+      <OperacaoRealCard
+        realHora={d.realHora14}
+        realDia={d.realDia14}
+        metaDiaria={meta.metaDiaria}
+        premissaHora={meta.rendaHora}
+        eficiencia={d.eficiencia}
+        custoDia={d.custoDia}
+        custoHoraRealMes={d.custoHoraRealMes}
+        janelas={d.janelas}
+        tendencia7={d.tendencia7}
+        confianca={d.confianca}
+        qualidade={d.qualidade}
+        equilibrio={d.equilibrio}
+        melhoresDias={d.melhoresDias}
+        ganhosJanela={d.ganhos14}
+        salvandoPremissa={m.mConfig.isPending}
+        onUsarComoPremissa={(valor) => m.mConfig.mutate({ renda_hora: valor })}
+      />
 
       {/* ===== alertas factuais (Módulo 21) ===== */}
       {d.alertas.length > 0 && (
@@ -229,6 +255,8 @@ export function MinhaMetaPage() {
         porCategoria={d.carroPorCategoria}
         custoVida={d.custoVida}
         custoOperacao={d.custoOperacao}
+        custoDiaCarro={d.custoDiaCarro}
+        custoHoraCarro={d.custoHoraCarro}
       />
 
       {/* ===== ponto de equilíbrio (Módulo 13) ===== */}
@@ -366,7 +394,7 @@ export function MinhaMetaPage() {
       )}
 
       {/* ===== 12 · SIMULADOR + CENÁRIOS (Módulos 23/25) ===== */}
-      <SimuladorESe base={{ custoTotal: d.totais.total, diasTrabalho: meta.diasTrabalho, rendaHora: meta.rendaHora }} cenarios={d.cenarios} />
+      <SimuladorESe base={{ custoTotal: d.totais.total, diasTrabalho: meta.diasTrabalho, rendaHora: meta.rendaHora }} cenarios={d.cenarios} mediaRegistrada={d.realHora14?.valor ?? null} />
 
       <p className="pb-2 text-center text-[10px] text-neutral-400">
         Ferramenta de organização pessoal com os valores que VOCÊ informou. Não é aconselhamento financeiro.

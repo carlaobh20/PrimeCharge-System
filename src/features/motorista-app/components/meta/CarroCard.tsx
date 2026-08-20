@@ -5,6 +5,15 @@ import { CATEGORIA_LABEL, formatBRL } from '../../lib/metas';
 // PrimeCharge com badge (não editável aqui — edição de despesas manuais fica no detalhamento).
 // Impacto = % factual sobre o custo total. Vida × Operação separados (Módulo 12).
 
+// Componentes principais que a Fase 10 (Módulo 12) exige nomeados — ausente = "NÃO INFORMADO",
+// nunca zero silencioso. combustivel/recarga contam juntos como energia do carro.
+const COMPONENTES_ESPERADOS: { rotulo: string; categorias: string[] }[] = [
+  { rotulo: 'Combustível/Recarga', categorias: ['combustivel', 'recarga'] },
+  { rotulo: 'Manutenção', categorias: ['manutencao'] },
+  { rotulo: 'Seguro', categorias: ['seguro_pessoal'] },
+  { rotulo: 'Lavagem', categorias: ['lavagem'] },
+];
+
 export function CarroCard({
   totalCarro,
   totalGeral,
@@ -12,6 +21,8 @@ export function CarroCard({
   porCategoria,
   custoVida,
   custoOperacao,
+  custoDiaCarro,
+  custoHoraCarro,
 }: {
   totalCarro: number;
   totalGeral: number;
@@ -19,9 +30,14 @@ export function CarroCard({
   porCategoria: Record<string, number>;
   custoVida: number;
   custoOperacao: number;
+  /** Fase 10 (Módulo 12): carro ÷ dias planejados */
+  custoDiaCarro?: number | null;
+  /** Fase 10 (Módulo 12): carro mensal ÷ horas previstas no mês (premissa) */
+  custoHoraCarro?: number | null;
 }) {
   const pctCarro = totalGeral > 0 ? Math.round((totalCarro / totalGeral) * 1000) / 10 : 0;
   const categorias = Object.entries(porCategoria).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const naoInformados = COMPONENTES_ESPERADOS.filter((c) => !c.categorias.some((cat) => (porCategoria[cat] ?? 0) > 0));
 
   return (
     <Secao titulo="Seu carro custa">
@@ -47,7 +63,26 @@ export function CarroCard({
         {categorias.length === 0 && !aluguelContrato && (
           <p className="text-sm text-neutral-400">Nenhum custo do carro cadastrado ainda.</p>
         )}
+        {naoInformados.length > 0 && (totalCarro > 0 || aluguelContrato) && (
+          <p className="text-[10px] text-neutral-400">
+            {naoInformados.map((c) => c.rotulo).join(' · ')}: NÃO INFORMADO
+          </p>
+        )}
       </div>
+
+      {/* Fase 10 (Módulo 12) — custo do carro por dia e por hora (premissa declarada) */}
+      {(custoDiaCarro != null || custoHoraCarro != null) && totalCarro > 0 && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-neutral-50 p-2 text-center dark:bg-white/5">
+            <p className="text-[10px] uppercase tracking-wide text-neutral-400">Por dia planejado</p>
+            <p className="text-sm font-bold text-neutral-900 dark:text-white">{custoDiaCarro != null ? formatBRL(custoDiaCarro) : 'SEM DADO'}</p>
+          </div>
+          <div className="rounded-xl bg-neutral-50 p-2 text-center dark:bg-white/5">
+            <p className="text-[10px] uppercase tracking-wide text-neutral-400">Por hora (estimado)</p>
+            <p className="text-sm font-bold text-neutral-900 dark:text-white">{custoHoraCarro != null ? formatBRL(custoHoraCarro) : 'SEM DADO'}</p>
+          </div>
+        </div>
+      )}
 
       {/* Módulo 11 — impacto factual */}
       {totalGeral > 0 && totalCarro > 0 && (
