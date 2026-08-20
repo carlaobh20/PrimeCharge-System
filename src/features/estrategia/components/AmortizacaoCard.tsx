@@ -6,7 +6,7 @@ import { cn } from '@/shared/lib/utils';
 import { formatMoeda } from '@/shared/lib/format';
 import { formatarMoedaInput, digitosParaReais } from '@/shared/lib/moedaInput';
 import { ESTRATEGIAS_AMORTIZACAO, LABEL_ESTRATEGIA_AMORTIZACAO, type CenarioSimulacaoInput, type EstrategiaAmortizacao } from '../types';
-import type { ComparacaoAmortizarVsComprar, MesSimulado } from '../intelligence/simulacaoEmpresarial';
+import type { ComparacaoAmortizarVsComprar, ResumoAmortizacaoExtra } from '../intelligence/simulacaoEmpresarial';
 
 const ESTRATEGIAS_COM_VALOR: EstrategiaAmortizacao[] = ['todo_mes', 'a_cada_6_meses', 'manual'];
 
@@ -32,12 +32,16 @@ const DICA_POR_ESTRATEGIA: Record<EstrategiaAmortizacao, string> = {
 export function AmortizacaoCard({
   valor,
   onChange,
-  mesAtual,
+  resumo,
   comparacao,
 }: {
   valor: CenarioSimulacaoInput;
   onChange: (patch: Partial<CenarioSimulacaoInput>) => void;
-  mesAtual?: MesSimulado;
+  /** Fase amortização (2026-08-14) — resumo do horizonte calculado no motor
+   * (resumirAmortizacaoExtra): configurado por evento, total efetivamente aplicado, e se em algum
+   * mês o caixa/saldo limitou o valor. Substitui o antigo `mesAtual` (que era o mês 0 e por isso
+   * mostrava sempre R$ 0,00 em "amortizado até hoje"). */
+  resumo?: ResumoAmortizacaoExtra;
   /** Fase 4.1 (2026-08-13) — calculado no motor (calcularComparacaoAmortizarVsComprar), nunca
    * mais aqui dentro. O componente só formata e apresenta. */
   comparacao: ComparacaoAmortizarVsComprar;
@@ -86,10 +90,24 @@ export function AmortizacaoCard({
 
         <p className="mt-2 text-[11px] leading-snug text-neutral-400">{DICA_POR_ESTRATEGIA[valor.amortizacao_estrategia]}</p>
 
-        {mesAtual && valor.amortizacao_estrategia !== 'nunca' && (
-          <div className="mt-2 flex items-center justify-between border-t border-neutral-100 pt-2 text-[11px] dark:border-white/5">
-            <span className="text-neutral-500">Amortizado a mais até hoje</span>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatMoeda(mesAtual.amortizacaoExtraAcumulada)}</span>
+        {resumo && valor.amortizacao_estrategia !== 'nunca' && (
+          <div className="mt-2 space-y-1 border-t border-neutral-100 pt-2 text-[11px] dark:border-white/5">
+            {mostrarCampoValor && (
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-500">Configurado por evento</span>
+                <span className="font-medium text-neutral-600 dark:text-neutral-300">{formatMoeda(resumo.configuradoPorEvento)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-neutral-500">Total efetivamente amortizado</span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatMoeda(resumo.totalAplicado)}</span>
+            </div>
+            {resumo.algumMesLimitadoPorCaixa && (
+              <p className="text-[10px] leading-snug text-amber-600 dark:text-amber-400">
+                Em alguns meses o valor aplicado ficou abaixo do configurado — o caixa ou o saldo devedor disponível limitou o pagamento (o
+                sistema nunca deixa o caixa negativo nem a dívida abaixo de zero).
+              </p>
+            )}
           </div>
         )}
 

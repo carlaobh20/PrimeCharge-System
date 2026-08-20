@@ -1,96 +1,105 @@
-import { Car, Calendar, Wallet, Gauge } from 'lucide-react';
-import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
+import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { formatMoeda, formatDataSimples } from '@/shared/lib/format';
-import { CONTRATO_PERIODICIDADE_LABEL } from '@/features/contracts/types';
-import { StatusBadge } from '@/features/contracts/components/StatusBadge';
-import { VEICULO_CATEGORIA_LABEL } from '@/features/frota/types';
+import {
+  CONTRATO_STATUS_LABEL,
+  CONTRATO_PERIODICIDADE_LABEL,
+  type ContratoStatus,
+} from '@/features/contracts/types';
+import { Secao, Linha, Pill, SkeletonPortal, ErroPortal, VazioPortal } from '../components/ui';
+import { MeuDocumentoContrato } from '../components/MeuDocumentoContrato';
 import { useMeuContrato } from '../hooks/useMeuContrato';
+import type { MeuContrato } from '../api/meuContrato';
 
-function Linha({ icon: Icon, label, value }: { icon: typeof Car; label: string; value: string }) {
+// Épico 11 — App do Motorista. Tela "Meu contrato": termos do contrato ativo + histórico.
+// Só leitura; nada financeiro interno (juros, caução, multas ficam fora do tipo, não invento).
+
+// Tom da pill de status: verde = ativo; âmbar = em processo (renovação/análise/aprovado/
+// assinado); neutro = encerrado/cancelado/rascunho.
+const TONS_AMBAR: ContratoStatus[] = ['renovacao', 'em_analise', 'aprovado', 'assinado'];
+function tomStatus(status: ContratoStatus): 'verde' | 'ambar' | 'neutro' {
+  if (status === 'ativo') return 'verde';
+  if (TONS_AMBAR.includes(status)) return 'ambar';
+  return 'neutro';
+}
+
+// Uma linha do histórico: status + período (início → fim real/previsto ou "em aberto").
+function ItemHistorico({ contrato }: { contrato: MeuContrato }) {
+  const fim = contrato.data_fim_real ?? contrato.data_fim_prevista;
+  const periodo = `${formatDataSimples(contrato.data_inicio)} — ${fim ? formatDataSimples(fim) : 'em aberto'}`;
   return (
-    <div className="flex items-center justify-between gap-3 py-2.5">
-      <span className="flex items-center gap-2 text-sm text-neutral-500">
-        <Icon className="h-4 w-4 shrink-0" />
-        {label}
-      </span>
-      <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{value}</span>
+    <div className="flex items-center justify-between gap-3 py-2">
+      <span className="text-sm text-neutral-500">{periodo}</span>
+      <Pill tom={tomStatus(contrato.status)}>{CONTRATO_STATUS_LABEL[contrato.status]}</Pill>
     </div>
   );
 }
 
-// Épico 11 — App do Motorista, Fase 1. Primeira tela real do portal: "onde estou, o que
-// dirijo". Só leitura — nenhuma edição, nenhum número recalculado aqui (mesma regra de sempre:
-// vem direto do que a RLS da migration 0034 já devolve).
 export function MeuContratoPage() {
-  const { data: usuario } = useCurrentUsuario();
   const resultado = useMeuContrato();
 
-  if (resultado.isLoading) {
+  if (resultado.isLoading) return <SkeletonPortal />;
+  if (resultado.isError) return <ErroPortal onRetry={() => window.location.reload()} />;
+
+  const contrato = resultado.contratoAtivo;
+  if (!contrato) {
     return (
       <div className="space-y-4">
-        <div className="h-32 animate-pulse rounded-2xl bg-neutral-100 dark:bg-white/5" />
-        <div className="h-40 animate-pulse rounded-2xl bg-neutral-100 dark:bg-white/5" />
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Meu contrato</h1>
+        <VazioPortal>Nenhum contrato encontrado. Fale com a locadora.</VazioPortal>
       </div>
     );
   }
 
-  if (resultado.isError) {
-    return <p className="text-sm text-red-600">Não foi possível carregar seus dados agora. Tente novamente em instantes.</p>;
-  }
-
-  const primeiroNome = usuario?.nome_completo?.split(' ')[0];
-
-  if (!resultado.contratoAtivo) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-          {primeiroNome ? `Olá, ${primeiroNome}` : 'Olá'}
-        </h1>
-        <div className="rounded-2xl border border-neutral-200 bg-white p-5 text-center dark:border-white/10 dark:bg-white/[0.03]">
-          <p className="text-sm text-neutral-500">Nenhum contrato encontrado ainda. Fale com a locadora se isso não for esperado.</p>
-        </div>
-      </div>
-    );
-  }
-
-  const { contratoAtivo: contrato } = resultado;
   const veiculo = contrato.veiculo;
+  const nomeVeiculo = `${veiculo.marca?.nome ?? ''} ${veiculo.modelo?.nome ?? ''}`.trim() || '—';
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-        {primeiroNome ? `Olá, ${primeiroNome}` : 'Olá'}
-      </h1>
+      <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Meu contrato</h1>
 
-      <section className="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Meu contrato</h2>
-          <StatusBadge status={contrato.status} />
-        </div>
-        <div className="mt-1 divide-y divide-neutral-100 dark:divide-white/5">
+      <Secao titulo="Contrato" acao={<Pill tom={tomStatus(contrato.status)}>{CONTRATO_STATUS_LABEL[contrato.status]}</Pill>}>
+        <div className="divide-y divide-neutral-100 dark:divide-white/5">
           <Linha
-            icon={Wallet}
-            label={`Valor ${CONTRATO_PERIODICIDADE_LABEL[contrato.periodicidade].toLowerCase()}`}
-            value={formatMoeda(contrato.valor_periodico)}
+            label="Valor"
+            value={`${formatMoeda(contrato.valor_periodico)}/${CONTRATO_PERIODICIDADE_LABEL[contrato.periodicidade].toLowerCase()}`}
           />
-          <Linha icon={Calendar} label="Início" value={formatDataSimples(contrato.data_inicio)} />
           <Linha
-            icon={Calendar}
-            label="Previsão de término"
+            label="Dia de vencimento"
+            value={contrato.dia_vencimento != null ? `Todo dia ${contrato.dia_vencimento}` : 'Não definido'}
+          />
+          <Linha label="Início" value={formatDataSimples(contrato.data_inicio)} />
+          <Linha
+            label="Término previsto"
             value={contrato.data_fim_prevista ? formatDataSimples(contrato.data_fim_prevista) : 'Sem data definida'}
           />
         </div>
-      </section>
+      </Secao>
 
-      <section className="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Meu veículo</h2>
-        <div className="mt-1 divide-y divide-neutral-100 dark:divide-white/5">
-          <Linha icon={Car} label="Placa" value={veiculo.placa} />
-          <Linha icon={Car} label="Modelo" value={`${veiculo.marca?.nome ?? ''} ${veiculo.modelo?.nome ?? ''}`.trim() || '—'} />
-          <Linha icon={Car} label="Categoria" value={VEICULO_CATEGORIA_LABEL[veiculo.categoria]} />
-          <Linha icon={Gauge} label="Quilometragem" value={`${veiculo.quilometragem.toLocaleString('pt-BR')} km`} />
-        </div>
-      </section>
+      {/* Centro Jurídico Fase 2 — o documento do contrato (ver/assinar/recusar). A seção só
+          aparece quando existe versão compartilhada com o motorista (RLS decide). */}
+      <MeuDocumentoContrato />
+
+      <Secao titulo="Veículo do contrato">
+        <p className="text-base font-semibold text-neutral-900 dark:text-neutral-100">{veiculo.placa}</p>
+        <p className="text-sm text-neutral-500">{nomeVeiculo}</p>
+        <Link
+          to="/motorista/carro"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-sky-700 dark:text-sky-400"
+        >
+          Ver meu carro <ChevronRight className="h-4 w-4" />
+        </Link>
+      </Secao>
+
+      {resultado.historico.length > 0 && (
+        <Secao titulo="Contratos anteriores">
+          <div className="divide-y divide-neutral-100 dark:divide-white/5">
+            {resultado.historico.map((c) => (
+              <ItemHistorico key={c.id} contrato={c} />
+            ))}
+          </div>
+        </Secao>
+      )}
     </div>
   );
 }

@@ -38,6 +38,7 @@ export function ArquivosPanel({
   usuarioId,
   accept,
   label,
+  categorias,
 }: {
   entidadeTipo: string;
   entidadeId: string;
@@ -47,9 +48,15 @@ export function ArquivosPanel({
   usuarioId?: string;
   accept?: string;
   label: string;
+  /** Centro Jurídico Fase 4 (classificação de documentos): quando presente, a LISTA mostra
+   * TODOS os arquivos da entidade (sem filtrar por `categoria`) com a classificação de cada um,
+   * e o upload ganha um seletor de categoria (valor inicial = `categoria`). Prop opcional —
+   * consumidores existentes continuam com o comportamento antigo. */
+  categorias?: { valor: string; rotulo: string }[];
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { data: arquivos, isLoading } = useArquivos(entidadeTipo, entidadeId, categoria);
+  const { data: arquivos, isLoading } = useArquivos(entidadeTipo, entidadeId, categorias ? undefined : categoria);
+  const [categoriaUpload, setCategoriaUpload] = useState(categoria);
   const upload = useUploadArquivo(entidadeTipo, entidadeId);
   const remove = useDeleteArquivo(entidadeTipo, entidadeId);
   const capturaValidade = categoria === 'documento';
@@ -59,7 +66,7 @@ export function ArquivosPanel({
     if (!files || !empresaId) return;
     Array.from(files).forEach((file) => {
       upload.mutate(
-        { bucket, empresaId, entidadeTipo, entidadeId, categoria, usuarioId, file, dataValidade: dataValidade || null },
+        { bucket, empresaId, entidadeTipo, entidadeId, categoria: categorias ? categoriaUpload : categoria, usuarioId, file, dataValidade: dataValidade || null },
         { onSuccess: () => toast.success(`"${file.name}" enviado com sucesso`) }
       );
     });
@@ -82,6 +89,23 @@ export function ArquivosPanel({
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
       />
+      {categorias && (
+        <div className="flex items-center gap-2">
+          <Label className="text-xs">Classificação do arquivo</Label>
+          <select
+            aria-label="Classificação do arquivo"
+            className="h-8 rounded-md border border-neutral-300 bg-transparent px-2 text-xs dark:border-neutral-700"
+            value={categoriaUpload}
+            onChange={(e) => setCategoriaUpload(e.target.value)}
+          >
+            {categorias.map((c) => (
+              <option key={c.valor} value={c.valor}>
+                {c.rotulo}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {capturaValidade && (
         <div>
           <Label>Validade do documento (opcional)</Label>
@@ -118,6 +142,11 @@ export function ArquivosPanel({
               {arquivo.nome_arquivo}
             </button>
             <div className="flex items-center gap-3">
+              {categorias && arquivo.categoria && (
+                <span className="hidden rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 sm:inline">
+                  {categorias.find((c) => c.valor === arquivo.categoria)?.rotulo ?? arquivo.categoria}
+                </span>
+              )}
               {arquivo.data_validade && (
                 <span className="hidden text-xs text-neutral-500 sm:inline">{formatDataSimples(arquivo.data_validade)}</span>
               )}

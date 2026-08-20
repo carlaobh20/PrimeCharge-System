@@ -1,7 +1,7 @@
 import { supabase, assertLinhaAfetada } from '@/shared/lib/supabase';
 import type { Contrato, ContratoComRelacoes, ContratoStatus } from '../types';
 
-const SELECT_COM_RELACOES = '*, veiculo:veiculos(id, placa, status), motorista:motoristas(id, nome_completo, status)';
+const SELECT_COM_RELACOES = '*, veiculo:veiculos(id, placa, status), motorista:motoristas(id, nome_completo, status, cpf)';
 
 export async function listContratos(filters?: {
   status?: ContratoStatus | 'todos';

@@ -235,3 +235,50 @@ export const MULTA_STATUS_LABEL: Record<MultaStatus, string> = {
   recorrida: 'Recorrida',
   cancelada: 'Cancelada',
 };
+
+// ============================================================
+// Sinistros — a tabela `sinistros` existe desde 0023/0031 (criada AUTOMATICAMENTE pela vistoria
+// de devolução quando houve_sinistro=true, fn_propagar_status_vistoria), com RLS staff-only já
+// endurecida na 0036 (select = empresa + eh_staff; insert/update = pode('operacoes',...)). Até
+// agora NÃO tinha nenhuma tela: os sinistros gerados pela vistoria ficavam invisíveis no produto.
+// Esta capability só ADICIONA a UI de leitura/registro sobre o schema+RLS que já existem — sem
+// migration, sem tocar em produção. Mesmo racional de Multas/Manutenções (mora em operacoes/,
+// aparece no Cockpit do Veículo). A tabela é mínima de propósito (sem valor/seguradora/status —
+// registrado como melhoria futura); esta UI reflete exatamente as colunas que existem.
+// ============================================================
+
+// `tipo` é TEXT livre no banco (default 'outro'); estas são só as opções sugeridas na UI.
+export type SinistroTipo = 'colisao' | 'roubo' | 'furto' | 'avaria' | 'incendio' | 'terceiros' | 'outro';
+
+export type Sinistro = {
+  id: string;
+  empresa_id: string;
+  veiculo_id: string | null;
+  motorista_id: string | null;
+  contrato_id: string | null;
+  tipo: string;
+  data_ocorrencia: string;
+  descricao: string | null;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type SinistroComRelacoes = Sinistro & {
+  veiculo?: { id: string; placa: string } | null;
+  motorista?: { id: string; nome_completo: string } | null;
+};
+
+export const SINISTRO_TIPO_LABEL: Record<SinistroTipo, string> = {
+  colisao: 'Colisão',
+  roubo: 'Roubo',
+  furto: 'Furto',
+  avaria: 'Avaria',
+  incendio: 'Incêndio',
+  terceiros: 'Danos a terceiros',
+  outro: 'Outro',
+};
+
+/** Rótulo do tipo aceitando texto livre (a vistoria pode ter gravado um valor fora da lista). */
+export function labelTipoSinistro(tipo: string): string {
+  return (SINISTRO_TIPO_LABEL as Record<string, string>)[tipo] ?? tipo;
+}

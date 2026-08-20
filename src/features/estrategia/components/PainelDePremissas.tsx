@@ -6,7 +6,7 @@ import { formatMoeda } from '@/shared/lib/format';
 import { formatarMoedaInput, digitosParaReais } from '@/shared/lib/moedaInput';
 import { AmortizacaoCard } from './AmortizacaoCard';
 import { FormaAquisicaoCard } from './FormaAquisicaoCard';
-import type { ComparacaoAmortizarVsComprar, MesSimulado } from '../intelligence/simulacaoEmpresarial';
+import type { ComparacaoAmortizarVsComprar, ResumoAmortizacaoExtra } from '../intelligence/simulacaoEmpresarial';
 import type { CenarioSimulacaoInput } from '../types';
 
 type CampoNumerico = Exclude<keyof CenarioSimulacaoInput, 'nome' | 'reinvestir_lucro' | 'amortizacao_estrategia' | 'amortizacao_valor_manual'>;
@@ -146,13 +146,14 @@ const GRUPOS: Grupo[] = [
 export function PainelDePremissas({
   valor,
   onChange,
-  mesAtual,
+  resumoAmortizacao,
   comparacaoAmortizar,
   veiculosDisponiveisAgora,
 }: {
   valor: CenarioSimulacaoInput;
   onChange: (patch: Partial<CenarioSimulacaoInput>) => void;
-  mesAtual?: MesSimulado;
+  /** Fase amortização (2026-08-14) — resumo do horizonte (motor), só repassado até o AmortizacaoCard. */
+  resumoAmortizacao?: ResumoAmortizacaoExtra;
   /** Fase 4.1 (2026-08-13) — calculado no motor, só repassado até o AmortizacaoCard. */
   comparacaoAmortizar: ComparacaoAmortizarVsComprar;
   /** Fase 4.2 (2026-08-13) — calculado no motor (calcularVeiculosDisponiveisAgora), nunca mais
@@ -204,7 +205,7 @@ export function PainelDePremissas({
               amortizar quando o financiamento já nasce zerado). */}
           {grupo.titulo === 'Compra' && <FormaAquisicaoCard valor={valor} onChange={onChange} />}
           {grupo.titulo === 'Compra' && valor.forma_aquisicao !== 'avista' && (
-            <AmortizacaoCard valor={valor} onChange={onChange} mesAtual={mesAtual} comparacao={comparacaoAmortizar} />
+            <AmortizacaoCard valor={valor} onChange={onChange} resumo={resumoAmortizacao} comparacao={comparacaoAmortizar} />
           )}
         </Fragment>
       ))}

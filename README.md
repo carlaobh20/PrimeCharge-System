@@ -8,8 +8,8 @@ Sistema de gestão (ERP) para empresas de locação de veículos elétricos.
 > exato, o que está pendente de aplicar, o que está em investigação, o que está congelado) é o
 > **[`CLAUDE.md`](CLAUDE.md)**. Leia ele antes de continuar qualquer trabalho nesta branch.
 
-Branch de trabalho: `dev-epico9-expansao`, já promovida para `main` (PR #1, 2026-08-14) — `main` é
-a versão em produção. Módulos entregues até aqui (histórico, não exaustivo):
+Repositório com só duas branches: `dev` (trabalho) e `main` (produção) — as demais foram
+consolidadas em `main` e apagadas em 2026-08-14. Módulos entregues até aqui (histórico, não exaustivo):
 Fundação (auth/tenancy/auditoria), Veículos com Cockpit do Ativo e Vehicle Intelligence, Command
 Center (Home com 6 Engines de decisão), Cockpit do Motorista com Driver Intelligence e CRM
 (Kanban), Contratos, Controladoria, Épico 8 (Vistoria), Épico 9 (Motor de Expansão da Frota —

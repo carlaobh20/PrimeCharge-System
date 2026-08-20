@@ -58,10 +58,14 @@ export function AceitarConvitePage() {
     if (!convite) return;
     setErroEnvio(null);
     setEnviando(true);
+    // Fase 1 (fix R3): o token vai junto no signUp — fn_aceitar_convite (migration 0039) só
+    // vincula role/empresa/motorista se TOKEN + E-MAIL casarem com um convite pendente. Antes
+    // o vínculo casava só por e-mail, e o token era validado apenas nesta tela (insuficiente:
+    // quem soubesse o e-mail convidado podia chamar signUp direto na API e herdar o acesso).
     const { error } = await supabase.auth.signUp({
       email: convite.email,
       password: senha,
-      options: { data: { nome_completo: nome } },
+      options: { data: { nome_completo: nome, convite_token: token } },
     });
     setEnviando(false);
     if (error) {

@@ -17,7 +17,7 @@ import { useCenarios, useCriarCenario, useAtualizarCenario } from '../hooks/useS
 import { useSimulacaoResultado } from '../hooks/useSimulacaoResultado';
 import { useMomentoDeCompra } from '../hooks/useMomentoDeCompra';
 import { calcularMargemDeSeguranca, calcularRunway } from '../intelligence/margemDeSeguranca';
-import { calcularComparacaoAmortizarVsComprar, calcularVeiculosDisponiveisAgora } from '../intelligence/simulacaoEmpresarial';
+import { calcularComparacaoAmortizarVsComprar, calcularVeiculosDisponiveisAgora, resumirAmortizacaoExtra } from '../intelligence/simulacaoEmpresarial';
 import type { CenarioSimulacaoInput } from '../types';
 
 const CENARIO_PADRAO: CenarioSimulacaoInput = {
@@ -156,7 +156,7 @@ export function SimulacaoEmpresarial() {
       <PainelDePremissas
         valor={input}
         onChange={atualizarCampo}
-        mesAtual={mesAtual}
+        resumoAmortizacao={resultado ? resumirAmortizacaoExtra(resultado.meses, input) : undefined}
         comparacaoAmortizar={calcularComparacaoAmortizarVsComprar(input)}
         veiculosDisponiveisAgora={calcularVeiculosDisponiveisAgora(input)}
       />

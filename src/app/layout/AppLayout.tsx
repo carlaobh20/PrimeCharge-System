@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { BarChart3, Car, ClipboardList, Compass, FileSignature, Landmark, PieChart, Radar, LogOut, Receipt, Search, Users, UserCog, Wallet } from 'lucide-react';
+import { BarChart3, Car, ClipboardList, Compass, FileSignature, Landmark, PieChart, Radar, Headset, LogOut, Receipt, Scale, Search, Users, UserCog, Wallet, ShoppingBag, Package, PackageOpen } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { supabase } from '@/shared/lib/supabase';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
@@ -21,7 +22,16 @@ const NAV_ITEMS = [
   { to: '/veiculos', label: 'Frota', icon: Car, end: false },
   { to: '/motoristas', label: 'Motoristas', icon: Users, end: false },
   { to: '/contratos', label: 'Contratos', icon: FileSignature, end: false },
+  // Centro Jurídico (Fase 2) — logo após Contratos: é a visão DOCUMENTAL do mesmo objeto
+  // (documento/versões/assinaturas), enquanto /contratos segue sendo a visão financeira/operacional.
+  { to: '/juridico', label: 'Jurídico', icon: Scale, end: false },
   { to: '/operacoes/acoes', label: 'Ações Operacionais', icon: ClipboardList, end: false },
+  { to: '/atendimento', label: 'Atendimento Motorista', icon: Headset, end: false },
+  // Épico 12 — Lojinha administrativa (Fase 3). Pedidos primeiro (fila de trabalho diária),
+  // depois catálogo e estoque (cadastro/reposição).
+  { to: '/lojinha/pedidos', label: 'Pedidos (Lojinha)', icon: ShoppingBag, end: false },
+  { to: '/lojinha/produtos', label: 'Produtos', icon: Package, end: false },
+  { to: '/lojinha/estoque', label: 'Estoque', icon: PackageOpen, end: false },
   { to: '/financeiro/lancamentos', label: 'Lançamentos', icon: Wallet, end: false },
   { to: '/financeiro/pagamentos', label: 'Pagamentos', icon: Receipt, end: false },
   { to: '/financeiro/contas-bancarias', label: 'Contas Bancárias', icon: Landmark, end: false },
@@ -118,7 +128,9 @@ export function AppLayout() {
           verificar a Fase 1 do Kanban em produção — corrigido na raiz (aqui) em vez de em cada
           componente que algum dia tiver uma faixa de rolagem própria. */}
       <main className="min-w-0 flex-1">
-        <Outlet />
+        <Suspense fallback={<div className="p-8 text-sm text-neutral-500">Carregando…</div>}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* Achado da Fase 9 (auditoria geral): antes ficava sempre montada, então
