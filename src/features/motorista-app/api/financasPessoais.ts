@@ -1,4 +1,5 @@
 import { supabase } from '@/shared/lib/supabase';
+import { lerTolerante } from './schemaGuard';
 import type { DespesaMeta, GrupoDespesa, PeriodicidadeDespesa } from '../lib/metas';
 
 // MINHA META — API do portal (migration 0047). Regras do portal (R4 da Fase 1 de segurança):
@@ -16,9 +17,11 @@ const COLS_SNAPSHOT = 'id, mes, total, por_grupo';
 export type DespesaRow = DespesaMeta & { vencimento_dia: number | null };
 
 export async function listDespesas(): Promise<DespesaRow[]> {
-  const { data, error } = await supabase.from('motorista_despesas').select(COLS_DESPESA).order('criado_em', { ascending: true });
-  if (error) throw error;
-  return data as DespesaRow[];
+  return lerTolerante('minha-meta', async () => {
+    const { data, error } = await supabase.from('motorista_despesas').select(COLS_DESPESA).order('criado_em', { ascending: true });
+    if (error) throw error;
+    return data as DespesaRow[];
+  }, []);
 }
 
 export async function criarDespesa(motoristaId: string, d: {
@@ -62,9 +65,11 @@ export type MetaConfig = {
 };
 
 export async function getConfig(): Promise<MetaConfig | null> {
-  const { data, error } = await supabase.from('motorista_meta_config').select(COLS_CONFIG).maybeSingle();
-  if (error) throw error;
-  return data as MetaConfig | null;
+  return lerTolerante('minha-meta', async () => {
+    const { data, error } = await supabase.from('motorista_meta_config').select(COLS_CONFIG).maybeSingle();
+    if (error) throw error;
+    return data as MetaConfig | null;
+  }, null);
 }
 
 export async function salvarConfig(motoristaId: string, patch: Partial<Omit<MetaConfig, 'motorista_id'>>): Promise<void> {
@@ -87,9 +92,11 @@ export type ObjetivoRow = {
 };
 
 export async function listObjetivos(): Promise<ObjetivoRow[]> {
-  const { data, error } = await supabase.from('motorista_objetivos').select(COLS_OBJETIVO).eq('ativo', true).order('criado_em');
-  if (error) throw error;
-  return data as ObjetivoRow[];
+  return lerTolerante('minha-meta', async () => {
+    const { data, error } = await supabase.from('motorista_objetivos').select(COLS_OBJETIVO).eq('ativo', true).order('criado_em');
+    if (error) throw error;
+    return data as ObjetivoRow[];
+  }, []);
 }
 
 export async function salvarObjetivo(motoristaId: string, o: { id?: string; nome: string; categoria: string; valor_meta: number; valor_atual: number; prazo: string | null }): Promise<void> {
@@ -124,14 +131,16 @@ export type GanhoRow = {
 
 /** Consulta ÚNICA por período (Fase 10) — as janelas 7/14/30 e o mês reusam esta função. */
 export async function listGanhosPeriodo(inicioIso: string, fimIso: string): Promise<GanhoRow[]> {
-  const { data, error } = await supabase
-    .from('motorista_ganhos')
-    .select(COLS_GANHO)
-    .gte('data', inicioIso)
-    .lte('data', fimIso)
-    .order('data');
-  if (error) throw error;
-  return data as GanhoRow[];
+  return lerTolerante('minha-meta', async () => {
+    const { data, error } = await supabase
+      .from('motorista_ganhos')
+      .select(COLS_GANHO)
+      .gte('data', inicioIso)
+      .lte('data', fimIso)
+      .order('data');
+    if (error) throw error;
+    return data as GanhoRow[];
+  }, []);
 }
 
 export async function listGanhosDoMes(anoMes: string /* 'YYYY-MM' */): Promise<GanhoRow[]> {
@@ -168,14 +177,16 @@ export type RecargaRow = {
 };
 
 export async function listRecargasPeriodo(inicioIso: string, fimIso: string): Promise<RecargaRow[]> {
-  const { data, error } = await supabase
-    .from('motorista_recargas')
-    .select(COLS_RECARGA)
-    .gte('data', inicioIso)
-    .lte('data', fimIso)
-    .order('data', { ascending: false });
-  if (error) throw error;
-  return data as RecargaRow[];
+  return lerTolerante('minha-meta', async () => {
+    const { data, error } = await supabase
+      .from('motorista_recargas')
+      .select(COLS_RECARGA)
+      .gte('data', inicioIso)
+      .lte('data', fimIso)
+      .order('data', { ascending: false });
+    if (error) throw error;
+    return data as RecargaRow[];
+  }, []);
 }
 
 export async function criarRecarga(motoristaId: string, r: {
@@ -200,9 +211,11 @@ export async function removerRecarga(id: string): Promise<void> {
 export type SnapshotRow = { id: string; mes: string; total: number; por_grupo: Record<string, number> };
 
 export async function listSnapshots(): Promise<SnapshotRow[]> {
-  const { data, error } = await supabase.from('motorista_custos_snapshots').select(COLS_SNAPSHOT).order('mes', { ascending: false }).limit(12);
-  if (error) throw error;
-  return data as SnapshotRow[];
+  return lerTolerante('minha-meta', async () => {
+    const { data, error } = await supabase.from('motorista_custos_snapshots').select(COLS_SNAPSHOT).order('mes', { ascending: false }).limit(12);
+    if (error) throw error;
+    return data as SnapshotRow[];
+  }, []);
 }
 
 /** Upsert do mês corrente — chamado quando a tela abre com dados (ação do usuário; sem cron). */

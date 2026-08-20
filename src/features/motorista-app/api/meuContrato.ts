@@ -22,7 +22,9 @@ export type MeuContratoVeiculo = {
   ano_fabricacao: number;
   ano_modelo: number;
   autonomia_km: number | null;
-  consumo_kwh_100km: number | null;
+  /** Ficha técnica (migration 0023). NÃO vem no select — a coluna não existe em produção.
+   *  Fica opcional: ausente → o consumo energético estimado aparece como NÃO INFORMADO. */
+  consumo_kwh_100km?: number | null;
   capacidade_bateria_kwh: number | null;
   marca: { id: string; nome: string } | null;
   modelo: { id: string; nome: string } | null;
@@ -59,9 +61,15 @@ const COLUNAS_MEU_CONTRATO = [
   // motorista_id, valor_caucao, carga_inicial_pct, carga_final_pct, observacoes (notas
   // internas), data_reajuste, indice_reajuste, forma_pagamento, tipo_garantia,
   // percentual_multa_atraso, percentual_juros_atraso, atualizado_em.
+  // ⚠️ NÃO adicione colunas aqui sem confirmar que existem no banco de PRODUÇÃO. Esta query
+  // é a espinha do portal (Home, Meu carro, Meta, Contrato usam useMeuContrato): uma coluna
+  // inexistente derruba TODAS essas telas com "Não foi possível carregar" (PostgREST 42703).
+  // Foi o que aconteceu com `consumo_kwh_100km` (migration 0023, NUNCA aplicada em produção):
+  // entrou aqui na Fase 12.1 e quebrou o app inteiro. O consumo da ficha é OPCIONAL — quando
+  // ausente, o motor já mostra "NÃO INFORMADO" na estimativa de energia.
   `veiculo:veiculos(
     id, placa, cor, categoria, status, quilometragem, ano_fabricacao, ano_modelo,
-    autonomia_km, capacidade_bateria_kwh, consumo_kwh_100km,
+    autonomia_km, capacidade_bateria_kwh,
     marca:marcas(id, nome), modelo:modelos(id, nome)
   )`,
   // Excluídos do veículo: chassi, renavam, tipo_aquisicao, data_compra, valor_compra,

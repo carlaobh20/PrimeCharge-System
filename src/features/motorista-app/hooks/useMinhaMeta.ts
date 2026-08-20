@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { listMeusContratos, type MeuContrato } from '../api/meuContrato';
 import { listMinhasVistorias } from '../api/vistorias';
+import { moduloIndisponivel } from '../api/schemaGuard';
 import {
   atualizarDespesa,
   criarDespesa,
@@ -423,7 +424,10 @@ export function useMinhaMeta() {
       custoEnergeticoEstimado30,
       inconsistencias,
       temDados: despesasAtivas.some((d) => d.ativa) || aluguelCarroMensal > 0,
-      precisaOnboarding: !despesasAtivas.some((d) => d.ativa) && !config,
+      // Schema da Minha Meta (0047/0048) ainda não aplicado neste ambiente: a tela avisa em
+      // vez de oferecer um cadastro que falharia no INSERT.
+      indisponivel: moduloIndisponivel('minha-meta'),
+      precisaOnboarding: !moduloIndisponivel('minha-meta') && !despesasAtivas.some((d) => d.ativa) && !config,
     };
   }, [base.data, anoMes]);
 

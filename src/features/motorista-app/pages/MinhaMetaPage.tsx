@@ -78,6 +78,34 @@ export function MinhaMetaPage() {
   if (m.carregando) return <SkeletonPortal />;
   if (m.erro || !d) return <ErroPortal onRetry={() => m.recarregar()} />;
 
+  // Schema ainda não aplicado neste ambiente (migrations 0047/0048): a tela diz a verdade —
+  // não é falha de conexão e não é "você não cadastrou nada". Nada de formulário que falharia.
+  if (d.indisponivel) {
+    return (
+      <div className="space-y-4">
+        <header>
+          <h1 className="flex items-center gap-2 text-xl font-bold text-neutral-900 dark:text-white">
+            <Target className="h-5 w-5 text-emerald-600" aria-hidden /> Minha Meta
+          </h1>
+        </header>
+        <Secao>
+          <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
+            Esta área ainda não foi liberada neste ambiente.
+          </p>
+          <p className="mt-1 text-[13px] text-neutral-500">
+            O aplicativo está atualizado, mas as tabelas de finanças pessoais do motorista ainda
+            não existem no banco de dados. Sua conexão está normal — não há nada de errado com o
+            seu aparelho, e nenhum dado seu foi perdido.
+          </p>
+          <p className="mt-2 text-[12px] text-neutral-400">
+            As demais áreas do aplicativo (Início, Meu carro, Pagamentos, Lojinha) continuam
+            funcionando normalmente.
+          </p>
+        </Secao>
+      </div>
+    );
+  }
+
   const contratoInfo = d.contratoAtivo
     ? `Importado do seu contrato PrimeCharge (${formatBRL(d.contratoAtivo.valor_periodico)} ${PERIODICIDADE_LABEL[d.contratoAtivo.periodicidade === 'diaria' ? 'diaria' : d.contratoAtivo.periodicidade]})`
     : 'Sem contrato ativo no PrimeCharge';

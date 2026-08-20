@@ -356,3 +356,38 @@ casos.
    agora que `main` é produção, este é o ambiente certo pra testar.
 2. Login do motorista de teste — pendência antiga, separada, rate limit de e-mail do Supabase
    (nunca voltou a ser tratada nesta sessão).
+
+## 0.-9 INCIDENTE 2026-08-20 — app do motorista não abria (causa raiz + correção)
+
+**Sintoma:** todas as telas do portal com "Não foi possível carregar agora. Verifique sua
+conexão." A conexão estava ótima — a mensagem era falsa.
+
+**Causa raiz (minha):** na Fase 12.1 eu adicionei `consumo_kwh_100km` ao select de
+`listMeusContratos()`. Essa coluna vem da migration **0023, que NUNCA foi aplicada em
+produção** → PostgREST devolvia `42703 column veiculos.consumo_kwh_100km does not exist` →
+`useMeuContrato` explodia → **Home, Meu carro, Meta e Contrato caíam juntos** (todas dependem
+dele). Diagnóstico feito sondando o PostgREST de produção com a chave publishable do bundle
+(coluna/tabela inexistente falha ANTES da RLS, então dá pra auditar schema sem login).
+
+**Estado REAL do banco de produção (`ojvhiadjnxhhevoryjtu`) em 20/08:** está na altura da
+**0041**. Confirmado ausente: `veiculos.consumo_kwh_100km` (0023), `contrato_versoes` /
+`contrato_assinaturas` / `contrato_aditivos` (0042+), todas as `motorista_*` (0047/0048).
+Confirmado presente e OK: contratos, veiculos, lancamentos, pagamentos, pedidos, arquivos,
+checklists, checklist_itens, chamados, notificacoes, usuarios.
+**Resposta empírica à pergunta que ficou 14 vezes sem resposta: o deploy usa ESSE banco.**
+
+**Correções aplicadas (sem tocar em produção):**
+1. `meuContrato.ts`: `consumo_kwh_100km` FORA do select (com aviso em comentário — essa query é
+   a espinha do portal; coluna inexistente derruba tudo). Campo virou opcional; ausente →
+   consumo energético estimado aparece como NÃO INFORMADO (o motor já suportava).
+2. `api/schemaGuard.ts` (novo): `ehRecursoAusente` (PGRST205/PGRST204/42P01/42703) +
+   `lerTolerante(modulo, fn, vazio)`. Leitura de módulo cujo schema não existe devolve vazio e
+   registra o módulo como INDISPONÍVEL — qualquer outro erro (rede/RLS) continua subindo.
+3. Guard aplicado nas 6 leituras de `financasPessoais.ts` e nas 3 de `meuContratoJuridico.ts`.
+4. `useMinhaMeta` expõe `indisponivel`; `MinhaMetaPage` e `CentroControlePage` mostram estado
+   honesto ("Esta área ainda não foi liberada neste ambiente… sua conexão está normal") em vez
+   de erro falso — e o onboarding NÃO é oferecido (o INSERT falharia).
+
+**REGRA PERMANENTE:** nenhuma coluna/tabela nova entra num select do portal sem antes provar
+que existe no banco de produção. O código chega por branch; a migration é aplicada à mão — os
+dois relógios andam separados.
