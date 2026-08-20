@@ -38,6 +38,21 @@ export function CentroControlePage() {
   if (carregando) return <SkeletonPortal />;
   if (erro || !derivado) return <ErroPortal onRetry={recarregar} />;
 
+  // Mesmo tratamento honesto da MinhaMetaPage: schema 0047/0048 ausente não é erro de conexão.
+  if (derivado.indisponivel) {
+    return (
+      <Secao>
+        <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
+          Esta área ainda não foi liberada neste ambiente.
+        </p>
+        <p className="mt-1 text-[13px] text-neutral-500">
+          As tabelas de operação do motorista ainda não existem no banco de dados. Sua conexão
+          está normal e nenhum dado seu foi perdido.
+        </p>
+      </Secao>
+    );
+  }
+
   const d = derivado;
   const hojeIso = new Date().toISOString().slice(0, 10);
   const mesLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });

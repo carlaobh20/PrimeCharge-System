@@ -1,4 +1,5 @@
 import { supabase } from '@/shared/lib/supabase';
+import { lerTolerante } from './schemaGuard';
 import type { ContratoAssinaturaStatus, ContratoVersaoStatus } from '@/features/contracts/juridico/types';
 
 // App do Motorista — documento jurídico do PRÓPRIO contrato (Centro Jurídico Fase 2).
@@ -24,12 +25,15 @@ export type MinhaVersaoContrato = {
 const COLUNAS_VERSAO = 'id, contrato_id, numero, rotulo, status, corpo, hash_sha256, congelada_em, criado_em';
 
 export async function listMinhasVersoesContrato() {
-  const { data, error } = await supabase
-    .from('contrato_versoes')
-    .select(COLUNAS_VERSAO)
-    .order('numero', { ascending: false });
-  if (error) throw error;
-  return data as MinhaVersaoContrato[];
+  // Schema jurídico (0042+) ainda pode não existir no ambiente — ver schemaGuard.
+  return lerTolerante('contrato-juridico', async () => {
+    const { data, error } = await supabase
+      .from('contrato_versoes')
+      .select(COLUNAS_VERSAO)
+      .order('numero', { ascending: false });
+    if (error) throw error;
+    return data as MinhaVersaoContrato[];
+  }, [] as MinhaVersaoContrato[]);
 }
 
 export type MinhaAssinatura = {
@@ -55,19 +59,23 @@ export type MeuAditivo = {
 /** Aditivos do próprio contrato (RLS da 0042: motorista SELECT nos aditivos do próprio
  * contrato). Só vigentes aparecem no app — rascunho é trabalho interno do staff. */
 export async function listMeusAditivos() {
-  const { data, error } = await supabase
-    .from('contrato_aditivos')
-    .select('id, tipo, status, descricao, criado_em')
-    .eq('status', 'vigente')
-    .order('criado_em', { ascending: false });
-  if (error) throw error;
-  return data as MeuAditivo[];
+  return lerTolerante('contrato-juridico', async () => {
+    const { data, error } = await supabase
+      .from('contrato_aditivos')
+      .select('id, tipo, status, descricao, criado_em')
+      .eq('status', 'vigente')
+      .order('criado_em', { ascending: false });
+    if (error) throw error;
+    return data as MeuAditivo[];
+  }, [] as MeuAditivo[]);
 }
 
 export async function listMinhasAssinaturas() {
-  const { data, error } = await supabase.from('contrato_assinaturas').select(COLUNAS_ASSINATURA);
-  if (error) throw error;
-  return data as MinhaAssinatura[];
+  return lerTolerante('contrato-juridico', async () => {
+    const { data, error } = await supabase.from('contrato_assinaturas').select(COLUNAS_ASSINATURA);
+    if (error) throw error;
+    return data as MinhaAssinatura[];
+  }, [] as MinhaAssinatura[]);
 }
 
 /** Evidência registrada no aceite — o que dá pra capturar honestamente do lado do cliente.
