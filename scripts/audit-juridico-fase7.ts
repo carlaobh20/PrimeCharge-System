@@ -179,8 +179,12 @@ const retornosSrc = lerSrc('src/features/contracts/juridico/apiRetornos.ts');
 check('G', retornosSrc.includes("entidade_tipo', 'contrato_template'") || retornosSrc.includes("entidadeTipo: 'contrato_template'"), 'retornos reusam arquivos/storage com entidade_tipo contrato_template (RLS staff-only 0036/0039/0041 — provada nas suítes SQL)');
 const templatesSrc = lerSrc('src/features/contracts/juridico/pages/JuridicoTemplatesPage.tsx');
 check('G', templatesSrc.includes('NÃO altera contratos já gerados'), 'publicação avisa explicitamente que não altera contratos existentes');
+// A Fase 7 não criou migration (reuso provado). Migrations >46 posteriores (ex.: 0047 da
+// Minha Meta do motorista) são de OUTRAS features — o assert vira: nenhuma delas toca jurídico.
 const migrations = fs.readdirSync(path.join(RAIZ, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 46);
-check('G', migrations.length === 0, `nenhuma migration nova na Fase 7 (reuso provado do schema) — última continua 0046`);
+const tocaJuridico = migrations.some((f) =>
+  /contrato_template|contrato_versoes|contrato_assinaturas|juridico_/.test(fs.readFileSync(path.join(RAIZ, 'supabase/migrations', f), 'utf8')));
+check('G', !tocaJuridico, `nenhuma migration nova da Fase 7 (schema jurídico congelado na 0046; posteriores não tocam jurídico)`);
 
 console.log(`\n${passes} PASS, ${fails} FALHOU`);
 if (fails > 0) process.exit(1);

@@ -41,6 +41,7 @@ const NovaVistoriaPage = named(() => import('@/features/motorista-app/pages/Nova
 const NotificacoesPage = named(() => import('@/features/motorista-app/pages/NotificacoesPage'), 'NotificacoesPage');
 const PerfilPage = named(() => import('@/features/motorista-app/pages/PerfilPage'), 'PerfilPage');
 const MaisPage = named(() => import('@/features/motorista-app/pages/MaisPage'), 'MaisPage');
+const MinhaMetaPage = named(() => import('@/features/motorista-app/pages/MinhaMetaPage'), 'MinhaMetaPage');
 
 // --- lojinha administrativa (staff) ---
 const ProdutosPage = named(() => import('@/features/lojinha/pages/ProdutosPage'), 'ProdutosPage');
@@ -101,6 +102,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <MotoristaHomePage /> },
               { path: 'carro', element: <MeuCarroPage /> },
+              { path: 'meta', element: <MinhaMetaPage /> },
               { path: 'contrato', element: <MeuContratoPage /> },
               { path: 'pagamentos', element: <MeusPagamentosPage /> },
               { path: 'pagamentos/:id', element: <CobrancaDetalhePage /> },

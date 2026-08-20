@@ -6,7 +6,32 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-18, fim da Fase 8 do Centro Jurídico (Governança Contratual).
+**Última atualização:** 2026-08-20, fim da fase "Minha Meta" (Inteligência Financeira Pessoal
+do App do Motorista).
+
+## 0.-3 Minha Meta — Inteligência Financeira Pessoal do Motorista (2026-08-20, após 098c78e)
+
+- Nova área `/motorista/meta` (aba "Meta" na navegação, 6 itens): custo de vida em 4 grupos
+  (VIDA/FAMÍLIA c/ dependentes/CARRO/TRABALHO) → meta mensal ("meta de COBERTURA", nunca
+  "lucro") → meta diária → horas/dia na renda/hora PREMISSA (presets 30–50, disclaimer
+  "Estimativa baseada na renda média informada"). Realizado do mês é lançamento MANUAL
+  (sistema não tem faturamento dos apps — dia sem lançamento = SEM DADO, nunca zero falso).
+- Motor puro `motorista-app/lib/metas.ts` (ÚNICA normalização mensal: diária×365/12,
+  semanal×52/12, quinzenal×26/12, anual÷12; guards NaN/Infinity/negativo → nunca na saída);
+  UI: onboarding progressivo c/ momento WOW, hero, progresso+rebalanceamento, calendário
+  (✓▲▼· símbolo+texto, nunca só cor), simulador "E se?" imutável, objetivos, alertas FACTUAIS,
+  histórico (snapshots), divergência aluguel contrato×manual com resolução explícita.
+- Aluguel do carro DERIVADO de `listMeusContratos()` — nunca recadastrado nem gravado na 0047.
+- **Migration 0047** (LOCAL, não aplicada): 5 tabelas `motorista_*` (despesas, meta_config,
+  objetivos, ganhos unique/dia, custos_snapshots unique/mês). RLS INVERTIDA: 1 policy por
+  tabela (`current_motorista_id()`), STAFF NÃO VÊ NADA (nem owner), SEM trigger de audit_log
+  de propósito (auditar vazaria despesa pessoal pro staff), cascade LGPD.
+- Testes: harness SQL **293/293** (suíte 66 = 39 asserts, + reaplicação da 0047 provando
+  idempotência); `audit-motorista-meta.ts` **94/94** (inclui os exemplos literais da missão:
+  10000/25=400/dia; 400/40=10h; e asserts de fonte: vocabulário, R4, lazy, sem jurídico);
+  audits fase7/fase8 atualizados (migrations >46 de outras features não podem tocar jurídico);
+  tsc/oxlint/build ok — `MinhaMetaPage` chunk lazy próprio (~45KB/11,7KB gzip). Produção intocada.
+- Doc: `docs/motorista/MINHA-META.md` (modelo, fórmulas, RLS, UX, testes).
 
 ## 0.-2 Fase 8 — Governança Contratual (2026-08-18, após 3e84ea3)
 

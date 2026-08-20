@@ -159,8 +159,12 @@ check('H', /JuridicoDashboardPage = named\(\(\) => import/.test(routerSrc) && /J
 const motoristaApp = fs.readdirSync(path.join(RAIZ, 'src/features/motorista-app'), { recursive: true }) as string[];
 const importaGov = motoristaApp.filter((f) => String(f).endsWith('.ts') || String(f).endsWith('.tsx')).some((f) => fs.readFileSync(path.join(RAIZ, 'src/features/motorista-app', String(f)), 'utf8').match(/from '.*juridico\/(governanca|comparador|dossie|qa)/));
 check('H', !importaGov, 'App do Motorista NÃO importa motores de governança/comparador/dossiê (Módulo 28)');
+// A Fase 8 não criou migration. Migrations >46 posteriores (ex.: 0047 da Minha Meta do
+// motorista) são de OUTRAS features — o assert vira: nenhuma delas toca o schema jurídico.
 const migrations = fs.readdirSync(path.join(RAIZ, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 46);
-check('H', migrations.length === 0, 'ZERO migration na Fase 8 (schema existente comprovadamente suficiente — Módulo 31)');
+const tocaJuridico = migrations.some((f) =>
+  /contrato_template|contrato_versoes|contrato_assinaturas|juridico_/.test(fs.readFileSync(path.join(RAIZ, 'supabase/migrations', f), 'utf8')));
+check('H', !tocaJuridico, 'ZERO migration da Fase 8 (schema jurídico congelado na 0046; posteriores não tocam jurídico — Módulo 31)');
 
 console.log(`\n${passes} PASS, ${fails} FALHOU`);
 if (fails > 0) process.exit(1);

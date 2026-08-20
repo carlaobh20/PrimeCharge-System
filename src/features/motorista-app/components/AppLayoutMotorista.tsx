@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Home, Car, Wallet, ShoppingBag, Menu } from 'lucide-react';
+import { Home, Car, Target, Wallet, ShoppingBag, Menu } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { CarrinhoProvider, useCarrinho } from '../lib/carrinho';
 import { SkeletonPortal } from './ui';
@@ -14,6 +14,7 @@ import { SinoNotificacoes } from './SinoNotificacoes';
 const ITENS = [
   { to: '/motorista', label: 'Início', icon: Home, end: true },
   { to: '/motorista/carro', label: 'Meu carro', icon: Car, end: false },
+  { to: '/motorista/meta', label: 'Meta', icon: Target, end: false },
   { to: '/motorista/pagamentos', label: 'Pagamentos', icon: Wallet, end: false },
   { to: '/motorista/lojinha', label: 'Lojinha', icon: ShoppingBag, end: false },
   { to: '/motorista/mais', label: 'Mais', icon: Menu, end: false },
