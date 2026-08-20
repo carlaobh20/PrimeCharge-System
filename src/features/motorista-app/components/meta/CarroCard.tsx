@@ -24,6 +24,7 @@ export function CarroCard({
   custoDiaCarro,
   custoHoraCarro,
   horasCarroHoje,
+  custoOperacionalRegistrado30,
 }: {
   totalCarro: number;
   totalGeral: number;
@@ -37,6 +38,8 @@ export function CarroCard({
   custoHoraCarro?: number | null;
   /** Fase 11 (Módulo 17): horas para cobrir o custo do carro de hoje (ESTIMATIVA na premissa) */
   horasCarroHoje?: number | null;
+  /** Fase 12.1: recargas REGISTRADAS nos últimos 30 dias — ≠ do custo ESTIMADO */
+  custoOperacionalRegistrado30?: number | null;
 }) {
   const pctCarro = totalGeral > 0 ? Math.round((totalCarro / totalGeral) * 1000) / 10 : 0;
   const categorias = Object.entries(porCategoria).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
@@ -83,6 +86,20 @@ export function CarroCard({
           <div className="rounded-xl bg-neutral-50 p-2 text-center dark:bg-white/5">
             <p className="text-[10px] uppercase tracking-wide text-neutral-400">Por hora (estimado)</p>
             <p className="text-sm font-bold text-neutral-900 dark:text-white">{custoHoraCarro != null ? formatBRL(custoHoraCarro) : 'SEM DADO'}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Fase 12.1 — ESTIMADO × REGISTRADO nunca são a mesma coisa */}
+      {custoOperacionalRegistrado30 != null && custoOperacionalRegistrado30 > 0 && (
+        <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+          <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
+            <p className="text-[10px] uppercase tracking-wide text-neutral-400">Custo ESTIMADO do carro</p>
+            <p className="text-sm font-bold text-neutral-900 dark:text-white">{formatBRL(totalCarro)}/mês</p>
+          </div>
+          <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
+            <p className="text-[10px] uppercase tracking-wide text-neutral-400">Operacional REGISTRADO (30d)</p>
+            <p className="text-sm font-bold text-neutral-900 dark:text-white">{formatBRL(custoOperacionalRegistrado30)}</p>
           </div>
         </div>
       )}

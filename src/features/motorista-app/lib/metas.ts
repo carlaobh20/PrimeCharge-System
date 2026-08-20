@@ -1078,6 +1078,116 @@ export function resumoSemana(
   };
 }
 
+// ===========================================================================
+// FASE 12.1 — DIÁRIO OPERACIONAL REAL (mesmo motor; funções PURAS; nada acessa
+// Supabase). km_rodado é DERIVADO (nunca coluna). Estimativa NUNCA vira registro.
+// ===========================================================================
+
+export type DiaOperacional = {
+  valor: number;
+  horas: number | null;
+  km_inicio: number | null;
+  km_fim: number | null;
+  corridas: number | null;
+  apps: string[] | null;
+};
+
+export type RecargaDia = { data: string; custo: number; kwh: number | null };
+
+/** KM rodados = fim − inicio, SÓ quando os dois existem e fim ≥ inicio.
+ *  Um só informado → null (a UI mostra "KM INCOMPLETO", nunca calcula). */
+export function calcularKmRodados(kmInicio: number | null, kmFim: number | null): number | null {
+  if (kmInicio == null || kmFim == null) return null;
+  if (!Number.isFinite(kmInicio) || !Number.isFinite(kmFim) || kmInicio < 0 || kmFim < kmInicio) return null;
+  return Math.round((kmFim - kmInicio) * 10) / 10;
+}
+
+/** R$/hora do dia (ganho ÷ horas). */
+export function calcularRph(ganho: number, horas: number | null): number | null {
+  if (horas == null || !Number.isFinite(horas) || horas <= 0) return null;
+  return arred(seguro(ganho) / horas);
+}
+
+/** R$/km (ganho ÷ km rodados). */
+export function calcularRpKm(ganho: number, kmRodados: number | null): number | null {
+  if (kmRodados == null || !Number.isFinite(kmRodados) || kmRodados <= 0) return null;
+  return arred(seguro(ganho) / kmRodados);
+}
+
+/** R$/corrida — SÓ quando corridas > 0 (senão NÃO INFORMADO). */
+export function calcularRpCorrida(ganho: number, corridas: number | null): number | null {
+  if (corridas == null || !Number.isFinite(corridas) || corridas <= 0) return null;
+  return arred(seguro(ganho) / Math.floor(corridas));
+}
+
+/** Resultado OPERACIONAL do dia = ganho − custos operacionais REGISTRADOS do dia (recargas).
+ *  NUNCA inclui aluguel/vida/família — isso é a camada de Meta (separação explícita). */
+export function calcularResultadoOperacional(ganho: number, custosOperacionaisDia: number): number {
+  return arred(seguro(ganho) - seguro(custosOperacionaisDia));
+}
+
+/** Consumo energético ESTIMADO = km × consumo_kwh_100km ÷ 100 (ficha do veículo).
+ *  É ESTIMATIVA — nunca energia efetivamente carregada. */
+export function calcularConsumoEstimado(kmRodados: number | null, consumoKwh100km: number | null): number | null {
+  if (kmRodados == null || consumoKwh100km == null) return null;
+  if (!Number.isFinite(kmRodados) || !Number.isFinite(consumoKwh100km) || kmRodados <= 0 || consumoKwh100km <= 0) return null;
+  return Math.round(((kmRodados * consumoKwh100km) / 100) * 100) / 100;
+}
+
+/** Custo por km = custos registrados ÷ km registrados. Sem dado → null (NÃO INFORMADO). */
+export function calcularCustoKm(custosRegistrados: number, kmRodados: number | null): number | null {
+  if (kmRodados == null || !Number.isFinite(kmRodados) || kmRodados <= 0) return null;
+  return arred(seguro(custosRegistrados) / kmRodados);
+}
+
+export type ResumoDiaOperacional = {
+  ganho: number;
+  horas: number | null;
+  rph: number | null;
+  kmRodados: number | null;
+  kmIncompleto: boolean; // só UM dos odômetros informado
+  rpkm: number | null;
+  corridas: number | null;
+  rpCorrida: number | null;
+  apps: string[];
+  custoRecargasDia: number;
+  kwhRegistradoDia: number | null;
+  resultadoOperacional: number;
+  consumoEstimadoKwh: number | null;
+  custoPorKm: number | null;
+};
+
+/** Monta o "SEU DIA" a partir do registro + recargas do MESMO dia (tudo registrado). */
+export function resumoDiaOperacional(
+  dia: DiaOperacional,
+  recargasDoDia: RecargaDia[],
+  consumoKwh100km: number | null,
+): ResumoDiaOperacional {
+  const ganho = seguro(dia.valor);
+  const km = calcularKmRodados(dia.km_inicio, dia.km_fim);
+  const custoRecargas = arred(recargasDoDia.reduce((s, r) => s + seguro(r.custo), 0));
+  const kwhReg = recargasDoDia.filter((r) => r.kwh != null && Number.isFinite(r.kwh) && (r.kwh as number) > 0);
+  return {
+    ganho,
+    horas: dia.horas != null && Number.isFinite(dia.horas) && dia.horas > 0 ? dia.horas : null,
+    rph: calcularRph(ganho, dia.horas),
+    kmRodados: km,
+    kmIncompleto: (dia.km_inicio == null) !== (dia.km_fim == null),
+    rpkm: calcularRpKm(ganho, km),
+    corridas: dia.corridas != null && Number.isFinite(dia.corridas) && dia.corridas > 0 ? Math.floor(dia.corridas) : null,
+    rpCorrida: calcularRpCorrida(ganho, dia.corridas),
+    apps: Array.isArray(dia.apps) ? dia.apps : [],
+    custoRecargasDia: custoRecargas,
+    kwhRegistradoDia: kwhReg.length > 0 ? Math.round(kwhReg.reduce((s, r) => s + (r.kwh as number), 0) * 100) / 100 : null,
+    resultadoOperacional: calcularResultadoOperacional(ganho, custoRecargas),
+    consumoEstimadoKwh: calcularConsumoEstimado(km, consumoKwh100km),
+    custoPorKm: calcularCustoKm(custoRecargas, km),
+  };
+}
+
+export const APPS_DIARIO = ['uber', '99', 'outro', 'nenhum'] as const;
+export const APP_LABEL: Record<string, string> = { uber: 'Uber', '99': '99', outro: 'Outro', nenhum: 'Nenhum' };
+
 // ---------------------------------------------------------------------------
 // CATEGORIAS SUGERIDAS (UX — Módulos 4/5/6/7)
 // ---------------------------------------------------------------------------

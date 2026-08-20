@@ -54,9 +54,13 @@ $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/64_juridico_fa
 echo "== rodando Centro Jurídico (Fase 8 — governança/retroatividade/concorrência/órfãos) =="
 $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/65_juridico_fase8.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"
 
-echo "== idempotência da 0047 (reaplicar não pode dar erro) =="
+echo "== idempotência da 0047 e da 0048 (reaplicar não pode dar erro) =="
 $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/migrations/0047_motorista_financas_pessoais.sql'" >/dev/null
-echo "   OK (0047 reaplicada sem erro)"
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/migrations/0048_motorista_diario_operacional.sql'" >/dev/null
+echo "   OK (0047 e 0048 reaplicadas sem erro)"
 
 echo "== rodando Minha Meta (0047 — finanças pessoais do motorista) =="
 $PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/66_motorista_financas.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"
+
+echo "== rodando Diário Operacional (0048 — km/corridas/apps/recargas) =="
+$PSQL "psql -v ON_ERROR_STOP=1 -q -d $DB -f '$ROOT/supabase/tests/67_minha_operacao.sql'" 2>&1 | grep -E "PASS:|FALHOU:|PASSARAM|ERROR"

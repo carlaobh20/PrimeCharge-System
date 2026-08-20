@@ -11,6 +11,9 @@ import { CarroCard } from '../components/meta/CarroCard';
 import { OperacaoRealCard } from '../components/meta/OperacaoRealCard';
 import { PlanoDeHoje } from '../components/meta/PlanoDeHoje';
 import { SemanaCard } from '../components/meta/SemanaCard';
+import { MeuDiaCard } from '../components/meta/MeuDiaCard';
+import { RecargasCard } from '../components/meta/RecargasCard';
+import { HistoricoOperacionalCard } from '../components/meta/HistoricoOperacionalCard';
 import { useMinhaMeta } from '../hooks/useMinhaMeta';
 import {
   CATEGORIAS_CARRO,
@@ -148,7 +151,7 @@ export function MinhaMetaPage() {
         mesLabel={mesLabel}
         rendaHora={meta.rendaHora}
         salvando={m.mGanho.isPending}
-        onEncerrarDia={({ valor, horas }) => m.mGanho.mutate({ data: hojeIso(), valor, horas, observacao: 'dia_encerrado' })}
+        onEncerrarDia={(dados) => m.mGanho.mutate({ data: hojeIso(), ...dados, observacao: 'dia_encerrado' })}
       />
 
       {/* ===== PLANO DE HOJE (Fase 11 — depois do hero, antes do cockpit) ===== */}
@@ -166,6 +169,11 @@ export function MinhaMetaPage() {
         amanha={d.planoHoje.amanha}
         horasRestantesMesDia={d.planoHoje.horasRestantesMesDia}
       />
+
+      {/* ===== MEU DIA (Fase 12.1 — o dia REGISTRADO, logo abaixo do plano) ===== */}
+      {d.resumoHoje && (
+        <MeuDiaCard resumo={d.resumoHoje} janelas={d.janelas} comparacaoOdometro={d.comparacaoOdometro} />
+      )}
 
       {/* ===== 5 · RITMO DO MÊS (F9: 3/4/6/7/15/16/22 · F10: projeções duplas) ===== */}
       <RitmoMesCard ritmo={d.ritmo} bancoMeta={d.bancoMeta} bancoHoras={d.bancoHoras} projecao={d.projecao} projecoes={d.projecoes} recuperacao={d.recuperacao} />
@@ -276,6 +284,18 @@ export function MinhaMetaPage() {
         custoDiaCarro={d.custoDiaCarro}
         custoHoraCarro={d.custoHoraCarro}
         horasCarroHoje={d.horasCarroHoje}
+        custoOperacionalRegistrado30={d.custoOperacionalRegistrado30}
+      />
+
+      {/* ===== RECARGAS (Fase 12.1 — eventos ≠ recorrência) ===== */}
+      <RecargasCard
+        recargas={d.recargas60}
+        custoRegistrado30={d.custoOperacionalRegistrado30}
+        divergencia={d.divergenciaRecarga}
+        salvando={m.mRecargaCriar.isPending}
+        onCriar={(r) => m.mRecargaCriar.mutate(r)}
+        onRemover={(id) => m.mRecargaRemover.mutate(id)}
+        onPausarRecorrencia={(despesaId) => m.mDespesaAtualizar.mutate({ id: despesaId, patch: { ativa: false } })}
       />
 
       {/* ===== ponto de equilíbrio (Módulo 13) ===== */}
@@ -301,8 +321,14 @@ export function MinhaMetaPage() {
         </Secao>
       )}
 
-      {/* ===== VISÃO SEMANAL (Fase 11 — Módulos 14/15) ===== */}
-      <SemanaCard semana={d.semana} />
+      {/* ===== VISÃO SEMANAL (F11) + km registrado (F12.1) ===== */}
+      <SemanaCard
+        semana={d.semana}
+        extras={Object.fromEntries(d.diarioDias.map((dd) => [dd.data, { km: dd.resumo.kmRodados, rph: dd.resumo.rph }]))}
+      />
+
+      {/* ===== MEUS DIAS (Fase 12.1 — histórico operacional 7/14/30) ===== */}
+      <HistoricoOperacionalCard dias={d.diarioDias} hojeIso={hojeIso()} />
 
       {/* ===== 9 · CALENDÁRIO (Módulo 17) ===== */}
       <CalendarioMeta

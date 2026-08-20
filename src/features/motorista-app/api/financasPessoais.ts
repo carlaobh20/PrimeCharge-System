@@ -9,7 +9,8 @@ import type { DespesaMeta, GrupoDespesa, PeriodicidadeDespesa } from '../lib/met
 const COLS_DESPESA = 'id, grupo, categoria, nome, dependente, valor, periodicidade, vencimento_dia, obrigatoria, ativa';
 const COLS_CONFIG = 'motorista_id, dias_trabalho, renda_hora, reserva_meta, reserva_atual, reserva_contribuicao_mensal';
 const COLS_OBJETIVO = 'id, nome, categoria, valor_meta, valor_atual, prazo, ativo';
-const COLS_GANHO = 'id, data, valor, horas, observacao';
+const COLS_GANHO = 'id, data, valor, horas, observacao, km_inicio, km_fim, corridas, apps';
+const COLS_RECARGA = 'id, data, custo, kwh, pct_inicial, pct_final, local';
 const COLS_SNAPSHOT = 'id, mes, total, por_grupo';
 
 export type DespesaRow = DespesaMeta & { vencimento_dia: number | null };
@@ -108,7 +109,18 @@ export async function arquivarObjetivo(id: string): Promise<void> {
 
 // ---------------- GANHOS (lançamento manual do realizado) ----------------
 
-export type GanhoRow = { id: string; data: string; valor: number; horas: number | null; observacao: string | null };
+export type GanhoRow = {
+  id: string;
+  data: string;
+  valor: number;
+  horas: number | null;
+  observacao: string | null;
+  // Fase 12.1 — diário operacional (todos opcionais; km_rodado é DERIVADO no motor)
+  km_inicio: number | null;
+  km_fim: number | null;
+  corridas: number | null;
+  apps: string[] | null;
+};
 
 /** Consulta ÚNICA por período (Fase 10) — as janelas 7/14/30 e o mês reusam esta função. */
 export async function listGanhosPeriodo(inicioIso: string, fimIso: string): Promise<GanhoRow[]> {
@@ -127,10 +139,59 @@ export async function listGanhosDoMes(anoMes: string /* 'YYYY-MM' */): Promise<G
   return listGanhosPeriodo(`${anoMes}-01`, `${anoMes}-${String(new Date(ano, mes, 0).getDate()).padStart(2, '0')}`);
 }
 
-export async function lancarGanho(motoristaId: string, g: { data: string; valor: number; horas?: number | null; observacao?: string | null }): Promise<void> {
+export async function lancarGanho(motoristaId: string, g: {
+  data: string;
+  valor: number;
+  horas?: number | null;
+  observacao?: string | null;
+  km_inicio?: number | null;
+  km_fim?: number | null;
+  corridas?: number | null;
+  apps?: string[] | null;
+}): Promise<void> {
   const { error } = await supabase
     .from('motorista_ganhos')
     .upsert({ motorista_id: motoristaId, ...g }, { onConflict: 'motorista_id,data' });
+  if (error) throw error;
+}
+
+// ---------------- RECARGAS POR EVENTO (Fase 12.1 — ≠ despesa recorrente) ----------------
+
+export type RecargaRow = {
+  id: string;
+  data: string;
+  custo: number;
+  kwh: number | null;
+  pct_inicial: number | null;
+  pct_final: number | null;
+  local: string | null;
+};
+
+export async function listRecargasPeriodo(inicioIso: string, fimIso: string): Promise<RecargaRow[]> {
+  const { data, error } = await supabase
+    .from('motorista_recargas')
+    .select(COLS_RECARGA)
+    .gte('data', inicioIso)
+    .lte('data', fimIso)
+    .order('data', { ascending: false });
+  if (error) throw error;
+  return data as RecargaRow[];
+}
+
+export async function criarRecarga(motoristaId: string, r: {
+  data: string;
+  custo: number;
+  kwh?: number | null;
+  pct_inicial?: number | null;
+  pct_final?: number | null;
+  local?: string | null;
+}): Promise<void> {
+  const { error } = await supabase.from('motorista_recargas').insert({ motorista_id: motoristaId, ...r });
+  if (error) throw error;
+}
+
+export async function removerRecarga(id: string): Promise<void> {
+  const { error } = await supabase.from('motorista_recargas').delete().eq('id', id);
   if (error) throw error;
 }
 

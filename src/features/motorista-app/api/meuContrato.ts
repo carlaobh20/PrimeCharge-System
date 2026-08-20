@@ -22,6 +22,7 @@ export type MeuContratoVeiculo = {
   ano_fabricacao: number;
   ano_modelo: number;
   autonomia_km: number | null;
+  consumo_kwh_100km: number | null;
   capacidade_bateria_kwh: number | null;
   marca: { id: string; nome: string } | null;
   modelo: { id: string; nome: string } | null;
@@ -60,7 +61,7 @@ const COLUNAS_MEU_CONTRATO = [
   // percentual_multa_atraso, percentual_juros_atraso, atualizado_em.
   `veiculo:veiculos(
     id, placa, cor, categoria, status, quilometragem, ano_fabricacao, ano_modelo,
-    autonomia_km, capacidade_bateria_kwh,
+    autonomia_km, capacidade_bateria_kwh, consumo_kwh_100km,
     marca:marcas(id, nome), modelo:modelos(id, nome)
   )`,
   // Excluídos do veículo: chassi, renavam, tipo_aquisicao, data_compra, valor_compra,

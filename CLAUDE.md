@@ -6,7 +6,29 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-20, fim da Fase 11 (Plano Operacional do Motorista).
+**Última atualização:** 2026-08-20, fim da Fase 12.1 (Diário Operacional Real do Motorista).
+
+## 0.-7 Fase 12.1 — Diário Operacional Real (2026-08-20, sobre a Fase 11; auditoria 12.0 antes)
+
+- **Migration 0048** (LOCAL, não aplicada): colunas OPCIONAIS em motorista_ganhos (km_inicio,
+  km_fim, corridas, apps[]; constraint km_fim>=km_inicio; km_rodado é DERIVADO, nunca coluna)
+  + tabela motorista_recargas (evento: custo, kwh/pct/local opcionais; RLS espelho 0047 —
+  1 policy dono, staff ZERO, sem audit trigger). Idempotente (reaplicada no harness).
+- Motor (metas.ts): calcularKmRodados/Rph/RpKm/RpCorrida (corridas>0 senão null)/
+  ResultadoOperacional (ganho − recargas do dia; vida/aluguel FORA — camadas separadas)/
+  ConsumoEstimado (ficha×km — ESTIMATIVA, nunca "registrado")/CustoKm + resumoDiaOperacional.
+- API: COLS_GANHO ampliada; listRecargasPeriodo/criar/remover; meuContrato agora expõe
+  consumo_kwh_100km do veículo. Hook: recargas60 + vistorias na MESMA query agregada;
+  mGanho bloqueia km_fim<km_inicio na aplicação; divergência recarga recorrente×eventos
+  (MANTER×PAUSAR, nunca automática); comparação odômetro registrado × última vistoria
+  (LEITURA só — nunca sincroniza; "fontes diferentes", nunca "erro").
+- UI: Encerrar Dia único com "+ Detalhes (opcional)" (km/corridas/apps, aviso KM INCOMPLETO);
+  MeuDiaCard (SEU DIA: R$/h, km, R$/km, R$/corrida, kWh REG×EST, resultado operacional, hoje ×
+  médias 7/14/30); RecargasCard; HistoricoOperacionalCard (MEUS DIAS 7/14/30, SEM DADO);
+  SemanaCard com km; CarroCard ESTIMADO × REGISTRADO(30d).
+- Testes: harness **319/319** (suíte 67 = 26 asserts; 0047+0048 reaplicadas); audit-diario
+  **64/64** (obrigatórios da missão); audits meta/cockpit/operação/plano atualizados
+  (migração >47 permitida só se for a 0048); tudo verde; build ok (~116KB/27KB gzip lazy).
 
 ## 0.-6 Fase 11 — Plano Operacional do Motorista (2026-08-20, sobre a Fase 10)
 

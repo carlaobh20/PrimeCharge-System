@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Minus, Moon, Sunrise, TrendingDown, TrendingUp } from 'lucide-react';
 import {
+  APP_LABEL,
+  APPS_DIARIO,
   formatBRL,
   formatHoras,
   STATUS_DIA_HOJE_LABEL,
@@ -30,22 +32,50 @@ export function HeroHoje({
   hoje: MetaHojeCockpit;
   mesLabel: string;
   rendaHora: number;
-  onEncerrarDia: (dados: { valor: number; horas: number | null }) => void;
+  onEncerrarDia: (dados: {
+    valor: number;
+    horas: number | null;
+    km_inicio: number | null;
+    km_fim: number | null;
+    corridas: number | null;
+    apps: string[] | null;
+  }) => void;
   salvando: boolean;
 }) {
   const [encerrando, setEncerrando] = useState(false);
+  const [detalhes, setDetalhes] = useState(false);
   const [valor, setValor] = useState('');
   const [horas, setHoras] = useState('');
+  const [kmIni, setKmIni] = useState('');
+  const [kmFim, setKmFim] = useState('');
+  const [corridas, setCorridas] = useState('');
+  const [apps, setApps] = useState<string[]>([]);
   const Icone = ICONE_STATUS[hoje.status];
+
+  const num = (s: string) => {
+    const n = Number(s.replace(',', '.'));
+    return Number.isFinite(n) && n >= 0 && s.trim() !== '' ? n : null;
+  };
+  const kmIniNum = num(kmIni);
+  const kmFimNum = num(kmFim);
+  const kmInvalido = kmIniNum != null && kmFimNum != null && kmFimNum < kmIniNum;
 
   const salvar = () => {
     const v = Number(valor.replace(',', '.'));
-    if (!Number.isFinite(v) || v < 0) return;
+    if (!Number.isFinite(v) || v < 0 || kmInvalido) return;
     const h = Number(horas.replace(',', '.'));
-    onEncerrarDia({ valor: v, horas: Number.isFinite(h) && h > 0 ? h : null });
+    const c = num(corridas);
+    onEncerrarDia({
+      valor: v,
+      horas: Number.isFinite(h) && h > 0 ? h : null,
+      km_inicio: kmIniNum,
+      km_fim: kmFimNum,
+      corridas: c != null ? Math.floor(c) : null,
+      apps: apps.length > 0 ? apps : null,
+    });
     setEncerrando(false);
-    setValor('');
-    setHoras('');
+    setDetalhes(false);
+    setValor(''); setHoras(''); setKmIni(''); setKmFim(''); setCorridas(''); setApps([]);
   };
 
   return (
@@ -114,9 +144,32 @@ export function HeroHoje({
               <input autoFocus className="h-10 rounded-xl border-0 bg-white/90 px-3 text-sm text-neutral-900 placeholder:text-neutral-500" placeholder="Ganho do dia (R$)" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} />
               <input className="h-10 rounded-xl border-0 bg-white/90 px-3 text-sm text-neutral-900 placeholder:text-neutral-500" placeholder="Horas (opcional)" inputMode="decimal" value={horas} onChange={(e) => setHoras(e.target.value)} />
             </div>
+            {/* Fase 12.1 — diário OPCIONAL (nunca burocrático: fica atrás de um toque) */}
+            {detalhes ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <input className="h-10 rounded-xl border-0 bg-white/90 px-3 text-sm text-neutral-900 placeholder:text-neutral-500" placeholder="Odômetro inicial (km)" inputMode="decimal" value={kmIni} onChange={(e) => setKmIni(e.target.value)} />
+                  <input className="h-10 rounded-xl border-0 bg-white/90 px-3 text-sm text-neutral-900 placeholder:text-neutral-500" placeholder="Odômetro final (km)" inputMode="decimal" value={kmFim} onChange={(e) => setKmFim(e.target.value)} />
+                </div>
+                {kmInvalido && <p className="text-[11px] font-medium text-amber-200">Odômetro final não pode ser menor que o inicial.</p>}
+                {(kmIniNum == null) !== (kmFimNum == null) && <p className="text-[11px] opacity-80">KM INCOMPLETO — com um só odômetro os km rodados não são calculados.</p>}
+                <input className="h-10 w-full rounded-xl border-0 bg-white/90 px-3 text-sm text-neutral-900 placeholder:text-neutral-500" placeholder="Nº de corridas (opcional)" inputMode="numeric" value={corridas} onChange={(e) => setCorridas(e.target.value)} />
+                <div className="flex flex-wrap gap-1.5">
+                  {APPS_DIARIO.map((a) => (
+                    <button key={a} type="button" aria-pressed={apps.includes(a)} className={`rounded-full px-3 py-1.5 text-[12px] font-medium ${apps.includes(a) ? 'bg-white text-emerald-700' : 'bg-white/20'}`} onClick={() => setApps((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]))}>
+                      {APP_LABEL[a]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="w-full rounded-xl bg-white/15 py-2 text-[12px]" onClick={() => setDetalhes(true)}>
+                + Detalhes do dia (km, corridas, apps — opcional)
+              </button>
+            )}
             <div className="flex gap-2">
-              <button type="button" className="flex-1 rounded-xl bg-white/20 py-2 text-sm" onClick={() => setEncerrando(false)}>Cancelar</button>
-              <button type="button" disabled={salvando} className="flex-1 rounded-xl bg-white py-2 text-sm font-semibold text-emerald-700 disabled:opacity-50" onClick={salvar}>
+              <button type="button" className="flex-1 rounded-xl bg-white/20 py-2 text-sm" onClick={() => { setEncerrando(false); setDetalhes(false); }}>Cancelar</button>
+              <button type="button" disabled={salvando || kmInvalido} className="flex-1 rounded-xl bg-white py-2 text-sm font-semibold text-emerald-700 disabled:opacity-50" onClick={salvar}>
                 Encerrar dia
               </button>
             </div>

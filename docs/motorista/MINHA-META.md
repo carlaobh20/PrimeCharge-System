@@ -1,5 +1,23 @@
 # MINHA META — Inteligência Financeira Pessoal do Motorista
 
+> **Fase 12.1 — Diário Operacional Real** (migration **0048**, LOCAL): Encerrar Dia (fluxo
+> ÚNICO mantido) ganha "+ Detalhes (opcional)": odômetro inicial/final, corridas, apps
+> (Uber/99/Outro/Nenhum, múltiplos). km_rodado é **DERIVADO** (fim − inicio; um só odômetro →
+> "KM INCOMPLETO", nunca calcula; fim < inicio bloqueado na aplicação E por constraint).
+> Recargas por EVENTO (`motorista_recargas`: data, custo, kWh/%bateria/local opcionais; RLS
+> espelho da 0047 — staff zero, sem audit) ≠ despesa recorrente: divergência com escolha
+> MANTER × PAUSAR, nunca automática. MEU DIA (após o plano): ganho/horas/R$h/km/R$km/
+> corridas/R$corrida (só com corridas>0, senão NÃO INFORMADO)/custos registrados/**resultado
+> operacional registrado** (ganho − recargas do dia; aluguel/vida ficam na Meta — camadas
+> separadas)/kWh REGISTRADO × kWh ESTIMADO (ficha × km, nunca misturados)/hoje × médias
+> 7/14/30/comparação de odômetro com a última vistoria ("fontes diferentes", nunca "erro",
+> nunca sincroniza). MEUS DIAS (histórico 7/14/30, SEM DADO explícito). Semana com km.
+> Carro: ESTIMADO × OPERACIONAL REGISTRADO (30d). Dado pessoal NUNCA escreve em
+> veiculos/telemetria/manutencoes/lancamentos/pagamentos/audit/timeline. Testes: suíte SQL 67
+> (26 asserts — harness **319/319**, 0047+0048 reaplicadas), `audit-motorista-diario.ts`
+> **64/64** (1.000/20h=50 · 1.000/200km=5 · 1.000/10=100/corrida · 3.000−100=2.900 ·
+> 100→250=150km · final<inicial bloqueado · 200×15/100=30kWh ESTIMADOS).
+
 > **Fase 11 — Plano Operacional do Motorista**: a aba vira um plano diário. Bloco PLANO DE HOJE
 > (entre o hero e o cockpit): meta original × rebalanceada × diferença (a original nunca muda);
 > horas necessárias PELA PREMISSA × PELO MEU HISTÓRICO (histórico nunca é garantia); realizado

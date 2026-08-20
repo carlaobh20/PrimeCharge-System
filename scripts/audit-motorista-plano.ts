@@ -170,7 +170,7 @@ check('I', (pageSrc.match(/onEncerrarDia/g) ?? []).length === 1 && /dia_encerrad
 
 // ======================= J — migration / performance / página única ==========================
 const migs = readdirSync(join(raiz, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 47);
-check('J', migs.length === 0, 'ZERO migration na Fase 11 (Módulo 25)');
+check('J', migs.every((f) => f.startsWith('0048')), 'ZERO migration da Fase 11 (só a 0048 do diário existe acima da 0047)');
 const lerTudo = (dir: string): string[] => {
   const out: string[] = [];
   for (const f of readdirSync(dir)) {

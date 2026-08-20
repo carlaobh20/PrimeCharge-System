@@ -225,7 +225,7 @@ check('L', !/eh_staff/.test(mig), '0047: NENHUMA policy de staff (privacidade �
 check('L', !/audit_log/i.test(mig.replace(/--.*$/gm, '')), '0047: sem trigger de audit_log (comentário explica o porquê)');
 check('L', /NÃO APLICADA EM PRODUÇÃO/.test(mig), '0047: aviso de não aplicada em produção no cabeçalho');
 const migs = readdirSync(join(raiz, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 47);
-check('L', migs.length === 0, '0047 é a última migration (nenhuma acima dela)');
+check('L', migs.every((f) => f.startsWith('0048')), 'acima da 0047 só existe a 0048 (diário operacional — Fase 12.1)');
 
 // =============================== relatório ===================================================
 for (const r of resultados) console.log(`${r.ok ? 'PASS' : 'FALHOU'} [${r.caso}] ${r.msg}`);

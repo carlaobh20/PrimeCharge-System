@@ -7,7 +7,11 @@ import { formatBRL, formatHoras, STATUS_DIA_LABEL, type ResumoSemana } from '../
 
 const SIMBOLO = { atingida: '✓', acima: '▲', abaixo: '▼', sem_dado: '·' } as const;
 
-export function SemanaCard({ semana }: { semana: ResumoSemana }) {
+export function SemanaCard({ semana, extras }: {
+  semana: ResumoSemana;
+  /** Fase 12.1: km e R$/h REGISTRADOS por data (quando existirem) */
+  extras?: Record<string, { km: number | null; rph: number | null }>;
+}) {
   const max = Math.max(1, ...semana.dias.map((d) => d.valor ?? 0));
   return (
     <Secao titulo="Minha semana">
@@ -23,6 +27,7 @@ export function SemanaCard({ semana }: { semana: ResumoSemana }) {
             </div>
             <span aria-label={STATUS_DIA_LABEL[d.status]} className="mt-0.5 text-[10px] text-neutral-500">{SIMBOLO[d.status]}</span>
             <span className="text-[9px] text-neutral-400">{d.valor != null ? formatBRL(d.valor).replace(/^R\$\s?/, '') : '—'}</span>
+            {extras?.[d.data]?.km != null && <span className="text-[8px] text-neutral-400">{extras[d.data].km}km</span>}
           </div>
         ))}
       </div>

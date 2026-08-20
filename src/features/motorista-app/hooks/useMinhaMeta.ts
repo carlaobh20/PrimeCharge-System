@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { listMeusContratos, type MeuContrato } from '../api/meuContrato';
+import { listMinhasVistorias } from '../api/vistorias';
 import {
   atualizarDespesa,
   criarDespesa,
@@ -9,8 +10,11 @@ import {
   gravarSnapshotDoMes,
   lancarGanho,
   listDespesas,
+  criarRecarga,
   listGanhosDoMes,
   listGanhosPeriodo,
+  listRecargasPeriodo,
+  removerRecarga,
   listObjetivos,
   listSnapshots,
   removerDespesa,
@@ -47,6 +51,7 @@ import {
   projecoesDuplas,
   qualidadeDados,
   rebalancear,
+  resumoDiaOperacional,
   resumoSemana,
   ritmoDoMes,
   saldoHoras,
@@ -55,7 +60,6 @@ import {
   simularHorasExtras,
   tendencia,
   type DespesaMeta,
-  type GanhoDia,
 } from '../lib/metas';
 
 // MINHA META — agregador único da tela (uma passada de queries; motor puro faz as contas).
@@ -77,7 +81,7 @@ export function useMinhaMeta() {
       // Fase 10: além do mês corrente, os últimos 60 dias (janelas 7/14/30 + tendência)
       const hojeStr = hojeIso();
       const inicio60 = new Date(new Date(`${hojeStr}T12:00:00`).getTime() - 59 * 86_400_000).toISOString().slice(0, 10);
-      const [contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots] = await Promise.all([
+      const [contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias] = await Promise.all([
         listMeusContratos(),
         listDespesas(),
         getConfig(),
@@ -85,8 +89,10 @@ export function useMinhaMeta() {
         listGanhosDoMes(anoMes),
         listGanhosPeriodo(inicio60, hojeStr),
         listSnapshots(),
+        listRecargasPeriodo(inicio60, hojeStr),
+        listMinhasVistorias(),
       ]);
-      return { contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots };
+      return { contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias };
     },
   });
 
@@ -177,7 +183,7 @@ export function useMinhaMeta() {
     const custoOperacao = Math.round((totais.carro + totais.trabalho) * 100) / 100;
 
     // ===== FASE 10 — inteligência operacional (tudo derivado dos REGISTROS; nada inventado) =====
-    const ganhos60: GanhoDia[] = base.data.ganhos60;
+    const ganhos60 = base.data.ganhos60; // GanhoRow[] — inclui o diário (km/corridas/apps)
     const hojeStr = hojeIso();
     const custoDia = custoPorDiaPlanejado(totais.total, diasTrabalho);
     const operacao14 = ganhos60.filter((g) => {
@@ -253,6 +259,49 @@ export function useMinhaMeta() {
     const semana = resumoSemana(ganhos60, hojeStr, meta.metaDiaria, diasTrabalho, diasNoMes);
     const horasCarroHoje = horasParaValor(custoDiaCarro, meta.rendaHora);
 
+    // ===== FASE 12.1 — diário operacional (tudo REGISTRADO; estimativas rotuladas) =====
+    const recargas60 = base.data.recargas60;
+    const consumoFicha = contratoAtivo?.veiculo?.consumo_kwh_100km ?? null;
+    const recargasPorData = new Map<string, typeof recargas60>();
+    for (const r of recargas60) recargasPorData.set(r.data, [...(recargasPorData.get(r.data) ?? []), r]);
+
+    const resumoHoje = ganhoHoje
+      ? resumoDiaOperacional(ganhoHoje, recargasPorData.get(hojeStr) ?? [], consumoFicha)
+      : null;
+
+    // MEUS DIAS — linhas do histórico (mais recente primeiro), derivadas por dia registrado
+    const diarioDias = [...ganhos60]
+      .sort((a, b) => (a.data < b.data ? 1 : -1))
+      .map((g) => ({ data: g.data, resumo: resumoDiaOperacional(g, recargasPorData.get(g.data) ?? [], consumoFicha) }));
+
+    // custo operacional REGISTRADO (30 dias) — separado do custo ESTIMADO do carro
+    const custoOperacionalRegistrado30 = Math.round(
+      recargas60
+        .filter((r) => new Date(`${r.data}T12:00:00`).getTime() >= new Date(`${hojeStr}T12:00:00`).getTime() - 29 * 86_400_000)
+        .reduce((s, r) => s + r.custo, 0) * 100,
+    ) / 100;
+
+    // Recorrência de recarga/combustível ATIVA + eventos registrados → divergência (nunca automática)
+    const recorrenciaRecarga = despesasAtivas.find(
+      (dsp) => dsp.ativa && (dsp.categoria === 'recarga' || dsp.categoria === 'combustivel'),
+    );
+    const divergenciaRecarga = recorrenciaRecarga && recargas60.length > 0
+      ? { despesaId: recorrenciaRecarga.id, recorrenciaMensal: normalizarMensal(recorrenciaRecarga.valor, recorrenciaRecarga.periodicidade), eventos30: custoOperacionalRegistrado30 }
+      : null;
+
+    // Comparação de odômetro (LEITURA apenas — nunca sincroniza): último km_fim registrado × última vistoria com odômetro
+    const ultimoDiaComKmFim = [...ganhos60].sort((a, b) => (a.data < b.data ? 1 : -1)).find((g) => g.km_fim != null);
+    const ultimaVistoriaComKm = base.data.vistorias.find((v) => v.odometro_km != null);
+    const comparacaoOdometro = ultimoDiaComKmFim && ultimaVistoriaComKm && ultimaVistoriaComKm.odometro_km != null
+      ? {
+          registrado: ultimoDiaComKmFim.km_fim as number,
+          dataRegistro: ultimoDiaComKmFim.data,
+          vistoria: ultimaVistoriaComKm.odometro_km,
+          dataVistoria: (ultimaVistoriaComKm.concluido_em ?? ultimaVistoriaComKm.criado_em).slice(0, 10),
+          diferenca: Math.round(((ultimoDiaComKmFim.km_fim as number) - ultimaVistoriaComKm.odometro_km) * 10) / 10,
+        }
+      : null;
+
     const mesAnterior = snapAnterior;
     const alertas = [
       ...alertasMeta({
@@ -318,6 +367,14 @@ export function useMinhaMeta() {
       planoHoje,
       semana,
       horasCarroHoje,
+      // Fase 12.1 — diário operacional real
+      resumoHoje,
+      diarioDias,
+      recargas60,
+      custoOperacionalRegistrado30,
+      divergenciaRecarga,
+      comparacaoOdometro,
+      consumoFicha,
       temDados: despesasAtivas.some((d) => d.ativa) || aluguelCarroMensal > 0,
       precisaOnboarding: !despesasAtivas.some((d) => d.ativa) && !config,
     };
@@ -343,10 +400,22 @@ export function useMinhaMeta() {
     onSuccess: invalidar,
   });
   const mObjetivoArquivar = useMutation({ mutationFn: arquivarObjetivo, onSuccess: invalidar });
+  // (mutations do diário logo abaixo do mGanho)
   const mGanho = useMutation({
-    mutationFn: (g: Parameters<typeof lancarGanho>[1]) => lancarGanho(motoristaId!, g),
+    // Bloqueio da aplicação (além da constraint): km_fim < km_inicio nunca sai do cliente
+    mutationFn: (g: Parameters<typeof lancarGanho>[1]) => {
+      if (g.km_inicio != null && g.km_fim != null && g.km_fim < g.km_inicio) {
+        return Promise.reject(new Error('Odômetro final não pode ser menor que o inicial.'));
+      }
+      return lancarGanho(motoristaId!, g);
+    },
     onSuccess: invalidar,
   });
+  const mRecargaCriar = useMutation({
+    mutationFn: (r: Parameters<typeof criarRecarga>[1]) => criarRecarga(motoristaId!, r),
+    onSuccess: invalidar,
+  });
+  const mRecargaRemover = useMutation({ mutationFn: removerRecarga, onSuccess: invalidar });
   const mSnapshot = useMutation({
     mutationFn: ({ total, porGrupo }: { total: number; porGrupo: Record<string, number> }) =>
       gravarSnapshotDoMes(motoristaId!, `${anoMes}-01`, total, porGrupo),
@@ -367,6 +436,8 @@ export function useMinhaMeta() {
     mObjetivo,
     mObjetivoArquivar,
     mGanho,
+    mRecargaCriar,
+    mRecargaRemover,
     mSnapshot,
   };
 }
