@@ -1,7 +1,9 @@
 -- PrimeCharge OS — 0050 — APP MOTORISTA: Configuração do Copiloto (Fase 16 — Fase B/U)
 -- ============================================================================================
--- ⚠️ NÃO APLICADA EM PRODUÇÃO. Validada só no harness local (Postgres real). Produção somente
--- com autorização explícita.
+-- ✅ APLICADA EM PRODUÇÃO em 2026-08-21 (autorização explícita do Carlos, colada manualmente
+-- no SQL Editor do Supabase — confirmada por consulta a information_schema.tables). Validada
+-- antes, com Postgres real local: 50 migrations do zero + suíte 68_motorista_copiloto.sql,
+-- 346/346 PASS.
 -- ============================================================================================
 -- JUSTIFICATIVA (auditoria de reuso, claude/auditoria-reuso-fase16-copiloto-2026-08-21.md):
 -- - Critérios do semáforo (limiares de R$/km e R$/h, pesos de cada critério) são estado mutável

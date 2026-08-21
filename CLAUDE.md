@@ -7,12 +7,15 @@ a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de 
 reconstruir o contexto do zero.
 
 **Última atualização:** 2026-08-21, fim da Fase 16 — MVP (Copiloto do Motorista: avaliar corrida,
-Fases A/B/C/D/N/S/T/U). Fases E–R (histórico, card completo com plano do dia, insights temporais,
-tela de Configurações, reordenação de fold, assistente contextual) ficam para a próxima passada —
-corte deliberado, registrado em `claude/auditoria-reuso-fase16-copiloto-2026-08-21.md`.
+Fases A/B/C/D/N/S/T/U). Migrations 0049+0050 **APLICADAS EM PRODUÇÃO** (autorização explícita do
+Carlos, colada manualmente no SQL Editor do Supabase, confirmado por consulta a
+information_schema.tables — motorista_corridas e motorista_config_copiloto existem). Fases E–R
+(histórico, card completo com plano do dia, insights temporais, tela de Configurações,
+reordenação de fold, assistente contextual) ficam para a próxima passada — corte deliberado,
+registrado em `claude/auditoria-reuso-fase16-copiloto-2026-08-21.md`.
 
 ## 0.-11 Fase 16 (MVP) — Copiloto do Motorista: avaliar corrida (2026-08-21, sobre a Fase 14;
-migrations 0049+0050, NÃO aplicadas em produção)
+migrations 0049+0050, APLICADAS EM PRODUÇÃO em 2026-08-21)
 
 - Auditoria de reuso ANTES de qualquer código: `claude/auditoria-reuso-fase16-copiloto-2026-08-21.md`
   (o que já existe / reutilizado / estendido / precisa migration / não será feito / plano de

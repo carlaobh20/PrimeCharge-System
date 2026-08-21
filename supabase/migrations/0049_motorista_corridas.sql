@@ -1,7 +1,9 @@
 -- PrimeCharge OS — 0049 — APP MOTORISTA: Corrida Individual (Fase 16 / Copiloto — Fase C)
 -- ============================================================================================
--- ⚠️ NÃO APLICADA EM PRODUÇÃO. Validada só no harness local (Postgres real). Produção somente
--- com autorização explícita.
+-- ✅ APLICADA EM PRODUÇÃO em 2026-08-21 (autorização explícita do Carlos, colada manualmente
+-- no SQL Editor do Supabase — confirmada por consulta a information_schema.tables). Validada
+-- antes, com Postgres real local: 50 migrations do zero + suíte 68_motorista_copiloto.sql,
+-- 346/346 PASS.
 -- ============================================================================================
 -- JUSTIFICATIVA (auditoria de reuso, claude/auditoria-reuso-fase16-copiloto-2026-08-21.md):
 -- - Corrida individual é uma granularidade que NÃO existe em nenhuma tabela hoje. motorista_ganhos
