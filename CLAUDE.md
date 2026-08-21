@@ -6,7 +6,46 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-20, fim da Fase 14 (Rotina Operacional + Fechamento Diário).
+**Última atualização:** 2026-08-21, fim da Fase 16 — MVP (Copiloto do Motorista: avaliar corrida,
+Fases A/B/C/D/N/S/T/U). Fases E–R (histórico, card completo com plano do dia, insights temporais,
+tela de Configurações, reordenação de fold, assistente contextual) ficam para a próxima passada —
+corte deliberado, registrado em `claude/auditoria-reuso-fase16-copiloto-2026-08-21.md`.
+
+## 0.-11 Fase 16 (MVP) — Copiloto do Motorista: avaliar corrida (2026-08-21, sobre a Fase 14;
+migrations 0049+0050, NÃO aplicadas em produção)
+
+- Auditoria de reuso ANTES de qualquer código: `claude/auditoria-reuso-fase16-copiloto-2026-08-21.md`
+  (o que já existe / reutilizado / estendido / precisa migration / não será feito / plano de
+  fases / riscos / dependências). Confirmado por leitura direta: nenhuma estrutura de corrida
+  individual existia antes — `corridas` era só contagem diária (`motorista_ganhos.corridas`).
+- Motor (metas.ts, mesmo arquivo, reusa `calcularRpKm`/`calcularRph`): `avaliarCorrida()` — recebe
+  valor/km estimado/duração estimada + `ConfigCopiloto` (limiares/pesos do motorista) e devolve
+  `{ classificacao: BOM|ATENCAO|RUIM, criterios[], observacao }`. Nunca um selo sozinho — os
+  critérios que formaram o resultado sempre acompanham. Limiar ausente = 'nao_configurado', NUNCA
+  vira zero nem entra na média ponderada. Sem nenhum limiar configurado, `configurado=false` e a
+  classificação é só leitura informativa, nunca um veredito inventado.
+- Migrations `0049_motorista_corridas` (corrida individual: valor/km/duração/app/classificação
+  snapshot/aceita/origem_captura texto livre) e `0050_motorista_config_copiloto` (limiares/pesos
+  do semáforo, peso nunca pode ser 0 — desligar critério é via limiar nulo). Mesma RLS
+  "privacidade invertida" de 0047/0048 (1 policy do dono, zero staff, zero audit_log).
+- Integração no dia (useMinhaMeta.ts, Fase D): soma das corridas registradas é só COMPARADA ao
+  ganho/contagem manual do dia — nunca sobrescreve `motorista_ganhos`. Divergência vira
+  `divergenciaCorridasValor`/`divergenciaCorridasQtd` ("DADOS DIFERENTES") pra decisão humana.
+- UI: `CopilotoCard.tsx` novo, inserido logo após `RotinaDoDiaCard` no Centro de Controle —
+  formulário mínimo (valor/km/min/app) + botão "Avaliar corrida" (cálculo no cliente, sem rede) +
+  🟢/🟡/🔴 com os critérios visíveis + "Registrar esta corrida" como ação separada e explícita.
+- Testes: `audit-motorista-copiloto.ts` **33/33** (novo). Regressão: os 7 audit scripts anteriores
+  do motorista **481/481** (checks de "migration floor" atualizados pra reconhecer 0049/0050 como
+  legítimas — sem isso, todo script anterior aponta falso positivo de migration não documentada).
+  SQL real: **346/346 PASS** rodando as 50 migrations do zero num Postgres 16 local de verdade
+  (não só harness TypeScript) + nova suíte `68_motorista_copiloto.sql` (26 asserts: isolamento
+  A×B×C, staff zero acesso, motorista desativado/reativado, cascade LGPD, constraints, 1 policy
+  por tabela, zero trigger de audit_log). Idempotência de 0047/0048/0049/0050 confirmada
+  (reaplicar não erra). `tsc -b` limpo, `oxlint` sem warning novo, `npm run build` ok.
+- Escopo desta passada: só A/B/C/D/N/S/T/U. E/F/G/H/I/O/P/Q/R ficam para a próxima (histórico,
+  card com plano do dia e insights temporais, tela de Configurações, assistente contextual).
+  J/K/L (frota/mapa staff/oportunidade), M (shell Android), V (assinatura), W (dashcam) continuam
+  arquitetura-only, nada implementado — conforme instrução explícita.
 
 ## 0.-10 Fase 14 — Rotina Operacional (2026-08-20, sobre a Fase 13; ZERO migration)
 

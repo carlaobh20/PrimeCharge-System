@@ -139,7 +139,7 @@ check('F', /fechamentoDoPeriodo[\s\S]{0,700}janelaOperacional\(/.test(motor), 'f
 check('F', /estadoDoDia[\s\S]{0,900}calcularKmRodados\(/.test(motor), 'estadoDoDia REUSA calcularKmRodados');
 check('F', (motor.match(/export function janelaOperacional/g) ?? []).length === 1, 'janelaOperacional continua única');
 const migs = readdirSync(join(raiz, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 48);
-check('F', migs.length === 0, 'ZERO migration na Fase 14 (Módulo 22 — 0048 continua a última)');
+check('F', migs.every((f) => f.startsWith('0049') || f.startsWith('0050')), 'ZERO migration na Fase 14 (Módulo 22); acima da 0048 só existem 0049/0050 (Copiloto — Fase 16)');
 
 const lerTudo = (dir: string): string[] => {
   const out: string[] = [];

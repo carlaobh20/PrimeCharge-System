@@ -203,7 +203,7 @@ function motorOuHook() {
   return readFileSync(join(raiz, 'src/features/motorista-app/hooks/useMinhaMeta.ts'), 'utf8');
 }
 const migs = readdirSync(join(raiz, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 47);
-check('K', migs.every((f) => f.startsWith('0048')), 'ZERO migration da Fase 9 (posteriores são de outras fases: só a 0048 do diário)');
+check('K', migs.every((f) => f.startsWith('0048') || f.startsWith('0049') || f.startsWith('0050')), 'ZERO migration da Fase 9 (posteriores são de outras fases: 0048 diário, 0049/0050 Copiloto — Fase 16)');
 const carroSrc = readFileSync(join(raiz, 'src/features/motorista-app/components/meta/CarroCard.tsx'), 'utf8');
 check('K', /IMPORTADO DO CONTRATO/.test(carroSrc), 'badge IMPORTADO DO CONTRATO no card do carro (Módulo 10)');
 check('K', !/lucro/i.test(carroSrc) && !/\blucro\b/i.test(heroSrc), 'nenhum "lucro" nos componentes novos');

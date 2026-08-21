@@ -25,6 +25,14 @@ import {
   type MetaConfig,
 } from '../api/financasPessoais';
 import {
+  getConfigCopiloto,
+  listCorridasPeriodo,
+  registrarCorrida,
+  removerCorrida,
+  salvarConfigCopiloto,
+  type CorridaRow,
+} from '../api/corridasPessoais';
+import {
   alertasCockpit,
   alertasMeta,
   calcularMeta,
@@ -68,6 +76,8 @@ import {
   seEuPararAgora,
   simularHorasExtras,
   tendencia,
+  CONFIG_COPILOTO_PADRAO,
+  type ConfigCopiloto,
   type DespesaMeta,
 } from '../lib/metas';
 
@@ -91,7 +101,7 @@ export function useMinhaMeta() {
       // até 30×30; a MESMA listGanhosPeriodo suporta — só o intervalo mudou)
       const hojeStr = hojeIso();
       const inicio60 = new Date(new Date(`${hojeStr}T12:00:00`).getTime() - 89 * 86_400_000).toISOString().slice(0, 10);
-      const [contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias] = await Promise.all([
+      const [contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias, corridas60, configCopilotoRow] = await Promise.all([
         listMeusContratos(),
         listDespesas(),
         getConfig(),
@@ -101,8 +111,10 @@ export function useMinhaMeta() {
         listSnapshots(),
         listRecargasPeriodo(inicio60, hojeStr),
         listMinhasVistorias(),
+        listCorridasPeriodo(inicio60, hojeStr), // Fase 16 — Copiloto (0049)
+        getConfigCopiloto(), // Fase 16 — Copiloto (0050)
       ]);
-      return { contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias };
+      return { contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias, corridas60, configCopilotoRow };
     },
   });
 
@@ -374,6 +386,38 @@ export function useMinhaMeta() {
         ? { contrato: aluguelCarroMensal, manual: normalizarMensal(aluguelManual.valor, aluguelManual.periodicidade), despesaId: aluguelManual.id }
         : null;
 
+    // ===== FASE 16 — COPILOTO DO MOTORISTA (corrida individual, 0049/0050) =====
+    // Corridas registradas NUNCA sobrescrevem motorista_ganhos — só somam pra COMPARAÇÃO.
+    // Divergência entre a soma das corridas e o dado manual (ganho/contagem do dia) vira
+    // "DADOS DIFERENTES" pra decisão humana, nunca reconciliação automática e silenciosa.
+    const corridas60: CorridaRow[] = base.data.corridas60 ?? [];
+    const corridasHoje = corridas60.filter((c) => c.data === hojeStr);
+    const somaValorCorridasHoje = Math.round(corridasHoje.reduce((s, c) => s + c.valor, 0) * 100) / 100;
+    const qtdCorridasHoje = corridasHoje.length;
+
+    const divergenciaCorridasValor =
+      ganhoHoje && ganhoHoje.valor > 0 && qtdCorridasHoje > 0 && Math.abs(somaValorCorridasHoje - ganhoHoje.valor) > 0.01
+        ? { registradoNoDia: ganhoHoje.valor, somaDasCorridas: somaValorCorridasHoje, diferenca: Math.round((ganhoHoje.valor - somaValorCorridasHoje) * 100) / 100 }
+        : null;
+    const divergenciaCorridasQtd =
+      ganhoHoje?.corridas != null && ganhoHoje.corridas > 0 && qtdCorridasHoje > 0 && ganhoHoje.corridas !== qtdCorridasHoje
+        ? { registradoNoDia: ganhoHoje.corridas, qtdCorridasIndividuais: qtdCorridasHoje }
+        : null;
+
+    const configCopilotoRow = base.data.configCopilotoRow;
+    const configCopiloto: ConfigCopiloto = configCopilotoRow
+      ? {
+          limiarRpkmBom: configCopilotoRow.limiar_rpkm_bom,
+          limiarRpkmRuim: configCopilotoRow.limiar_rpkm_ruim,
+          limiarRphBom: configCopilotoRow.limiar_rph_bom,
+          limiarRphRuim: configCopilotoRow.limiar_rph_ruim,
+          pesoRpkm: configCopilotoRow.peso_rpkm,
+          pesoRph: configCopilotoRow.peso_rph,
+        }
+      : CONFIG_COPILOTO_PADRAO;
+    const copilotoConfigurado = configCopilotoRow != null && (configCopilotoRow.limiar_rpkm_bom != null || configCopilotoRow.limiar_rph_bom != null);
+    const copilotoAtivo = configCopilotoRow?.ativo ?? true;
+
     return {
       contratoAtivo,
       aluguelCarroMensal,
@@ -447,6 +491,16 @@ export function useMinhaMeta() {
       // vez de oferecer um cadastro que falharia no INSERT.
       indisponivel: moduloIndisponivel('minha-meta'),
       precisaOnboarding: !moduloIndisponivel('minha-meta') && !despesasAtivas.some((d) => d.ativa) && !config,
+      // Fase 16 — Copiloto do Motorista (corrida individual, 0049/0050)
+      corridasHoje,
+      qtdCorridasHoje,
+      somaValorCorridasHoje,
+      divergenciaCorridasValor,
+      divergenciaCorridasQtd,
+      configCopiloto,
+      copilotoConfigurado,
+      copilotoAtivo,
+      copilotoIndisponivel: moduloIndisponivel('copiloto'),
     };
   }, [base.data, anoMes]);
 
@@ -491,6 +545,16 @@ export function useMinhaMeta() {
       gravarSnapshotDoMes(motoristaId!, `${anoMes}-01`, total, porGrupo),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['motorista', 'minha-meta'] }),
   });
+  // Fase 16 — Copiloto do Motorista
+  const mCorridaRegistrar = useMutation({
+    mutationFn: (c: Parameters<typeof registrarCorrida>[1]) => registrarCorrida(motoristaId!, c),
+    onSuccess: invalidar,
+  });
+  const mCorridaRemover = useMutation({ mutationFn: removerCorrida, onSuccess: invalidar });
+  const mConfigCopiloto = useMutation({
+    mutationFn: (patch: Parameters<typeof salvarConfigCopiloto>[1]) => salvarConfigCopiloto(motoristaId!, patch),
+    onSuccess: invalidar,
+  });
 
   return {
     motoristaId,
@@ -509,5 +573,8 @@ export function useMinhaMeta() {
     mRecargaCriar,
     mRecargaRemover,
     mSnapshot,
+    mCorridaRegistrar,
+    mCorridaRemover,
+    mConfigCopiloto,
   };
 }

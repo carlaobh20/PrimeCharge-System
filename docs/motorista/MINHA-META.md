@@ -1,5 +1,19 @@
 # MINHA META — Inteligência Financeira Pessoal do Motorista
 
+> **Fase 16 (MVP) — Copiloto do Motorista: avaliar corrida** (2026-08-21; migrations 0049
+> `motorista_corridas` + 0050 `motorista_config_copiloto`, NÃO aplicadas em produção): primeira
+> estrutura de CORRIDA INDIVIDUAL do sistema — até aqui só existia contagem diária
+> (`motorista_ganhos.corridas`). `avaliarCorrida()` (novo, em `metas.ts`, reusa `calcularRpKm`/
+> `calcularRph`) classifica BOM/ATENÇÃO/RUIM sempre acompanhado dos critérios que formaram o
+> resultado — nunca um selo sozinho. Limiar não configurado nunca vira zero: fica NÃO CONFIGURADO
+> e não entra na média. Corrida registrada NUNCA sobrescreve `motorista_ganhos`: a soma das
+> corridas do dia é só COMPARADA ao ganho/contagem manual, e divergência aparece como "DADOS
+> DIFERENTES" pra decisão do motorista. Card `CopilotoCard` novo, logo após "Meu dia" no Centro
+> de Controle. Auditoria de reuso completa antes do código:
+> `claude/auditoria-reuso-fase16-copiloto-2026-08-21.md`. Fases E–R (histórico, plano do dia,
+> insights temporais, tela de Configurações, assistente contextual) ficam pra próxima passada —
+> corte deliberado, não esquecimento.
+
 > **Fase 12.2 — Inteligência Operacional** (ZERO migration — tudo derivado de 0047/0048): o
 > sistema DESCREVE os registros, sem julgar nem aconselhar. Janelas 7/14/30/**90** ampliadas
 > (dias com horas, km, km/dia, R$/km, corridas, R$/corrida, recargas, custo registrado,

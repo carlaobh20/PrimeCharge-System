@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Secao, Linha, Pill, SkeletonPortal, ErroPortal } from '../ui';
 import { ChecklistHojeCard } from './ChecklistHojeCard';
 import { RotinaDoDiaCard } from './RotinaDoDiaCard';
+import { CopilotoCard } from './CopilotoCard';
 import { FechamentoCard } from './FechamentoCard';
 import { HeroHoje } from './HeroHoje';
 import { PlanoDeHoje } from './PlanoDeHoje';
@@ -30,7 +31,7 @@ import {
 // ZERO nova fonte de verdade. ZERO novo motor. Tudo vem de useMinhaMeta (Fases 8–12.2).
 
 export function CentroControlePage() {
-  const { carregando, erro, derivado, mGanho, mRecargaCriar, mRecargaRemover, mDespesaAtualizar, recarregar } = useMinhaMeta();
+  const { carregando, erro, derivado, mGanho, mRecargaCriar, mRecargaRemover, mDespesaAtualizar, mCorridaRegistrar, recarregar } = useMinhaMeta();
   const topoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -139,6 +140,21 @@ export function CentroControlePage() {
         onSalvarRecarga={(rr) => mRecargaCriar.mutate({ data: hojeIso, ...rr })}
         onEncerrar={onEncerrarSimples}
       />
+
+      {/* ===== 1.6 COPILOTO DO MOTORISTA (Fase 16): avalia corrida antes de decidir ===== */}
+      {!d.copilotoIndisponivel && (
+        <CopilotoCard
+          corridasHoje={d.corridasHoje}
+          qtdCorridasHoje={d.qtdCorridasHoje}
+          somaValorCorridasHoje={d.somaValorCorridasHoje}
+          divergenciaCorridasValor={d.divergenciaCorridasValor}
+          divergenciaCorridasQtd={d.divergenciaCorridasQtd}
+          configCopiloto={d.configCopiloto}
+          copilotoConfigurado={d.copilotoConfigurado}
+          salvando={mCorridaRegistrar.isPending}
+          onRegistrar={(c) => mCorridaRegistrar.mutate({ data: hojeIso, ...c })}
+        />
+      )}
 
       {/* ===== 2. CHECKLIST DO DIA + SAÚDE ===== */}
       <ChecklistHojeCard checklist={checklist} saude={saude} />

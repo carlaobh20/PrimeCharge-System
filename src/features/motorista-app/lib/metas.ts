@@ -1644,3 +1644,168 @@ export function saudeRegistroHoje(checklist: ChecklistHoje): SaudeHoje {
 
   return { status: 'incompleto', texto: `Seu dia possui ${partes.join(', ')} registrado(s). Faltam ${faltam.join(', ')}.` };
 }
+
+// =====================================================================================
+// FASE 16 — COPILOTO DO MOTORISTA (avaliação de corrida individual)
+// Reusa calcularRpKm/calcularRph/seguro/arred — NÃO reimplementa nenhuma divisão.
+// Regra: nenhum critério não configurado vira zero. Ausência de limiar = 'nao_configurado',
+// nunca um veredito silencioso. A classificação final SEMPRE vem acompanhada dos critérios
+// que a formaram (nunca um selo sozinho).
+// =====================================================================================
+
+export type ClassificacaoCorrida = 'BOM' | 'ATENCAO' | 'RUIM';
+export const CLASSIFICACAO_CORRIDA_LABEL: Record<ClassificacaoCorrida, string> = {
+  BOM: 'Boa corrida',
+  ATENCAO: 'Atenção',
+  RUIM: 'Corrida fraca',
+};
+
+export type StatusCriterio = 'bom' | 'atencao' | 'ruim' | 'nao_configurado';
+
+export type CriterioAvaliado = {
+  rotulo: string;
+  valor: number | null;
+  status: StatusCriterio;
+  detalhe: string;
+};
+
+export type ConfigCopiloto = {
+  limiarRpkmBom: number | null;
+  limiarRpkmRuim: number | null;
+  limiarRphBom: number | null;
+  limiarRphRuim: number | null;
+  pesoRpkm: number;
+  pesoRph: number;
+};
+
+export const CONFIG_COPILOTO_PADRAO: ConfigCopiloto = {
+  limiarRpkmBom: null,
+  limiarRpkmRuim: null,
+  limiarRphBom: null,
+  limiarRphRuim: null,
+  pesoRpkm: 1,
+  pesoRph: 1,
+};
+
+export type CorridaAvaliar = {
+  valor: number;
+  kmEstimado: number | null;
+  duracaoEstimadaMin: number | null;
+};
+
+export type AvaliacaoCorrida = {
+  classificacao: ClassificacaoCorrida;
+  criterios: CriterioAvaliado[];
+  rpKm: number | null;
+  rpHora: number | null;
+  configurado: boolean; // false = NENHUM critério tinha limiar configurado (classificação é só informativa)
+  observacao: string;
+};
+
+const PONTO_POR_STATUS: Record<'bom' | 'atencao' | 'ruim', number> = { bom: 1, atencao: 0, ruim: -1 };
+
+/**
+ * Avalia uma corrida individual (Fase A). Reusa calcularRpKm/calcularRph (motor único) e nunca
+ * inventa dado: distância/duração ausentes só deixam aquele critério como 'nao_configurado',
+ * nunca zeram o resultado. A classificação final é sempre a MÉDIA PONDERADA dos critérios que
+ * realmente puderam ser calculados E que têm limiar configurado — critério sem limiar não entra
+ * na conta (nem a favor, nem contra).
+ */
+export function avaliarCorrida(corrida: CorridaAvaliar, config: ConfigCopiloto | null): AvaliacaoCorrida {
+  const valor = seguro(corrida.valor);
+  const km = corrida.kmEstimado != null && corrida.kmEstimado > 0 ? corrida.kmEstimado : null;
+  const horasEstimadas =
+    corrida.duracaoEstimadaMin != null && corrida.duracaoEstimadaMin > 0 ? corrida.duracaoEstimadaMin / 60 : null;
+
+  const rpKm = calcularRpKm(valor, km);
+  const rpHora = calcularRph(valor, horasEstimadas);
+  const cfg = config ?? CONFIG_COPILOTO_PADRAO;
+
+  const criterios: CriterioAvaliado[] = [];
+  const pontosPonderados: { peso: number; ponto: number }[] = [];
+
+  // Critério 1 — R$/km
+  if (rpKm == null) {
+    criterios.push({
+      rotulo: 'R$/km',
+      valor: null,
+      status: 'nao_configurado',
+      detalhe: 'Distância da corrida não informada — critério não avaliado.',
+    });
+  } else if (cfg.limiarRpkmBom == null && cfg.limiarRpkmRuim == null) {
+    criterios.push({
+      rotulo: 'R$/km',
+      valor: rpKm,
+      status: 'nao_configurado',
+      detalhe: `R$ ${arred(rpKm)}/km — você ainda não configurou um limiar de comparação.`,
+    });
+  } else {
+    let status: 'bom' | 'atencao' | 'ruim' = 'atencao';
+    if (cfg.limiarRpkmBom != null && rpKm >= cfg.limiarRpkmBom) status = 'bom';
+    else if (cfg.limiarRpkmRuim != null && rpKm <= cfg.limiarRpkmRuim) status = 'ruim';
+    criterios.push({
+      rotulo: 'R$/km',
+      valor: rpKm,
+      status,
+      detalhe: `R$ ${arred(rpKm)}/km (seu limiar bom: ${cfg.limiarRpkmBom != null ? `R$ ${arred(cfg.limiarRpkmBom)}` : 'não configurado'}).`,
+    });
+    pontosPonderados.push({ peso: seguro(cfg.pesoRpkm), ponto: PONTO_POR_STATUS[status] });
+  }
+
+  // Critério 2 — R$/hora
+  if (rpHora == null) {
+    criterios.push({
+      rotulo: 'R$/hora',
+      valor: null,
+      status: 'nao_configurado',
+      detalhe: 'Duração da corrida não informada — critério não avaliado.',
+    });
+  } else if (cfg.limiarRphBom == null && cfg.limiarRphRuim == null) {
+    criterios.push({
+      rotulo: 'R$/hora',
+      valor: rpHora,
+      status: 'nao_configurado',
+      detalhe: `R$ ${arred(rpHora)}/h — você ainda não configurou um limiar de comparação.`,
+    });
+  } else {
+    let status: 'bom' | 'atencao' | 'ruim' = 'atencao';
+    if (cfg.limiarRphBom != null && rpHora >= cfg.limiarRphBom) status = 'bom';
+    else if (cfg.limiarRphRuim != null && rpHora <= cfg.limiarRphRuim) status = 'ruim';
+    criterios.push({
+      rotulo: 'R$/hora',
+      valor: rpHora,
+      status,
+      detalhe: `R$ ${arred(rpHora)}/h (seu limiar bom: ${cfg.limiarRphBom != null ? `R$ ${arred(cfg.limiarRphBom)}` : 'não configurado'}).`,
+    });
+    pontosPonderados.push({ peso: seguro(cfg.pesoRph), ponto: PONTO_POR_STATUS[status] });
+  }
+
+  const configurado = pontosPonderados.length > 0;
+
+  if (!configurado) {
+    return {
+      classificacao: 'ATENCAO',
+      criterios,
+      rpKm,
+      rpHora,
+      configurado: false,
+      observacao:
+        'Nenhum limiar foi configurado ainda — esta é só uma leitura informativa dos números da corrida, não uma avaliação.',
+    };
+  }
+
+  const somaPesos = pontosPonderados.reduce((acc, p) => acc + p.peso, 0);
+  const media = somaPesos > 0 ? pontosPonderados.reduce((acc, p) => acc + p.peso * p.ponto, 0) / somaPesos : 0;
+
+  let classificacao: ClassificacaoCorrida = 'ATENCAO';
+  if (media >= 0.5) classificacao = 'BOM';
+  else if (media <= -0.5) classificacao = 'RUIM';
+
+  const semDados = criterios.filter((c) => c.status === 'nao_configurado' && c.valor == null);
+  const observacao =
+    semDados.length > 0
+      ? `Matematicamente, com os dados informados: ${classificacao === 'BOM' ? 'os números ficam acima do seu limiar de corrida boa' : classificacao === 'RUIM' ? 'os números ficam abaixo do seu limiar de corrida ruim' : 'os números ficam entre os seus dois limiares'}. ${semDados.map((c) => c.detalhe).join(' ')}`
+      : `Matematicamente, com os dados informados: ${classificacao === 'BOM' ? 'os números ficam acima do seu limiar de corrida boa' : classificacao === 'RUIM' ? 'os números ficam abaixo do seu limiar de corrida ruim' : 'os números ficam entre os seus dois limiares'}.`;
+
+  return { classificacao, criterios, rpKm, rpHora, configurado: true, observacao };
+}
