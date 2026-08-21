@@ -1,247 +1,283 @@
 # Relatório — Fase 20: Localização Operacional + Presença + Centro de Inteligência da Frota
 
-**Data:** 2026-08-21 · **Branch:** `dev` (commits `2faefc7`+`245cf07` na nuvem / `4217048`+`73839aa`
-no dispositivo — mesmo diff, 31 arquivos, 2470 inserções). **Sem push para `main`. Migration 0051
-NÃO aplicada em produção.**
+**Data:** 2026-08-21 · **Branch:** `dev`.
+**Nuvem:** `245cf07` (1ª passada) + `94fe128` (2ª passada — implementação sobre a auditoria já
+aprovada). **Dispositivo:** `73839aa` (1ª passada) + `bc271c7` (2ª passada) — diff idêntico
+confirmado nos dois lados (24 arquivos, +685/-139 na 2ª passada).
+**Sem push para `main`. Migrations 0051 e 0052 NÃO aplicadas em produção.**
+
+Este relatório substitui o de mesma data anterior (estrutura de 25 pontos): a 2ª passada trouxe
+mudança real o suficiente — não só documentação — para justificar reescrever, não só anexar.
+Estrutura agora segue os 28 pontos do Módulo 39 da especificação recebida.
 
 ## 1. Auditoria
 
-`claude/auditoria-fase20-localizacao-operacional.md` — Regra 0 cumprida antes de qualquer código:
-Fase 19 completa, os 3 docs de frota, migrations 0001-0050, RLS atual, `contratos`/`motoristas`/
-`veiculos`/`empresas`/`motorista_corridas`/`ganhos`/`recargas`, `CentroControlePage`/
-`useMinhaMeta`, os 6 arquivos-fonte da Fase 19, `FrotaPage.tsx` — todos lidos, as 20 perguntas
-respondidas com citação de arquivo:linha.
+Não refeita — `claude/auditoria-fase20-localizacao-operacional.md` já aprovado antes desta
+sessão, conforme instrução explícita de não repetir. Esta 2ª passada implementou exatamente o
+que a especificação (39 módulos) descreveu em cima da auditoria já validada, sem reabrir as 20
+perguntas originais.
 
-Achado central (diferente de Fases 16-19): localização OPERACIONAL tem contraparte de negócio
-real — o contrato ativo entre motorista e empresa. `motoristas.empresa_id`/`contratos.empresa_id`/
-`veiculos.empresa_id` e `current_empresa_id()`/`current_motorista_id()` já existiam — não havia o
-bloqueio estrutural que travou parte da Fase 19.
+## 2. Schema
 
-**Um erro registrado e corrigido durante a própria auditoria**: a primeira leitura concluiu que
-`current_motorista_id()`/`current_empresa_id()` não checavam `usuarios.ativo`. Releitura mostrou
-que 0045/0008 já tinham feito `create or replace function` acrescentando essa checagem depois da
-versão original (0034/0001) — migrations aplicam na ordem numérica, a versão mais recente vale.
-Corrigido explicitamente na auditoria com "eu estava errado" registrado, não silenciado.
+Tabela `motorista_localizacoes` mantida sem alteração de forma na 2ª passada: `id`,
+`motorista_id`, `veiculo_id`, `contrato_id`, `empresa_id`, `latitude`, `longitude`, `accuracy_m`,
+`timestamp_localizacao`, `origem`, `criado_em` — sem heading/speed/altitude, sem tabela separada
+de "posição atual", sem tabela separada de histórico (o insert-only já É o histórico). Único
+schema novo desta passada é a **view derivada** (item 5).
 
-## 2. Arquitetura
+## 3. Migration
 
-Mesmo padrão de 3 camadas das fases anteriores (motor puro → hook → UI), estendido com um padrão
-novo: um motor que também injeta dado real capturado do banco (`frescorLocalizacao`/`resumoFrota`
-recebem linhas reais de query + `agoraMs` injetado, nunca leem relógio sozinhos). Zero segundo
-sistema de GPS — captura reusa 100% os arquivos da Fase 19.
+Duas migrations locais, nenhuma em produção:
+- `0051_frota_localizacao_operacional.sql` (1ª passada) — tabela, trigger, RLS, índices.
+- `0052_frota_localizacao_view.sql` (2ª passada) — só a view `motorista_localizacoes_atual`,
+  `security_invoker = true`, sem tocar a tabela base.
 
-## 3. Schema
+Validadas juntas no harness Postgres local (0001→0052, todas as suítes, 0 falhas).
 
-Tabela `motorista_localizacoes`: `id`, `motorista_id` (default `current_motorista_id()`),
-`veiculo_id`/`empresa_id`/`contrato_id` (sempre derivados no banco, nunca aceitos do cliente),
-`latitude`/`longitude`/`accuracy_m`, `timestamp_localizacao` (momento do DISPOSITIVO), `origem`
-(só `PWA_GPS` real), `criado_em` (momento do SERVIDOR). Checks: latitude/longitude em faixa,
-accuracy não-negativo, timestamp não mais que 5min no futuro (tolerância de clock skew). Insert-
-only — zero policy de UPDATE/DELETE para qualquer papel.
+## 4. Trigger
 
-## 4. Migration
+`BEFORE INSERT` (0051, não alterado nesta passada): localiza o contrato pelo `contrato_id`
+recebido, exige `contrato.status = 'ativo'` e `contrato.motorista_id = current_motorista_id()`,
+deriva `empresa_id`/`veiculo_id` do próprio contrato (nunca aceita o que o cliente envia),
+rejeita qualquer inconsistência. Reconfirmado nesta passada com um teste novo na suíte 69: enviar
+`veiculo_id`/`empresa_id` manualmente com valores de OUTRA empresa é ignorado — o trigger
+sobrescreve com o valor derivado, não com o valor recebido.
 
-`supabase/migrations/0051_frota_localizacao_operacional.sql` — criada e validada só no harness
-Postgres local (14 suítes, 0 falhas). **NÃO aplicada em produção.** Mesmo protocolo de
-autorização explícita já usado em 0049/0050.
+## 5. RLS
 
-## 5. RLS ("o ponto mais importante da fase")
+Sem mudança de policy nesta passada (mantidas as 3 de 0051: 1 INSERT motorista, 1 SELECT
+motorista dono, 1 SELECT staff com `empresa_id = current_empresa_id() AND eh_staff()`). O que
+mudou foi a **cobertura de teste**: a 2ª passada fechou lacunas que a 1ª havia deixado sem caso
+explícito — staff sem empresa (0 linhas), staff inativo (0 linhas), motorista desativado (0
+linhas) — três cenários agora com asserção SQL própria, não apenas inferidos da regra geral.
 
-1 policy INSERT (`motorista_id = current_motorista_id()`) + 2 policies SELECT (motorista vê o
-próprio; empresa vê a própria frota via `empresa_id = current_empresa_id() AND eh_staff()`).
+## 6. API
 
-**Bug real de segurança encontrado testando, não lendo**: a primeira versão da policy de empresa
-era só `empresa_id = current_empresa_id()`. Como `usuarios.empresa_id` também é preenchido para
-contas de motorista, isso deixava um motorista ver a localização de TODOS os outros motoristas da
-própria empresa — mesma classe de bug já documentada em `0039_fase1_seguranca_portal_motorista.sql`
-para `contratos`/`storage.objects`. Corrigido com `eh_staff()` (role ≠ motorista, ativo). Testado
-com IDOR direto (forjar `contrato_id`/`motorista_id`) — bloqueado pelo trigger, não só pela RLS.
-Empresa A nunca vê Empresa B; Motorista A nunca vê Motorista B; staff global não ganha acesso
-automático — testado, não assumido.
+Reauditadas antes de criar qualquer coisa nova (Regra Absoluta): `localizacaoFrota.ts` já
+existia da 1ª passada — não duplicada. Duas mudanças reais:
+- `listLocalizacoesRecentes()` passou a consultar a view (`motorista_localizacoes_atual`) em vez
+  de trazer até 500 linhas cruas e deduplicar em JS — corrige um bug de correção real (item 11).
+- Novo `getHistoricoLocalizacoes(veiculoId)` — consulta separada, sob demanda, limite de 200
+  linhas por veículo, nunca chamada na carga inicial da tela.
 
-## 6. Captura GPS
+Total de `supabase.from(` no arquivo: 5 (veículos, contratos, motoristas, view de última posição,
+histórico sob demanda) — nenhuma query duplicada, nenhum `select('*')`.
 
-Reuso total de `localizacao.ts`/`useGeolocalizacaoMotorista` (Fase 19) — zero segundo sistema de
-GPS. Novo hook `useLocalizacaoOperacional(contratoId)` liga captura + persistência + throttle +
-consentimento. Nunca salva coordenada inválida, timestamp inválido, ou sem vínculo operacional
-ativo (o trigger no banco rejeita mesmo que o cliente tente).
+## 7. Captura
 
-## 7. Persistência
+Sem alteração nesta passada — `useLocalizacaoOperacional` (1ª passada) continua sendo o único
+ponto de captura, reusando 100% `localizacao.ts`/`useGeolocalizacaoMotorista`/
+`useHeartbeatVisibilidade` da Fase 19. Zero segundo sistema de GPS criado ou cogitado.
 
-`gravarLocalizacaoOperacional()` — nunca envia `motorista_id`/`veiculo_id`/`empresa_id` (o banco
-deriva os três do `contrato_id` via trigger). "Última posição conhecida" é uma QUERY (`distinct on
-veiculo_id order by timestamp_localizacao desc`), nunca uma segunda tabela — evita duplicação e
-dessincronia.
+## 8. Persistência
 
-## 8. Presença
+Sem alteração na gravação (`gravarLocalizacaoOperacional`, insert-only, nunca envia
+`motorista_id`/`veiculo_id`/`empresa_id`). O que mudou é como a "última posição" é lida — ver
+item 5/11: antes era JS sobre até 500 linhas cruas, agora é a view `DISTINCT ON` no banco.
 
-`presencaMotorista()` (Fase 19) reusado sem alteração. No painel de detalhe do Centro de
-Inteligência, a presença é aproximada pela recência da própria captura de localização — é a única
-evidência real de atividade que hoje chega a staff (o heartbeat de visibilidade continua só local
-ao dispositivo). Honesto: "Sem dado" quando não há localização, nunca "offline" inventado.
+## 9. Presença
 
-## 9. Mapa
+Sem alteração — `presencaMotorista()`/`JANELAS_PRESENCA_PADRAO` (Fase 19) continuam sendo a
+única fonte, sem segundo motor de presença criado.
 
-Leaflet adicionado (1.9.4, zero dependências transitivas) após reconfirmar a comparação técnica
-da Fase 19. `L.divIcon` colorido por estado (verde/azul/âmbar) em vez do ícone PNG padrão — evita
-o problema clássico de asset quebrando em bundlers Vite. View inicial: Brasil inteiro, zoom 4,
-`fitBounds` só com pelo menos 1 marcador — nunca uma cidade "padrão" inventada. Lazy via
-`React.lazy` — confirmado isolado no próprio chunk (`MapaFrota-*.js`, 150KB) por inspeção real do
-`dist/assets/` pós-build, ausente de qualquer chunk do app do motorista.
+## 10. Polling
 
-## 10. Centro de Inteligência
+Sem alteração — `refetchInterval: 30s` só com o Centro de Inteligência montado e a aba visível,
+sem Supabase Realtime, sem WebSocket customizado. Confirmado de novo pelo script de auditoria
+(categoria J) que nada disso foi introduzido nesta passada.
 
-Primeira UI real de staff na tab "Inteligência da Frota" (`FrotaPage.tsx`) — substituiu o
-`EmptyState` "em construção". 4 cards clicáveis-como-filtro (Total/Localização ativa/Sem
-atualização/Sem localização), busca por placa/motorista, filtro de status (só aparece com >1
-status distinto), sem filtro de Empresa (RLS já garante 1 empresa por tela). Lista e mapa
-sincronizados nos dois sentidos. Painel de detalhe: Veículo/Motorista/Contrato/Presença/
-Localização/Atualização/Precisão. "Tempo quase real" via polling (`refetchInterval: 30s`,
-pausado com aba em background) — sem Supabase Realtime (confirmado: zero uso em todo o projeto).
+## 11. Mapa
 
-## 11. Histórico
+Sem alteração de biblioteca (Leaflet, já lazy desde a 1ª passada, confirmado de novo isolado no
+próprio chunk pós-build). Mudança real: os marcadores agora refletem a última posição correta por
+veículo vinda da view, não do cálculo em JS que tinha o bug de possível ocultação (item 11 do
+critério final).
 
-`inteligenciaFrotaHistorica()` (Fase 19) não foi tocada nem alimentada com dado real: continua
-bloqueada pela mesma limitação estrutural — staff não lê `motorista_corridas`/`motorista_ganhos`
-(privacidade invertida das Fases 16-18). Nada mudou aqui nesta fase; documentado explicitamente
-em `INTELIGENCIA-FROTA.md` para não ficar implícito.
+## 12. Lista
 
-## 12. Oportunidade
+Sem alteração estrutural — lista lateral sincronizada bidirecionalmente com o mapa, filtro de
+status (só aparece com mais de um status distinto), decisão deliberada de **não** adicionar
+dropdown de filtro por veículo/motorista nesta passada: a busca por texto já cobre esse caso e um
+segundo controle redundante não foi visto como necessário — decisão registrada, não omissão.
 
-`oportunidadeOperacional()` (Fase 19) na mesma situação do item 11 — sem consumidor de dado real
-ainda. Nenhuma tentativa de contornar a limitação de RLS criando um caminho novo.
+## 13. Histórico
 
-## 13. Copiloto
+Mudança real desta passada. Antes: `inteligenciaFrotaHistorica()` existia mas sem consumidor de
+dado real de posição. Agora: botão "Ver histórico" por veículo no painel de detalhe, abre sob
+demanda (`useQuery` com `enabled: aberto`), tabela com Quando/Latitude/Longitude/Precisão, nunca
+carregado na tela inicial. Isso é sobre HISTÓRICO DE POSIÇÃO — segue sem relação com histórico de
+corridas/ganhos (item 14).
 
-Nenhuma integração automática criada. Estrutura de tipos (`RecomendacaoOperacional`, Fase 19)
-segue existindo só como contrato — zero gerador, zero envio.
+## 14. Inteligência
 
-## 14. Privacidade
+`inteligenciaFrotaHistorica()`/`oportunidadeOperacional()` (Fase 19) continuam sem dado real por
+trás — staff ainda não lê `motorista_corridas`/`motorista_ganhos`, mesma limitação de RLS
+documentada desde a Fase 16. A mudança real desta passada não é técnica, é de honestidade de UI:
+antes a seção simplesmente não aparecia; agora existe um bloco explícito "NÃO DISPONÍVEL" citando
+a razão (falta de fonte real), com o texto revisado para "Nenhuma indicação de demanda em tempo
+real é mostrada sem fonte real" — sem a frase "demanda atual" nem no texto nem no código, depois
+de um bug de regex ter pego a própria negação e um bug de conteúdo real ter sido corrigido (ver
+seção de erros do CLAUDE.md).
 
-Consentimento com 4 estados factuais (Compartilhada/Não compartilhada/Permissão negada/
-Indisponível), nunca persistido em `localStorage` (pedir de novo a cada sessão é mais transparente
-que lembrar silenciosamente). Card do motorista com texto de reciprocidade explicando quem vê a
-localização. Retenção NÃO decidida — `[VALIDAR COM ADVOGADO]`, sem LGPD/base legal inventada.
-Tabela nunca escreve em `audit_log`/timeline/notificações.
+## 15. Motorista
 
-## 15. Testes
+Sem alteração — card "Localização Operacional" no Centro de Controle mantido
+(Compartilhada/Permissão negada/Indisponível/Sem dado), texto de reciprocidade "Quem pode ver
+minha localização?" mantido restrito a você + empresa do contrato ativo.
 
-`supabase/tests/69_frota_localizacao.sql` — 10 grupos, seed real (Empresa A/B, Motoristas A/B/C,
-Staff A/B), exercitando transição de contrato ativo→encerrado, guarda de auto-escalação, IDOR via
-`contrato_id`/`motorista_id` forjado. `scripts/audit-frota-localizacao-fase20.ts` — 29/29,
-cobrindo os casos 20-32 do Módulo 24 (mapa lazy real via grep em `dist/`, nenhuma posição
-inventada, nenhum `select *`, nenhuma query duplicada, Uber/99 não integrados, distância
-reutilizada, histórico separado de demanda, retenção não inventada).
+## 16. Privacidade
 
-## 16. SQL real
+Sem alteração de política — tabela `motorista_localizacoes` segue nunca escrevendo em
+`audit_log`/`timeline_eventos`/notificações, nunca copiada para `veiculos`/checklists/telemetria/
+manutenções/lançamentos/pagamentos. Reconfirmado pela categoria H do script de auditoria (6
+checks, incluindo o que pegou a própria frase negando isso dentro de um comentário — corrigido).
 
-Postgres 16.13 local recriado do zero, migrations 0001→0051 aplicadas em ordem, todas as 14
-suítes existentes + a nova 69 executadas — **0 falhas**. Não confiado só em TypeScript.
+## 17. Testes
 
-## 17. tsc
+`supabase/tests/69_frota_localizacao.sql` ganhou 2 grupos novos nesta passada (Grupo 11: staff
+sem empresa, staff inativo, motorista desativado, DELETE bloqueado, envio manual de
+veiculo_id/empresa_id ignorado, cascata de contrato testada de verdade, cascata de motorista
+documentada via `pg_constraint` — estruturalmente correta mas operacionalmente inalcançável dado
+que `contratos.motorista_id` é `on delete restrict`; Grupo 12: existência da view, correção do
+`DISTINCT ON`, paridade de RLS pela view). Total: 58 linhas PASS (era ~40).
 
-`tsc -b --noEmit` — limpo, exit 0.
+## 18. SQL real
 
-## 18. lint
+Postgres 16.13 local recriado do zero, 0001→0052 aplicadas em ordem, todas as suítes existentes +
+a 69 atualizada — **0 falhas**. Não confiado só em TypeScript, como determinado pelo Módulo 30.
 
-`oxlint` — mesmos 6 warnings pré-existentes e não relacionados a esta fase (fast-refresh em
-arquivos de outras features), confirmado por grep que nenhum deles cai nos arquivos novos da
-Fase 20.
+## 19. Regressão
 
-## 19. build
+Todas as suítes de auditoria TypeScript pré-existentes (Fases 6 a 19) reexecutadas nesta passada,
+não assumidas como "deveriam continuar verdes" — números reais conferidos um a um, incluindo dois
+scripts (`audit-juridico-*`/`audit-amortizacao-extra`) cujo formato de resumo ("0 FALHOU"/"0
+falharam") inicialmente pareceu suspeito numa varredura automática simples e foi verificado
+manualmente como passagem limpa de verdade (exit 0, zero falhas reais).
 
-`npm run build` — sucesso. Bundle sem impacto mensurável: leaflet isolado no próprio chunk
-(`MapaFrota-DNTwaiTv.js`), confirmado ausente de qualquer chunk do app do motorista via grep no
-`dist/assets/` real, não por inferência.
+## 20. tsc
 
-## 20. Performance
+`npx tsc -b --noEmit` — limpo, exit 0, depois de todas as mudanças desta passada.
 
-Zero polling agressivo: GPS a cada 3min só em foreground, grava só por movimento ≥150m ou 10min
-sem gravar. "Tempo quase real" do staff via `refetchInterval` 30s, pausado com aba oculta. Sem
-Realtime, sem WebSocket customizado, sem biblioteca pesada além do Leaflet (já lazy).
+## 21. lint
 
-## 21. Arquivos
+`npx oxlint` — mesmos warnings pré-existentes de fases anteriores, nenhum novo introduzido pela
+2ª passada, confirmado por grep que nenhum cai nos arquivos tocados nesta rodada.
 
-30 arquivos no commit `feat: fase 20 localizacao operacional` (9 novos de produto, 1 migration,
-1 suíte SQL, 1 script TS, 10 scripts TS antigos corrigidos por staleness, 3 docs + CLAUDE.md
-atualizados, package.json/lock) + 1 arquivo no commit separado do relatório da Fase 19 pendente.
+## 22. build
 
-## 22. Commit
+`npm run build` — sucesso, exigiu um rebuild completo (`rm -rf dist && npx vite build`) depois da
+correção de texto do item 14, porque o script de auditoria valida a frase também contra o bundle
+final, não só contra o código-fonte.
 
-Nuvem: `2faefc7` (relatório Fase 19 pendente) + `245cf07` (Fase 20 completa), branch `dev`.
-Dispositivo: `4217048` + `73839aa`, mesmo diff confirmado por `git diff --stat` (31 arquivos,
-2470 inserções, idêntico nos dois lados). Nenhum push para `main`.
+## 23. Performance
 
-## 23. Bundle
+Sem regressão — a mudança de "500 linhas cruas + dedup em JS" para "view com `DISTINCT ON`" é uma
+melhora de performance além de correção: o banco faz o trabalho de agrupamento, o cliente recebe
+só 1 linha por veículo já pronta, em vez de até 500 linhas para processar no navegador.
 
-Chunk do mapa (`MapaFrota-*.js`, ~150KB/44KB gzip) só carrega quando o Centro de Inteligência da
-Frota é montado — confirmado, não assumido, via `grep leaflet dist/assets/*.js` (aparece só nesse
-chunk) e via ausência em qualquer chunk do app do motorista.
+## 24. Arquivos
 
-## 24. Limitações
+24 arquivos no commit da 2ª passada: 1 migration nova (0052), 1 arquivo movido
+(`schemaGuard.ts` de `motorista-app/api/` para `shared/lib/`), 5 arquivos com import atualizado
+para o novo caminho compartilhado, 2 arquivos de produto editados (`localizacaoFrota.ts`,
+`CentroInteligenciaFrota.tsx`), 1 suíte SQL, 1 script de auditoria da fase reescrito, 10 scripts
+de auditoria antigos corrigidos por staleness de teto de migration (mesmo padrão da 1ª passada,
+2ª ocorrência), 3 docs + `CLAUDE.md` atualizados.
 
-- Migration 0051 é só local — produção não tem `motorista_localizacoes` até autorização explícita.
-- PWA continua sem captura confiável em segundo plano (mesma limitação estrutural da Fase 19,
-  `public/sw.js` cache-only, sem `sync`/`periodicSync`).
-- iOS Safari em modo PWA: nenhum teste em device real feito (fora do escopo de sessão de código).
-- Retenção de dado: não decidida, precisa validação jurídica.
-- Histórico/oportunidade agregada (Módulos 15/16) continuam sem dado real por trás — a limitação
-  de RLS de `motorista_corridas`/`motorista_ganhos` para staff não foi alterada nesta fase (e não
-  deveria ser, sem uma decisão sua explícita e separada).
-- Agrupamento por região (Módulo 10 de Fase 19) segue não implementado — o pré-requisito técnico
-  (localização persistida) agora existe, mas a agregação geográfica em si não foi construída.
+## 25. Commit
 
-## 25. Próximos passos
+Nuvem: `94fe128`, branch `dev`. Dispositivo: `bc271c7`, mesmo diff — `git diff --stat` conferido
+nos dois lados (24 arquivos, +685/-139, idêntico). Nenhum push para `main` em nenhum momento desta
+sessão.
 
-1. Decidir se e quando autorizar a aplicação da migration 0051 em produção.
-2. Se autorizada, validar em device iOS real antes de qualquer expectativa de produto sobre
-   precisão/frequência de captura em campo.
-3. Decisão jurídica sobre retenção de `motorista_localizacoes` (`[VALIDAR COM ADVOGADO]`).
-4. Se/quando decidir dar a staff acesso a histórico/oportunidade agregada de corridas — essa é
-   uma segunda decisão de RLS sobre `motorista_corridas`/`motorista_ganhos`, não implícita nesta
-   fase nem na anterior.
-5. Agrupamento por região (geohash/grid/bairro/região manual) — avaliação em aberto, sem decisão
-   tomada.
+## 26. Bundle
+
+Sem mudança de composição — Leaflet segue isolado no próprio chunk, ausente do app do motorista,
+reconfirmado após o rebuild do item 22.
+
+## 27. Limitações
+
+- Migrations 0051 e 0052 são só locais — produção não tem `motorista_localizacoes` nem a view até
+  autorização explícita.
+- Histórico/oportunidade agregada de corridas/ganhos (Módulos 13/14 desta passada) continuam sem
+  dado real por trás — a limitação de RLS de `motorista_corridas`/`motorista_ganhos` para staff
+  não foi alterada nesta fase, e não deveria ser sem uma decisão sua explícita e separada.
+- Retenção de `motorista_localizacoes`: ainda não decidida, precisa validação jurídica — não
+  mudou desde a 1ª passada.
+- PWA continua sem captura confiável em segundo plano; nenhum teste em device iOS real foi feito
+  nesta sessão.
+- O padrão de "teto de migration hardcoded" nos 10 scripts de auditoria antigos se repetiu pela
+  2ª vez nesta sessão (era 0051, virou 0051+0052) — é a 6ª ocorrência desse padrão no histórico
+  do projeto. Vale considerar um helper único no futuro em vez de 10 asserções duplicadas — não
+  bloqueante, mas registrado para não ficar implícito.
+
+## 28. Próximos passos
+
+1. Decidir se e quando autorizar a aplicação de 0051+0052 em produção.
+2. Decisão jurídica pendente sobre retenção de `motorista_localizacoes`.
+3. Se/quando decidir dar a staff acesso a histórico/oportunidade real de corridas — decisão de
+   RLS sobre `motorista_corridas`/`motorista_ganhos`, não implícita em nenhuma fase até aqui.
+4. Validação em device iOS real antes de qualquer expectativa de produto sobre captura em campo.
+5. Considerar consolidar o helper de "teto de migration" usado em 10 scripts de auditoria, para
+   não repetir o mesmo conserto manual na próxima migration nova.
 
 ---
 
-## Critério de sucesso — 18 capacidades, verificadas uma a uma
+## Critério final — 20 capacidades, verificadas uma a uma
 
-1. **Motorista autorizar localização** — [Certo] botão explícito "Compartilhar localização" no
-   card do Centro de Controle, nunca inicia sozinho.
-2. **Capturar localização REAL** — [Certo] reuso de `navigator.geolocation` via hook da Fase 19,
-   testado nos 4 estados possíveis.
-3. **Persistir localização** — [Certo] `motorista_localizacoes`, validada no harness local.
-4. **Associar ao motorista** — [Certo] `motorista_id`, default e RLS via `current_motorista_id()`.
-5. **Associar ao veículo** — [Certo] `veiculo_id`, sempre derivado do contrato pelo trigger.
-6. **Associar ao contrato** — [Certo] `contrato_id`, validado como existente/ativo/pertencente ao
-   motorista no INSERT.
-7. **Associar à empresa** — [Certo] `empresa_id`, sempre derivado do contrato pelo trigger.
-8. **Proteger tudo por RLS** — [Certo] dual (motorista dono + empresa via `eh_staff()`), testado
-   com IDOR direto.
-9. **Empresa visualizar SOMENTE sua frota** — [Certo] testado (Empresa A não vê Empresa B, suíte
-   69).
-10. **Motorista visualizar SOMENTE sua localização** — [Certo] testado (Motorista A não vê
-    Motorista B, mesma empresa, suíte 69 — é exatamente o bug que foi encontrado e corrigido).
-11. **Centro Inteligência mostrar mapa real** — [Certo] Leaflet com tiles OpenStreetMap reais,
-    lazy.
-12. **Mapa mostrar veículos reais** — [Certo] marcadores vêm de `listFrotaComLocalizacao()`,
-    dado real de `motorista_localizacoes`/`veiculos`/`contratos`/`motoristas`, zero mock.
-13. **Mostrar última atualização** — [Certo] "há X min/h", recalculado a cada 15s.
-14. **Mostrar presença** — [Certo] via `presencaMotorista()` no painel de detalhe.
-15. **Mostrar histórico quando houver dados** — [Palpite/parcial] a estrutura
-    (`inteligenciaFrotaHistorica`) existe desde a Fase 19, mas não tem hoje caminho de dado real
-    (item 11 do relatório) — não é uma capacidade nova desta fase, e não foi fingida como se
-    fosse.
-16. **Separar histórico de demanda atual** — [Certo] vocabulário "DADO HISTÓRICO"/"OPORTUNIDADE
-    HISTÓRICA" testado explicitamente, nunca "demanda atual".
-17. **Separar oportunidade histórica de recomendação** — [Certo] `RecomendacaoOperacional` só
-    existe como tipo, zero gerador — nada produz recomendação automática.
-18. **Preparar integração futura com Copiloto** — [Certo] limitado ao que o Módulo 17 pediu:
-    estrutura de dados, zero envio automático.
+1. **GPS real capturado** — [Certo] reuso total da Fase 19, testado nos 4 estados possíveis, zero
+   segundo sistema de GPS criado.
+2. **Localização real persistida** — [Certo] `motorista_localizacoes`, insert-only, validada no
+   harness local com 0001→0052.
+3. **Vinculada ao motorista** — [Certo] `motorista_id` default `current_motorista_id()`, RLS e
+   trigger reforçam.
+4. **Vinculada ao veículo** — [Certo] `veiculo_id` sempre derivado do contrato pelo trigger, nunca
+   aceito do cliente (testado explicitamente nesta passada: envio manual é ignorado).
+5. **Vinculada ao contrato** — [Certo] `contrato_id` validado como existente/ativo/pertencente ao
+   motorista autenticado no próprio INSERT.
+6. **Vinculada à empresa** — [Certo] `empresa_id` sempre derivado do contrato pelo trigger, mesmo
+   teste de envio manual ignorado desta passada.
+7. **RLS impede vazamento entre empresas** — [Certo] testado (Empresa A não vê Empresa B, suíte
+   69, mantido desde a 1ª passada).
+8. **RLS impede vazamento entre motoristas** — [Certo] testado (Motorista A não vê Motorista B na
+   mesma empresa — o próprio bug que a 1ª passada encontrou e corrigiu).
+9. **Staff sem empresa e staff inativo veem zero dado** — [Certo] lacuna fechada nesta passada:
+   antes inferido da regra geral, agora com asserção SQL própria para os dois casos.
+10. **Mapa mostra veículos reais** — [Certo] Leaflet, marcadores vindos de dado real, zero mock,
+    lazy e isolado do bundle do motorista.
+11. **Última posição funciona corretamente mesmo com atividade desigual entre veículos** —
+    [Certo] esta é a correção central da 2ª passada: a versão anterior (JS sobre até 500 linhas
+    cruas) podia esconder a posição de um veículo pouco ativo atrás de rajadas de outro veículo
+    muito ativo; a view `DISTINCT ON` com `security_invoker=true` resolve isso corretamente no
+    banco, testada na suíte 69 (Grupo 12).
+12. **Posição antiga é identificada** — [Certo] thresholds ATUAL (≤2min) / RECENTE (≤15min) / SEM
+    ATUALIZAÇÃO (>15min), posição antiga continua visível mas marcada, nunca escondida.
+13. **Presença funciona** — [Certo] via `presencaMotorista()`, sem segundo motor de presença.
+14. **Histórico sob demanda funciona** — [Certo] mudança real desta passada: botão "Ver
+    histórico" por veículo, consulta separada e limitada, nunca carregada na tela inicial.
+15. **Centro de Inteligência funciona de ponta a ponta** — [Certo] cards, lista, mapa e painel de
+    detalhe sincronizados, dado real em todos os pontos, sem mock em nenhum estado testado.
+16. **Motorista vê o estado real da própria localização** — [Certo] card no Centro de Controle
+    com os 4 estados factuais, texto de reciprocidade restrito a você + empresa do contrato ativo.
+17. **schemaGuard protege ambientes sem a migration** — [Certo] mudança real desta passada: o
+    padrão foi movido para `shared/lib/` justamente para ser reusado pelas duas apps (motorista e
+    frota) em vez de reimplementado; código não crasha se 0051/0052 estiverem ausentes.
+18. **Histórico e demanda mantidos honestamente separados** — [Certo] mudança real desta passada:
+    em vez de a seção de inteligência histórica simplesmente não aparecer, agora existe um bloco
+    "NÃO DISPONÍVEL" explícito citando a razão, sem a frase "demanda atual" nem em código nem na
+    UI renderizada.
+19. **Uber e 99 não integrados** — [Certo] nenhuma integração funcional, confirmado de novo pela
+    categoria K do script de auditoria; comparação de mercado documentada continua sendo só
+    referência histórica, não código.
+20. **Nenhum dado inventado em nenhum estado testado** — [Certo] SEM DADO = SEM DADO em todas as
+    18 categorias de teste (GPS, mapa, inteligência, RLS) — inclusive o caso "cascata de
+    motorista": em vez de forçar um cenário artificial que o schema não permite (porque
+    `contratos.motorista_id` é `on delete restrict`), foi documentado estruturalmente via
+    `pg_constraint`, não fabricado.
 
-**17 de 18 plenamente entregues nesta fase. O item 15 é parcial por desenho, não por falta de
-esforço**: depende de uma decisão de RLS sobre `motorista_corridas`/`motorista_ganhos` que
-nenhuma fase deve tomar sozinha — registrado como pendência explícita, não escondido.
+**20 de 20 plenamente entregues, com o mesmo limite explícito de fases anteriores**: histórico
+agregado de corridas/ganhos para staff segue dependendo de uma decisão de RLS que nenhuma fase
+deve tomar sozinha — registrada como pendência, não escondida.
 
-SEM DADO = SEM DADO. Nenhuma posição foi inventada em nenhum estado testado.
+SEM DADO = SEM DADO. Nenhuma posição foi inventada em nenhum estado testado, em nenhuma das duas
+passadas.
