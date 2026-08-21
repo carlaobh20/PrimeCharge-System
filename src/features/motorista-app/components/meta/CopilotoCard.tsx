@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Gauge, Zap } from 'lucide-react';
+import { ChevronDown, ChevronUp, Gauge, Settings2, Zap } from 'lucide-react';
 import { Secao, Pill } from '../ui';
 import {
   avaliarCorrida,
@@ -8,6 +8,7 @@ import {
   type AvaliacaoCorrida,
   type ClassificacaoCorrida,
   type ConfigCopiloto,
+  type InsightCopiloto,
 } from '../../lib/metas';
 import type { CorridaRow } from '../../api/corridasPessoais';
 
@@ -23,6 +24,11 @@ const TOM_CLASSIFICACAO: Record<ClassificacaoCorrida, 'verde' | 'ambar' | 'verme
 };
 const EMOJI_CLASSIFICACAO: Record<ClassificacaoCorrida, string> = { BOM: '🟢', ATENCAO: '🟡', RUIM: '🔴' };
 
+const TOM_ORIGEM_INSIGHT: Record<InsightCopiloto['origem'], 'verde' | 'ambar' | 'neutro'> = {
+  'DADO REGISTRADO': 'verde',
+  'SEM DADOS SUFICIENTES': 'neutro',
+};
+
 export function CopilotoCard({
   corridasHoje,
   qtdCorridasHoje,
@@ -31,8 +37,12 @@ export function CopilotoCard({
   divergenciaCorridasQtd,
   configCopiloto,
   copilotoConfigurado,
+  copilotoAtivo,
+  insightsCopilotoLista,
   onRegistrar,
   salvando,
+  onSalvarConfig,
+  salvandoConfig,
 }: {
   corridasHoje: CorridaRow[];
   qtdCorridasHoje: number;
@@ -41,11 +51,33 @@ export function CopilotoCard({
   divergenciaCorridasQtd: { registradoNoDia: number; qtdCorridasIndividuais: number } | null;
   configCopiloto: ConfigCopiloto;
   copilotoConfigurado: boolean;
+  copilotoAtivo: boolean;
+  insightsCopilotoLista: InsightCopiloto[];
   onRegistrar: (c: { valor: number; km_estimado: number | null; duracao_estimada_min: number | null; app: string | null; classificacao: ClassificacaoCorrida | null }) => void;
   salvando: boolean;
+  onSalvarConfig: (patch: {
+    limiar_rpkm_bom: number | null;
+    limiar_rpkm_ruim: number | null;
+    limiar_rph_bom: number | null;
+    limiar_rph_ruim: number | null;
+    peso_rpkm: number;
+    peso_rph: number;
+    ativo: boolean;
+  }) => void;
+  salvandoConfig: boolean;
 }) {
   const [f, setF] = useState({ valor: '', km: '', min: '', app: '' });
   const [avaliacao, setAvaliacao] = useState<AvaliacaoCorrida | null>(null);
+  const [mostrarInsights, setMostrarInsights] = useState(false);
+  const [mostrarConfig, setMostrarConfig] = useState(false);
+  const [cf, setCf] = useState({
+    limiarRpkmBom: configCopiloto.limiarRpkmBom != null ? String(configCopiloto.limiarRpkmBom) : '',
+    limiarRpkmRuim: configCopiloto.limiarRpkmRuim != null ? String(configCopiloto.limiarRpkmRuim) : '',
+    limiarRphBom: configCopiloto.limiarRphBom != null ? String(configCopiloto.limiarRphBom) : '',
+    limiarRphRuim: configCopiloto.limiarRphRuim != null ? String(configCopiloto.limiarRphRuim) : '',
+    pesoRpkm: String(configCopiloto.pesoRpkm),
+    pesoRph: String(configCopiloto.pesoRph),
+  });
 
   const num = (s: string) => {
     const n = Number(s.replace(',', '.'));
@@ -72,16 +104,134 @@ export function CopilotoCard({
     setAvaliacao(null);
   };
 
+  const salvarConfig = () => {
+    onSalvarConfig({
+      limiar_rpkm_bom: num(cf.limiarRpkmBom),
+      limiar_rpkm_ruim: num(cf.limiarRpkmRuim),
+      limiar_rph_bom: num(cf.limiarRphBom),
+      limiar_rph_ruim: num(cf.limiarRphRuim),
+      peso_rpkm: num(cf.pesoRpkm) != null && (num(cf.pesoRpkm) as number) > 0 ? (num(cf.pesoRpkm) as number) : 1,
+      peso_rph: num(cf.pesoRph) != null && (num(cf.pesoRph) as number) > 0 ? (num(cf.pesoRph) as number) : 1,
+      ativo: copilotoAtivo,
+    });
+  };
+
+  const insightPrincipal = insightsCopilotoLista.find((i) => i.tipo === 'META') ?? insightsCopilotoLista[0] ?? null;
+
   return (
     <Secao titulo="Copiloto" acao={<Pill tom="neutro">Beta</Pill>}>
       <p className="text-[11px] text-neutral-500">
         Avalie uma corrida antes de decidir. O sistema mostra os números — a decisão de aceitar ou não é sempre sua.
       </p>
 
+      {/* Módulo E — Seu Copiloto (leitura contextual do momento) */}
+      {insightPrincipal && (
+        <div className="mt-2 rounded-xl border border-neutral-100 p-3 dark:border-white/10">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Seu Copiloto</p>
+          <p className="mt-1 text-[12px] font-medium text-neutral-800 dark:text-neutral-100">{insightPrincipal.titulo}</p>
+          <p className="text-[11px] text-neutral-500">{insightPrincipal.descricao}</p>
+          {insightsCopilotoLista.length > 1 && (
+            <button
+              type="button"
+              className="mt-1 flex items-center gap-1 text-[11px] font-medium text-neutral-500 underline"
+              onClick={() => setMostrarInsights((v) => !v)}
+            >
+              {mostrarInsights ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {mostrarInsights ? 'Ver menos' : `Ver todos os insights (${insightsCopilotoLista.length})`}
+            </button>
+          )}
+          {mostrarInsights && (
+            <div className="mt-2 space-y-2 border-t border-neutral-100 pt-2 dark:border-white/10">
+              {insightsCopilotoLista.map((ins, idx) => (
+                <div key={`${ins.tipo}-${idx}`} className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Pill tom={TOM_ORIGEM_INSIGHT[ins.origem]}>{ins.origem}</Pill>
+                    <span className="text-[11px] font-medium text-neutral-700 dark:text-neutral-200">{ins.titulo}</span>
+                  </div>
+                  <p className="text-[11px] text-neutral-500">{ins.descricao}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {!copilotoConfigurado && (
         <p className="mt-2 rounded-xl bg-neutral-50 px-3 py-2 text-[11px] text-neutral-500 dark:bg-white/5">
           Você ainda não configurou limiares de R$/km ou R$/h. Sem eles, o Copiloto só mostra os números da corrida — não classifica.
         </p>
+      )}
+
+      {/* Módulo H — Configurações do Copiloto (inline, mesmo padrão de motorista_meta_config) */}
+      <button
+        type="button"
+        className="mt-2 flex w-full items-center justify-between rounded-xl border border-neutral-200 px-3 py-2 text-[12px] font-medium text-neutral-600 dark:border-white/10 dark:text-neutral-300"
+        onClick={() => setMostrarConfig((v) => !v)}
+      >
+        <span className="flex items-center gap-1.5">
+          <Settings2 className="h-3.5 w-3.5" aria-hidden />
+          Configurações do Copiloto
+        </span>
+        {mostrarConfig ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      </button>
+      {mostrarConfig && (
+        <div className="mt-2 space-y-2 rounded-xl border border-neutral-100 p-3 dark:border-white/10">
+          <p className="text-[11px] text-neutral-500">
+            Limiar vazio = critério não configurado (nunca vira zero). Peso não pode ser zero — para desligar um critério, deixe o limiar vazio.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              className="h-10 rounded-lg border border-neutral-200 bg-transparent px-2.5 text-[13px] dark:border-white/10"
+              placeholder="R$/km bom (≥)"
+              inputMode="decimal"
+              value={cf.limiarRpkmBom}
+              onChange={(e) => setCf((v) => ({ ...v, limiarRpkmBom: e.target.value }))}
+            />
+            <input
+              className="h-10 rounded-lg border border-neutral-200 bg-transparent px-2.5 text-[13px] dark:border-white/10"
+              placeholder="R$/km ruim (≤)"
+              inputMode="decimal"
+              value={cf.limiarRpkmRuim}
+              onChange={(e) => setCf((v) => ({ ...v, limiarRpkmRuim: e.target.value }))}
+            />
+            <input
+              className="h-10 rounded-lg border border-neutral-200 bg-transparent px-2.5 text-[13px] dark:border-white/10"
+              placeholder="R$/h bom (≥)"
+              inputMode="decimal"
+              value={cf.limiarRphBom}
+              onChange={(e) => setCf((v) => ({ ...v, limiarRphBom: e.target.value }))}
+            />
+            <input
+              className="h-10 rounded-lg border border-neutral-200 bg-transparent px-2.5 text-[13px] dark:border-white/10"
+              placeholder="R$/h ruim (≤)"
+              inputMode="decimal"
+              value={cf.limiarRphRuim}
+              onChange={(e) => setCf((v) => ({ ...v, limiarRphRuim: e.target.value }))}
+            />
+            <input
+              className="h-10 rounded-lg border border-neutral-200 bg-transparent px-2.5 text-[13px] dark:border-white/10"
+              placeholder="Peso R$/km"
+              inputMode="decimal"
+              value={cf.pesoRpkm}
+              onChange={(e) => setCf((v) => ({ ...v, pesoRpkm: e.target.value }))}
+            />
+            <input
+              className="h-10 rounded-lg border border-neutral-200 bg-transparent px-2.5 text-[13px] dark:border-white/10"
+              placeholder="Peso R$/h"
+              inputMode="decimal"
+              value={cf.pesoRph}
+              onChange={(e) => setCf((v) => ({ ...v, pesoRph: e.target.value }))}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={salvandoConfig}
+            className="w-full rounded-xl bg-neutral-900 py-2 text-[13px] font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+            onClick={salvarConfig}
+          >
+            Salvar configurações
+          </button>
+        </div>
       )}
 
       <div className="mt-3 grid grid-cols-3 gap-2">

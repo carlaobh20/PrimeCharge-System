@@ -1,8 +1,28 @@
 # MINHA META — Inteligência Financeira Pessoal do Motorista
 
+> **Fase 17 — Copiloto Inteligente do Motorista** (2026-08-21; **ZERO migration** — tudo
+> derivado de 0049/0050, já aplicadas em produção): motor puro novo em `metas.ts` —
+> `resumoPeriodoCorridas`/`compararPeriodoCorridas` (Módulo A, histórico 7/14/30/90d com
+> "SEM COMPARAÇÃO" quando o período anterior não tem corrida), `inteligenciaPorHorario` (Módulo
+> B, 7 faixas fixas) e `inteligenciaPorDiaSemana` (Módulo C) — sempre "MAIOR MÉDIA REGISTRADA",
+> nunca "melhor horário/dia"; `classificarAmostra` (dados_insuficientes <3 · base_inicial 3–6 ·
+> base_consistente 7–13 · base_relevante 14+); `qualidadeBaseCopiloto` (Módulo G, só descreve o
+> que está preenchido, nunca dá nota); `insightsCopiloto` (Módulo F, motor puro que CONSOME os
+> anteriores — 9 tipos de insight, vocabulário proibido testado). Módulo D (conexão com a meta)
+> e E ("Seu Copiloto") vivem no próprio `CopilotoCard`; Módulo H (Configurações) é um bloco
+> colapsável inline no mesmo card, reusando `motorista_config_copiloto` (mesmo padrão de
+> `mostrarConfig` já usado pra `motorista_meta_config`) — nenhuma rota nova. Cards novos:
+> `CopilotoInteligenteCard.tsx` (Histórico, Padrões, Qualidade). Módulos I/J/K (cenários
+> estendidos, plano estendido, assistente Q&A) ficam pra próxima passada — corte deliberado,
+> registrado em `claude/auditoria-fase17-copiloto-inteligente.md`. Testes:
+> `audit-motorista-copiloto-inteligente.ts` **66/66** + regressão total dos 8 scripts anteriores
+> (591/591 combinados) + suíte SQL real **346/346** (zero SQL alterado — só confirmando zero
+> regressão).
+
 > **Fase 16 (MVP) — Copiloto do Motorista: avaliar corrida** (2026-08-21; migrations 0049
-> `motorista_corridas` + 0050 `motorista_config_copiloto`, NÃO aplicadas em produção): primeira
-> estrutura de CORRIDA INDIVIDUAL do sistema — até aqui só existia contagem diária
+> `motorista_corridas` + 0050 `motorista_config_copiloto` — **✅ aplicadas em produção em
+> 2026-08-21**, coladas manualmente no SQL Editor do Supabase por autorização explícita):
+> primeira estrutura de CORRIDA INDIVIDUAL do sistema — até aqui só existia contagem diária
 > (`motorista_ganhos.corridas`). `avaliarCorrida()` (novo, em `metas.ts`, reusa `calcularRpKm`/
 > `calcularRph`) classifica BOM/ATENÇÃO/RUIM sempre acompanhado dos critérios que formaram o
 > resultado — nunca um selo sozinho. Limiar não configurado nunca vira zero: fica NÃO CONFIGURADO

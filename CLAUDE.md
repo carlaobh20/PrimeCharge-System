@@ -6,13 +6,41 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-21, fim da Fase 16 — MVP (Copiloto do Motorista: avaliar corrida,
-Fases A/B/C/D/N/S/T/U). Migrations 0049+0050 **APLICADAS EM PRODUÇÃO** (autorização explícita do
-Carlos, colada manualmente no SQL Editor do Supabase, confirmado por consulta a
-information_schema.tables — motorista_corridas e motorista_config_copiloto existem). Fases E–R
-(histórico, card completo com plano do dia, insights temporais, tela de Configurações,
-reordenação de fold, assistente contextual) ficam para a próxima passada — corte deliberado,
-registrado em `claude/auditoria-reuso-fase16-copiloto-2026-08-21.md`.
+**Última atualização:** 2026-08-21, fim da Fase 17 — Copiloto Inteligente do Motorista (Módulos
+A/B/C/D/E/F/G/H; **ZERO migration** — tudo derivado de 0049/0050, já em produção). Módulos I/J/K
+(cenários estendidos, plano estendido, assistente Q&A) ficam para a próxima passada — corte
+deliberado, registrado em `claude/auditoria-fase17-copiloto-inteligente.md`.
+
+## 0.-12 Fase 17 — Copiloto Inteligente do Motorista (2026-08-21, sobre a Fase 16; ZERO migration)
+
+- Auditoria de reuso ANTES de qualquer código: `claude/auditoria-fase17-copiloto-inteligente.md`
+  (10 pontos: o que já existe / reutilizável / a estender / não existe / migration necessária? /
+  queries existentes / queries ampliáveis / risco de duplicação / performance / RLS). Decisão de
+  escopo registrada na seção 0: A/B/C/D/E/F/G/H nesta passada; I/J/K na próxima; L é só doc.
+- Motor novo em `metas.ts` (mesmo arquivo, reusa `calcularRpKm`/`calcularRph`/`campoEvolucao`/
+  `DIA_SEMANA_LABEL`): `resumoPeriodoCorridas`/`compararPeriodoCorridas` (Módulo A, 7/14/30/90d,
+  "SEM COMPARAÇÃO" quando período anterior vazio), `inteligenciaPorHorario`/
+  `inteligenciaPorDiaSemana` (Módulos B/C, "MAIOR MÉDIA REGISTRADA", nunca "melhor horário/dia"),
+  `classificarAmostra` (<3/3–6/7–13/14+), `qualidadeBaseCopiloto` (Módulo G, só descreve, nunca
+  julga), `insightsCopiloto` (Módulo F, CONSOME os anteriores, 9 tipos, vocabulário proibido
+  testado — nunca "melhor"/"deveria trabalhar"/"garantido").
+- Zero query nova: tudo deriva de `corridas60` (a mesma janela de 90 dias que a Fase 16 já
+  buscava) via `map()` client-side em `useMinhaMeta.ts` → `corridasHistorico`.
+- UI: Módulos D/E/H entram dentro de `CopilotoCard.tsx` (bloco "Seu Copiloto" com insights +
+  bloco colapsável "Configurações do Copiloto", mesmo padrão inline de `motorista_meta_config` —
+  nenhuma rota nova). Módulos A/B/C/G em `CopilotoInteligenteCard.tsx` (novo): `HistoricoCorridasCard`,
+  `PadraoHorarioDiaCard`, `QualidadeBaseCopilotoCard`, todos montados no Centro de Controle atrás
+  do mesmo gate `!copilotoIndisponivel` já existente.
+- Testes: `audit-motorista-copiloto-inteligente.ts` **66/66** (novo, 22 categorias). Regressão:
+  os 8 audit scripts anteriores do motorista + o novo **591/591** combinados (zero mudança de
+  migration floor necessária — Fase 17 não criou migration nenhuma). SQL real reexecutado do
+  zero (50 migrations + suíte completa): **346/346 PASS**, zero regressão (nenhum SQL foi
+  alterado nesta fase). `tsc -b` limpo, `oxlint` sem warning novo, `npm run build` ok. Scripts
+  não-motorista (juridico ×8, amortização) também reexecutados: zero regressão.
+- Docs novos: `docs/motorista/COPILOTO-INTELIGENCIA.md` (arquitetura/fontes/fórmulas/
+  classificação de honestidade/limitações/privacidade/reuso/decisões/o que não existe/próximos
+  passos) e `docs/motorista/COPILOTO-INTELIGENCIA-FUTURA.md` (Módulo L, arquitetura-only — I/J/K
+  na fila imediata; inteligência de frota/região como ideia registrada, sem compromisso).
 
 ## 0.-11 Fase 16 (MVP) — Copiloto do Motorista: avaliar corrida (2026-08-21, sobre a Fase 14;
 migrations 0049+0050, APLICADAS EM PRODUÇÃO em 2026-08-21)

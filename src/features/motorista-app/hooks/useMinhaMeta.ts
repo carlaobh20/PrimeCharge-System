@@ -66,6 +66,13 @@ import {
   qualidadeDados,
   qualidadeOperacional,
   rebalancear,
+  compararPeriodoCorridas,
+  inteligenciaPorHorario,
+  inteligenciaPorDiaSemana,
+  qualidadeBaseCopiloto,
+  insightsCopiloto,
+  type CorridaHistorico,
+  type PeriodoCorridas,
   resumoDiaOperacional,
   revisaoDoDia,
   resumoRecargas,
@@ -418,6 +425,33 @@ export function useMinhaMeta() {
     const copilotoConfigurado = configCopilotoRow != null && (configCopilotoRow.limiar_rpkm_bom != null || configCopilotoRow.limiar_rph_bom != null);
     const copilotoAtivo = configCopilotoRow?.ativo ?? true;
 
+    // ===== FASE 17 — COPILOTO INTELIGENTE (histórico/horário/dia da semana/insights/qualidade) =====
+    // Motor 100% puro sobre a MESMA janela de 90 dias já buscada (corridas60) — zero query nova.
+    const corridasHistorico: CorridaHistorico[] = corridas60.map((c) => ({
+      data: c.data,
+      hora: c.hora,
+      app: c.app,
+      valor: c.valor,
+      kmEstimado: c.km_estimado,
+      duracaoEstimadaMin: c.duracao_estimada_min,
+    }));
+    const historicoPeriodos: Record<PeriodoCorridas, ReturnType<typeof compararPeriodoCorridas>> = {
+      7: compararPeriodoCorridas(corridasHistorico, 7, hojeStr),
+      14: compararPeriodoCorridas(corridasHistorico, 14, hojeStr),
+      30: compararPeriodoCorridas(corridasHistorico, 30, hojeStr),
+      90: compararPeriodoCorridas(corridasHistorico, 90, hojeStr),
+    };
+    const porHorarioCorridas = inteligenciaPorHorario(corridasHistorico);
+    const porDiaSemanaCorridas = inteligenciaPorDiaSemana(corridasHistorico);
+    const qualidadeBaseCorridas = qualidadeBaseCopiloto(corridasHistorico);
+    const insightsCopilotoLista = insightsCopiloto({
+      corridas: corridasHistorico,
+      ateIso: hojeStr,
+      periodo: 30,
+      metaHoje: hojeCockpit,
+      qtdCorridasHoje,
+    });
+
     return {
       contratoAtivo,
       aluguelCarroMensal,
@@ -501,6 +535,12 @@ export function useMinhaMeta() {
       copilotoConfigurado,
       copilotoAtivo,
       copilotoIndisponivel: moduloIndisponivel('copiloto'),
+      // Fase 17 — Copiloto Inteligente (histórico/horário/dia da semana/insights/qualidade)
+      historicoPeriodos,
+      porHorarioCorridas,
+      porDiaSemanaCorridas,
+      qualidadeBaseCorridas,
+      insightsCopilotoLista,
     };
   }, [base.data, anoMes]);
 
