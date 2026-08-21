@@ -229,10 +229,20 @@ fórmula errada só para bater com um número de exemplo que já estava incorret
   gerou um insight `REGISTRO` próprio (que cobre "faltam km/duração") — evita duplicar o mesmo
   tipo com duas mensagens diferentes na mesma lista.
 
-## 11. Futuro — Inteligência de Frota (arquitetura apenas, NÃO implementada)
+## 11. Futuro — Inteligência de Frota (Fase 19 — fundação implementada; UI e persistência ainda não)
 
-Fora do escopo desta fase e de qualquer fase já implementada. Esta seção documenta SÓ a direção
-arquitetural, para uma fase própria e futura — nenhuma linha de código abaixo foi escrita.
+> **Atualização (Fase 19):** a fundação desta seção foi implementada — motor de localização
+> (`localizacao.ts`), presença (`presenca.ts`), distância (`geo.ts`) e inteligência histórica da
+> frota (`inteligenciaFrota.ts`), todos puros e testados (48/48,
+> `scripts/audit-motorista-inteligencia-frota.ts`). Documentação completa em
+> `docs/frota/LOCALIZACAO-OPERACIONAL.md`, `docs/frota/INTELIGENCIA-FROTA.md` e
+> `docs/frota/CENTRO-INTELIGENCIA-FROTA.md`. **Continua sem persistência** (zero migration —
+> proposta de schema apresentada, não criada, aguardando aprovação) e **sem UI de staff** (a tab
+> "Inteligência da Frota" em `FrotaPage.tsx` continua um placeholder). O texto abaixo, mantido da
+> Fase 18, permanece válido como a lista do que NÃO foi implementado.
+
+Esta seção documenta SÓ a direção arquitetural — o código puro é fundação, não a experiência
+completa descrita abaixo.
 
 **O que essa fase futura poderia endereçar**, em alto nível: agregações de leitura, no MESMO
 padrão determinístico deste documento (motor puro → agregador → UI, origem sempre declarada,

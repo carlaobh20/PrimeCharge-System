@@ -6,11 +6,72 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-21, fim da Fase 18 — Copiloto Proativo do Motorista (Módulos
-I/J/K: Simulador com premissa × dado registrado em horas, Plano de Hoje com janelas por
-volume/média, Assistente Contextual determinístico). **ZERO migration** — segue exatamente sobre
-a base da Fase 17 (0049/0050, já em produção). Commit: `feat: copiloto proativo do motorista`.
-Não empurrado para `main` (fica em `dev`, aguardando validação/ratificação do Carlos).
+**Última atualização:** 2026-08-21, fim da Fase 19 — Fundação do Centro de Inteligência
+Operacional (Frota): localização real (`navigator.geolocation`), presença derivada,
+distância/inteligência histórica da frota — tudo motor puro + hooks client-only, **ZERO
+migration, ZERO tabela nova, ZERO UI de staff tocada**. A descoberta mais importante da
+auditoria: staff hoje NÃO CONSEGUE ler `motorista_corridas`/`motorista_ganhos` (privacidade
+invertida das Fases 16-18 é absoluta) — então "inteligência de frota real" para staff está
+bloqueada até uma decisão de RLS que esta fase não toma sozinha. Proposta de schema de
+localização apresentada, NÃO criada — aguardando sua aprovação. Commit:
+`feat: fundacao inteligencia de frota`. Não empurrado para `main`.
+
+## 0.-14 Fase 19 — Fundação do Centro de Inteligência Operacional / Frota (2026-08-21, sobre a Fase 18; ZERO migration)
+
+- Auditoria em dois agentes de leitura independentes ANTES de qualquer código:
+  `claude/auditoria-fase19-inteligencia-frota.md`. Achado central: **nenhum mecanismo de
+  geolocalização existe hoje** (zero `navigator.geolocation` em `src/`), **`telemetria_eventos`
+  existe mas está vazia por design desde a Missão 2** (zero produtor/consumidor), **Supabase
+  Realtime nunca foi usado**, e — o achado que mais importa pro roadmap — **staff tem ZERO
+  policy de RLS em `motorista_corridas`/`motorista_ganhos`/`motorista_recargas`**, então
+  qualquer "inteligência de frota" que precise agregar corridas de vários motoristas não tem
+  hoje nenhum caminho de dado real pra staff, só pro próprio motorista.
+- **Módulo 1 (Localização Real)**: `src/features/motorista-app/lib/localizacao.ts` (motor puro
+  — interpreta resultado/erro de geolocalização) + `hooks/useGeolocalizacaoMotorista.ts` (chama
+  `navigator.geolocation`, zero persistência). 4 estados (LOCALIZACAO_DISPONIVEL/INDISPONIVEL,
+  PERMISSAO_NEGADA, SEM_DADO) — nunca latitude/longitude 0, nunca coordenada inventada em erro
+  (testado explicitamente).
+- **Módulo 2/5 (Presença/Heartbeat)**: `src/features/frota/lib/presenca.ts`
+  (`presencaMotorista()`, pura, janelas declaradas: ≤2min ONLINE, ≤15min SEM_ATUALIZACAO, senão
+  OFFLINE) + `hooks/useHeartbeatVisibilidade.ts` (Page Visibility API, sem `setInterval`
+  agressivo, só em memória — não chega a staff, sem tabela pra isso).
+- **Módulo 3 (LocationProvider) — PAREI, como a especificação pediu.** Proposta de schema
+  (`motorista_localizacoes`, RLS "privacidade invertida", zero policy staff) documentada em
+  `docs/frota/LOCALIZACAO-OPERACIONAL.md`, seção 2 — **NÃO criada, NÃO aplicada**, aguardando
+  aprovação explícita.
+- **Módulo 9/11/12/13/17**: `src/features/frota/lib/inteligenciaFrota.ts` —
+  `inteligenciaFrotaHistorica()` (agrega por horário/dia da semana ENTRE motoristas, REUSA
+  `FAIXAS_HORARIO`/`classificarAmostra` da Fase 17, campo novo `concentracaoOperacional`),
+  `oportunidadeOperacional()` (nunca "demanda atual", sempre "oportunidade histórica" — tipo
+  próprio `OportunidadeOperacionalHistorica`, deliberadamente distinto do `Opportunity` já
+  existente em `@/shared/intelligence/types.ts`, que é sobre valorização de ATIVO, domínio
+  diferente), `RecomendacaoOperacional` (só o tipo, zero gerador — Módulo 13 pede
+  explicitamente "não enviar, não executar, não notificar, não direcionar"), taxonomia
+  `OrigemDadoFrota` (Módulo 17). `distanciaEntrePontos()` em `lib/geo.ts` (Haversine, testado
+  contra 1° de longitude no equador ≈ 111,19km).
+- **Módulo 6 (Centro de Inteligência da Frota) — decisão de escopo: NÃO toquei
+  `FrotaPage.tsx`.** A tab "Inteligência da Frota" já existe como placeholder vazio
+  (`?tab=inteligencia`) — é o ponto de montagem natural, documentado em
+  `docs/frota/CENTRO-INTELIGENCIA-FROTA.md`, mas a especificação pede explicitamente "não criar
+  dashboard gigante nesta fase" — editar uma tela staff que já funciona, por um ganho que a
+  própria especificação pede pra adiar, era risco sem retorno.
+- **Módulo 7 (Mapa)**: comparação técnica MapLibre vs. Leaflet documentada (recomendação:
+  Leaflet, bundle menor) — **nenhuma biblioteca adicionada** ao `package.json`.
+- **Módulo 15/16**: confirmado por ausência total — zero integração Uber/99, `telemetria_eventos`
+  confirmada vazia (zero producer/consumer em `src/`).
+- Testes: `scripts/audit-motorista-inteligencia-frota.ts`, **48/48**, 26 categorias (os 26 casos
+  pedidos no Módulo 19 — GPS em todos os estados possíveis, isolamento de RLS por grep
+  estrutural sobre as migrations 0003/0004/0005/0047/0049 já existentes, distância exata via
+  fixture matemática, vocabulário "demanda atual" vs. "oportunidade histórica", Uber/99 não
+  integrados, zero coordenada inventada, zero motor/dashboard/query duplicado).
+- Regressão completa: os 19 audit scripts anteriores + o novo, **1069/1069 combinados**, zero
+  FALHOU. SQL real reexecutado do zero: **346/346 PASS**, zero regressão (zero migration criada
+  nesta fase, confirmado por grep). `tsc -b --noEmit` limpo, `oxlint` sem warning novo,
+  `npm run build` ok — bundle sem impacto mensurável (nenhuma tela ainda importa os arquivos
+  novos, já que Módulo 6/UI ficou para uma fase futura).
+- Docs: `docs/frota/LOCALIZACAO-OPERACIONAL.md`, `docs/frota/INTELIGENCIA-FROTA.md`,
+  `docs/frota/CENTRO-INTELIGENCIA-FROTA.md` (novos); `docs/motorista/COPILOTO-PROATIVO.md`,
+  seção 11, atualizada (não duplicada) para apontar pros docs novos.
 
 ## 0.-13 Fase 18 — Copiloto Proativo do Motorista (2026-08-21, sobre a Fase 17; ZERO migration)
 
