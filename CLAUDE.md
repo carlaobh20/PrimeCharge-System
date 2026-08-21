@@ -6,15 +6,84 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-21, fim da Fase 19 — Fundação do Centro de Inteligência
-Operacional (Frota): localização real (`navigator.geolocation`), presença derivada,
-distância/inteligência histórica da frota — tudo motor puro + hooks client-only, **ZERO
-migration, ZERO tabela nova, ZERO UI de staff tocada**. A descoberta mais importante da
-auditoria: staff hoje NÃO CONSEGUE ler `motorista_corridas`/`motorista_ganhos` (privacidade
-invertida das Fases 16-18 é absoluta) — então "inteligência de frota real" para staff está
-bloqueada até uma decisão de RLS que esta fase não toma sozinha. Proposta de schema de
-localização apresentada, NÃO criada — aguardando sua aprovação. Commit:
-`feat: fundacao inteligencia de frota`. Não empurrado para `main`.
+**Última atualização:** 2026-08-21, fim da Fase 20 — Localização Operacional real: tabela
+`motorista_localizacoes` criada (migration 0051, **só local, NÃO aplicada em produção**), RLS
+DUAL (motorista dono + empresa via relação real empresa→contrato→motorista→veículo, com
+`eh_staff()` — bug de vazamento motorista×motorista encontrado testando e corrigido), trigger que
+deriva `veiculo_id`/`empresa_id` do contrato e nunca confia no cliente, captura/persistência
+conservadora (reuso total da Fase 19), e a PRIMEIRA UI real de staff da Fase 19 (Centro de
+Inteligência da Frota: 4 cards, mapa Leaflet lazy, filtros, lista sincronizada). Testes: SQL
+suíte 69 nova (10 grupos) + TS `audit-frota-localizacao-fase20.ts` (29/29) + regressão completa
+de 21 scripts TS + 14 suítes SQL, zero falha. Commit: `feat: fase 20 localizacao operacional`.
+Não empurrado para `main`. Migration 0051 aguardando autorização explícita para produção.
+
+## 0.-15 Fase 20 — Localização Operacional / Presença / Centro de Inteligência da Frota (2026-08-21, sobre a Fase 19; 1 migration LOCAL — 0051)
+
+- Auditoria antes de qualquer código: `claude/auditoria-fase20-localizacao-operacional.md`,
+  respondendo as 20 perguntas da Regra 0 (leu Fase 19 completa, os 3 docs de frota, migrations
+  0001-0050, RLS atual, `contratos`/`motoristas`/`veiculos`/`empresas`/`motorista_corridas` etc.).
+  Achado central: diferente de 0047/0048/0049 (dado 100% pessoal, privacidade invertida sem via
+  de escape), localização OPERACIONAL tem contraparte de negócio real — o contrato ativo — e por
+  isso pede RLS de DUAS dimensões (motorista dono + empresa via relação real), não uma só.
+- **Módulos 1-2 (schema/histórico)**: `motorista_localizacoes` — insert-only (zero policy de
+  UPDATE/DELETE pra qualquer papel), `veiculo_id`/`empresa_id`/`contrato_id` sempre derivados do
+  contrato pelo trigger (nunca aceitos do cliente), "última posição" é uma QUERY (`distinct on`),
+  nunca uma segunda tabela mutável. Migration `0051_frota_localizacao_operacional.sql` — validada
+  só no harness local, **NÃO aplicada em produção**.
+- **Módulo 3 (RLS — "o ponto mais importante da fase")**: 1 policy INSERT (motorista escreve em
+  nome do próprio `motorista_id`) + 2 policies SELECT (motorista vê o próprio; empresa vê a
+  própria frota via `empresa_id = current_empresa_id() and eh_staff()`). **Bug real encontrado
+  testando, não lendo**: a primeira versão da policy de empresa era só `current_empresa_id()`,
+  sem `eh_staff()` — como `usuarios.empresa_id` também é preenchido para motoristas, isso deixava
+  um motorista ver a localização de TODOS os outros motoristas da própria empresa (mesma classe
+  de bug já documentada em `0039_fase1_seguranca_portal_motorista.sql` para
+  `contratos`/`storage.objects`). Corrigido com `eh_staff()`. IDOR testado diretamente (forjar
+  `contrato_id`/`motorista_id`) — bloqueado pelo trigger do Módulo 5, não só pela RLS.
+- **Módulo 4-8 (consentimento/política/captura/frequência/presença)**: 4 estados de consentimento
+  (`NAO_COMPARTILHADA`/`COMPARTILHADA`/`PERMISSAO_NEGADA`/`INDISPONIVEL`), nunca persistido em
+  `localStorage` (pedir de novo a cada sessão é mais transparente, não uma limitação). Captura
+  reusa 100% `useGeolocalizacaoMotorista`/`localizacao.ts` da Fase 19 — zero segundo sistema de
+  GPS. Frequência conservadora: tenta ler a cada 3min só em foreground, só GRAVA por movimento
+  ≥150m (reusa `distanciaEntrePontos`) ou por 10min sem gravar. Trigger
+  `fn_validar_localizacao_operacional` aplica Módulo 5 (contrato encerrado/motorista desativado →
+  rejeita) direto no banco, redundante de propósito com a RLS.
+- **Módulo 9-13 (Centro de Inteligência da Frota — primeira UI real de staff)**: substituiu o
+  `EmptyState` "em construção" da tab `?tab=inteligencia` (`FrotaPage.tsx`) por
+  `CentroInteligenciaFrota.tsx`. 4 cards clicáveis-como-filtro (Total/Localização ativa/Sem
+  atualização/Sem localização, via `resumoFrota()`/`frescorLocalizacao()` — motor puro,
+  `src/features/frota/lib/localizacaoFrota.ts`), mapa Leaflet (Módulo 10 — biblioteca adicionada,
+  `L.divIcon` colorido por estado, lazy via `React.lazy` — confirmado isolado no próprio chunk
+  por inspeção real do `dist/` pós-build, nunca no app do motorista), filtros (busca, status —
+  sem filtro de Empresa, RLS já garante 1 empresa por tela), lista+mapa sincronizados nos dois
+  sentidos, painel de detalhe (Veículo/Motorista/Contrato/Presença/Localização/Atualização/
+  Precisão). "Tempo quase real" via `useQuery({ refetchInterval: 30_000,
+  refetchIntervalInBackground: false })` — sem Supabase Realtime (confirmado: zero uso em todo o
+  projeto até hoje), sem WebSocket próprio.
+- **Módulo 14-19**: `distanciaEntrePontos()` (Fase 19) reusada sem alteração. Módulos 15/16
+  (histórico/oportunidade agregada) continuam bloqueados pela mesma limitação de RLS da Fase 19
+  (staff ainda não lê `motorista_corridas`/`motorista_ganhos`) — nada mudou aí, documentado
+  explicitamente em `INTELIGENCIA-FROTA.md`. Módulo 17 (Copiloto): só estrutura preparada, zero
+  auto-envio. Módulo 18: card pequeno "Localização operacional" no Centro de Controle do
+  motorista (`LocalizacaoOperacionalCard.tsx`) — não um dashboard. Módulo 19: texto de
+  reciprocidade explicando quem vê a localização, embutido no próprio card.
+- **Módulo 20**: confirmado de novo por ausência total — zero integração Uber/99,
+  `motorista_corridas` continua DADO REGISTRADO MANUALMENTE.
+- **Módulo 22 (retenção)**: não decidida. Sem TTL automático. `[VALIDAR COM ADVOGADO]` antes de
+  qualquer expurgo — não inventada política jurídica nenhuma.
+- Testes: `supabase/tests/69_frota_localizacao.sql` (10 grupos, seed real — Empresa A/B,
+  Motoristas A/B/C, Staff A/B — exercitando transição de contrato ativo→encerrado, guarda de
+  auto-escalação, IDOR via `contrato_id`/`motorista_id` forjado) + `scripts/audit-frota-
+  localizacao-fase20.ts` (29/29, casos 20-32 do Módulo 24, incluindo grep real sobre `dist/assets`
+  pós-build pra confirmar isolamento do chunk do leaflet).
+- Regressão completa: harness SQL local recriado do zero (migrations 0001→0051), **14 suítes, 0
+  falhas**. Os 21 scripts TS anteriores + o novo — **regressão 100%** depois de corrigir 10
+  scripts com asserção de "teto de migration" hardcoded e desatualizada (`migs.every(f =>
+  f.startsWith('00XX') || ...)`, quebrada pela primeira migration desde a Fase 16 — achado durante
+  a própria regressão, não previsto de antemão). `tsc -b --noEmit` limpo, `oxlint` sem warning
+  novo, `npm run build` ok.
+- Docs: `docs/frota/LOCALIZACAO-OPERACIONAL.md` (seção 7 nova), `docs/frota/
+  CENTRO-INTELIGENCIA-FROTA.md` (seção 5 nova), `docs/frota/INTELIGENCIA-FROTA.md` (nota de
+  atualização) — sem duplicar os documentos da Fase 19, só superar o que virou obsoleto.
 
 ## 0.-14 Fase 19 — Fundação do Centro de Inteligência Operacional / Frota (2026-08-21, sobre a Fase 18; ZERO migration)
 

@@ -107,7 +107,7 @@ check('G', !/audit_log/i.test(mig50.replace(/--.*$/gm, '')), '0050: sem trigger 
 check('G', /peso_rpkm numeric\(3,2\) not null default 1 check \(peso_rpkm > 0\)/.test(mig50), '0050: peso nunca pode ser 0 (desligar critério é via limiar nulo)');
 
 const migs = readdirSync(join(raiz, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 48);
-check('G', migs.every((f) => f.startsWith('0049') || f.startsWith('0050')), 'acima da 0048 só existem 0049 e 0050 (Fase 16 — sem 0051 de assinatura ainda)');
+check('G', migs.every((f) => f.startsWith('0049') || f.startsWith('0050') || f.startsWith('0051')), 'acima da 0048 só existem 0049, 0050 e 0051 (Fase 16/20 — sem migration de assinatura ainda)');
 
 // ======================= relatório ============================================================
 for (const r of resultados) console.log(`${r.ok ? 'PASS' : 'FALHOU'} [${r.caso}] ${r.msg}`);

@@ -210,7 +210,7 @@ check('J', /Origem:/.test(incSrc) && /O que falta:/.test(incSrc), 'card de incon
 const carroSrc = readFileSync(join(raiz, 'src/features/motorista-app/components/meta/CarroCard.tsx'), 'utf8');
 check('J', /FIXO/.test(carroSrc) && /OPERACIONAL/.test(carroSrc) && /ENERGÉTICO/.test(carroSrc), 'carro em TRÊS camadas nunca misturadas (Módulo 9)');
 const migs = readdirSync(join(raiz, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 48);
-check('J', migs.every((f) => f.startsWith('0049') || f.startsWith('0050')), 'ZERO migration na Fase 12.2 (Módulo 18); acima da 0048 só existem 0049/0050 (Copiloto — Fase 16)');
+check('J', migs.every((f) => f.startsWith('0049') || f.startsWith('0050') || f.startsWith('0051')), 'ZERO migration na Fase 12.2 (Módulo 18); acima da 0048 só existem 0049/0050 (Copiloto — Fase 16) e 0051 (Localização — Fase 20)');
 check('J', fonteApp.every(({ s }) => !s.includes("from 'recharts'") && !s.includes('pdfmake') && !s.includes('fflate') && !s.includes('chart.js')), 'sem bibliotecas de gráfico (Módulo 21)');
 check('J', fonteApp.filter(({ s }) => /365 \/ 12|52 \/ 12/.test(s)).length === 1, 'fatores de conversão continuam ÚNICOS (sem segundo motor)');
 const hookSrc = readFileSync(join(raiz, 'src/features/motorista-app/hooks/useMinhaMeta.ts'), 'utf8');

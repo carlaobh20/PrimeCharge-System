@@ -267,7 +267,7 @@ check('24', /corridasHistorico[\s\S]{0,200}corridas60\.map/.test(hookSrc), 'corr
 
 // ======================= 25 — ausência de migration =============================================
 const migs25 = readdirSync(join(raizFonte, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 48);
-check('25', migs25.every((f) => f.startsWith('0049') || f.startsWith('0050')), 'acima da 0048 só existem 0049 e 0050 — Fase 17 não criou NENHUMA migration nova');
+check('25', migs25.every((f) => f.startsWith('0049') || f.startsWith('0050') || f.startsWith('0051')), 'acima da 0048 só existem 0049, 0050 e 0051 (Localização — Fase 20) — Fase 17 não criou NENHUMA migration nova');
 const mig49Src = readFileSync(join(raizFonte, 'supabase/migrations/0049_motorista_corridas.sql'), 'utf8');
 const mig50Src = readFileSync(join(raizFonte, 'supabase/migrations/0050_motorista_config_copiloto.sql'), 'utf8');
 check('25', (mig49Src.match(/create policy/g) ?? []).length === 1 && (mig50Src.match(/create policy/g) ?? []).length === 1, '0049/0050 continuam com exatamente 1 policy cada — zero policy nova, zero RLS alterada');

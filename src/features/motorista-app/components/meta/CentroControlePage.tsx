@@ -17,6 +17,7 @@ import { CarroCard } from './CarroCard';
 import { RecargasCard } from './RecargasCard';
 import { InconsistenciasCard } from './InconsistenciasCard';
 import { HistoricoOperacionalCard } from './HistoricoOperacionalCard';
+import { LocalizacaoOperacionalCard } from './LocalizacaoOperacionalCard';
 import { OperacaoRealCard } from './OperacaoRealCard';
 import { SimuladorESe } from './SimuladorESe';
 import { CalendarioMeta } from './CalendarioMeta';
@@ -152,6 +153,9 @@ export function CentroControlePage() {
           comparacaoOdometro={d.comparacaoOdometro}
         />
       )}
+
+      {/* ===== FASE 20 — Módulo 18: card pequeno de localização operacional (não é dashboard) ===== */}
+      <LocalizacaoOperacionalCard contratoId={d.contratoAtivo?.id ?? null} />
 
       {/* ===== 4. SEU COPILOTO (Fase 17, Módulo D) + Assistente Contextual (Fase 18, Módulo K,
           substitui o antigo Módulo E) + ferramenta de avaliar/registrar corrida (Fase 16) +

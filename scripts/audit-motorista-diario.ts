@@ -104,7 +104,7 @@ check('F', /current_motorista_id\(\)/.test(mig) && !/eh_staff/.test(mig), '0048:
 check('F', !/audit_log|timeline_eventos|notificacoes/i.test(mig.replace(/--.*$/gm, '')), '0048: sem audit_log/timeline/notificações');
 check('F', !/veiculos|telemetria|manutencoes|lancamentos|pagamentos/.test(mig.replace(/--.*$/gm, '')), '0048: NÃO toca tabelas da empresa (dado pessoal não vira operacional da empresa)');
 const migs = readdirSync(join(raiz, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 48);
-check('F', migs.every((f) => f.startsWith('0049') || f.startsWith('0050')), 'acima da 0048 só existem 0049/0050 (Copiloto — Fase 16); esta fase (12.1) não adicionou nenhuma');
+check('F', migs.every((f) => f.startsWith('0049') || f.startsWith('0050') || f.startsWith('0051')), 'acima da 0048 só existem 0049/0050 (Copiloto — Fase 16) e 0051 (Localização — Fase 20); esta fase (12.1) não adicionou nenhuma');
 const api = readFileSync(join(raiz, 'src/features/motorista-app/api/financasPessoais.ts'), 'utf8').replace(/\/\/.*$/gm, '');
 check('F', !api.includes("select('*')"), "API do diário sem select('*')");
 check('F', /listRecargasPeriodo/.test(api) && (api.match(/from\('motorista_recargas'\)\s*\n?\s*\.select\(/g) ?? []).length === 1, 'UMA query de leitura de recargas');

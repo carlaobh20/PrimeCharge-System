@@ -321,7 +321,7 @@ check('25', (trechoPromiseAll.match(/list\w+\(|get\w+\(/g) ?? []).length === 11,
 check('25', /assistenteInsights = assistenteContextual\(/.test(hookSrc), 'useMinhaMeta deriva assistenteInsights client-side, chamando o motor puro — nunca uma query nova');
 check('25', /insights=\{d\.assistenteInsights\}/.test(centroSrc), 'CentroControlePage passa d.assistenteInsights (já derivado no hook) pro AssistenteContextualCard');
 const migs25 = readdirSync(join(raizFonte, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 48);
-check('25', migs25.every((f) => f.startsWith('0049') || f.startsWith('0050')), 'acima da 0048 só existem 0049 e 0050 — Fase 18 não criou NENHUMA migration nova');
+check('25', migs25.every((f) => f.startsWith('0049') || f.startsWith('0050') || f.startsWith('0051')), 'acima da 0048 só existem 0049, 0050 e 0051 (Localização — Fase 20) — Fase 18 não criou NENHUMA migration nova');
 
 // ======================= 26 — Módulo K: INCONSISTENCIA ============================================
 const r26 = assistenteContextual({ ...baseArgsK, inconsistencias: inconsistenciasComK });

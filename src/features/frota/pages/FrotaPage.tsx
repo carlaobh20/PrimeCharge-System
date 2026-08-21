@@ -1,10 +1,11 @@
 import { useSearchParams } from 'react-router-dom';
-import { Lightbulb, CalendarClock } from 'lucide-react';
+import { CalendarClock } from 'lucide-react';
 import { Tabs } from '@/shared/components/ui/tabs';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FrotaDashboardPage } from './FrotaDashboardPage';
 import { VeiculosListPage } from './VeiculosListPage';
 import { ComparativoFrotaTab } from '../components/ComparativoFrotaTab';
+import { CentroInteligenciaFrota } from '../components/inteligencia/CentroInteligenciaFrota';
 
 // Épico 4 — menu "Frota" (substitui "Veículos"). O brief pede 5 sub-telas dentro do módulo
 // (Dashboard da Frota / Todos os Veículos / Comparativo / Planejamento de Renovação /
@@ -66,16 +67,13 @@ export function FrotaPage() {
               ),
             },
             {
+              // Fase 20 — Módulo 9: primeira UI real (localização/presença/mapa). Histórico/
+              // oportunidade (Módulos 15/16) seguem bloqueados por RLS (motorista_corridas/
+              // motorista_ganhos são privacidade invertida — ver auditoria, seção 0) e por isso
+              // ainda não têm seção própria aqui; nada foi fabricado pra preencher esse espaço.
               value: 'inteligencia',
               label: 'Inteligência da Frota',
-              content: (
-                <EmptyState
-                  icon={Lightbulb}
-                  title="Inteligência da Frota em construção"
-                  description="Visão agregada de insights/oportunidades da frota inteira ainda não foi construída nesta parte da missão."
-                  className="mb-8"
-                />
-              ),
+              content: <CentroInteligenciaFrota />,
             },
           ]}
         />

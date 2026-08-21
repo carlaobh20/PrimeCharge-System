@@ -1,7 +1,15 @@
 # Inteligência Histórica da Frota — Fase 19, Módulos 8/9/10/11/12/13/17
 
-> Auditoria completa: `claude/auditoria-fase19-inteligencia-frota.md`. Presença/heartbeat:
+> Auditoria completa: `claude/auditoria-fase19-inteligencia-frota.md`. Presença/heartbeat/UI real:
 > `CENTRO-INTELIGENCIA-FROTA.md`. Localização/persistência: `LOCALIZACAO-OPERACIONAL.md`.
+>
+> **Nota Fase 20**: nada neste documento mudou de fato. A Fase 20 criou persistência de
+> localização (Módulo 3 abaixo, que aqui dizia "NÃO implementado") e uma UI real de frota, mas
+> **não** tocou em região geográfica, `inteligenciaFrotaHistorica()`/`oportunidadeOperacional()`
+> continuam sem consumidor real (a limitação da seção 0 é a mesma: staff ainda não lê
+> `motorista_corridas`/`motorista_ganhos`), e Uber/99/telemetria seguem exatamente como descrito
+> nas seções 9/10. Único ajuste real: agora que localização é persistida, agrupar por região
+> (Módulo 3 abaixo) passou a ser tecnicamente possível — mas não foi feito nesta fase.
 
 ## 0. A limitação estrutural que precisa ficar clara antes de tudo
 
@@ -52,13 +60,16 @@ DADO HISTÓRICO
 
 Nunca: "esse horário tem demanda agora."
 
-## 3. Módulo 10 — Região (NÃO implementado)
+## 3. Módulo 10 — Região (NÃO implementado) [PRÉ-REQUISITO RESOLVIDO NA FASE 20 — ainda não construído]
 
-Não inventada. Sem localização real persistida (ver `LOCALIZACAO-OPERACIONAL.md`), não há como
-agrupar geograficamente nada com honestidade. Quando existir, as opções a avaliar (nesta ordem de
-complexidade crescente) são: geohash, grid fixo, bairro (via reverse geocoding — pago, evitar
-sem necessidade real) ou uma "região operacional" definida manualmente por você. Primeiro
-armazenar localização (Módulo 3), depois — só depois — transformar em região.
+Não inventada. Na Fase 19, sem localização real persistida, não havia como agrupar
+geograficamente nada com honestidade — essa parte mudou: a Fase 20 criou `motorista_localizacoes`
+(ver `LOCALIZACAO-OPERACIONAL.md`, seção 7), então o pré-requisito técnico agora existe. Ainda
+assim, **agrupamento por região não foi construído na Fase 20** (fora do escopo pedido — Módulo 10
+da Fase 20 tratou só de RLS/captura/UI de ponto individual, não de agregação geográfica). Quando
+for construído, as opções a avaliar (nesta ordem de complexidade crescente) continuam: geohash,
+grid fixo, bairro (via reverse geocoding — pago, evitar sem necessidade real) ou uma "região
+operacional" definida manualmente por você.
 
 ## 4. Módulo 11 — `oportunidadeOperacional()`
 
