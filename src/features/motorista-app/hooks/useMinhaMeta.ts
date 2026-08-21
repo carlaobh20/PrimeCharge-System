@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { listMeusContratos, type MeuContrato } from '../api/meuContrato';
 import { listMinhasVistorias } from '../api/vistorias';
-import { moduloIndisponivel } from '../api/schemaGuard';
+import { moduloIndisponivel } from '@/shared/lib/schemaGuard';
 import {
   atualizarDespesa,
   criarDespesa,

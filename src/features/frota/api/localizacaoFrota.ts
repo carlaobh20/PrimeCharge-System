@@ -1,9 +1,14 @@
 import { supabase } from '@/shared/lib/supabase';
+import { lerTolerante } from '@/shared/lib/schemaGuard';
 
-// FASE 20 — Módulos 9/10/13: dados para o Centro de Inteligência da Frota (lado staff). RLS já
-// isola por empresa em cada uma das 3 tabelas (current_empresa_id()); este arquivo só busca e
-// combina em memória — sem RPC/SQL cru, sem view nova (auditoria, seção 4). Colunas sempre
-// explícitas (Módulo 24 — "nenhum select *"), nunca `select('*')`.
+// FASE 20 (2ª passada) — Módulos 9/10/11/13/24: dados para o Centro de Inteligência da Frota
+// (lado staff). RLS já isola por empresa em cada tabela (current_empresa_id()); este arquivo
+// busca e combina veículos/contratos/motoristas em memória (sem RPC/SQL cru), mas a "última
+// posição por veículo" agora vem da VIEW `motorista_localizacoes_atual` (migration 0052 —
+// DISTINCT ON, security_invoker=true), não mais de um dedup em memória sobre as últimas N
+// capturas cruas. Colunas sempre explícitas (Módulo 24/G — "nenhum select *"), nunca
+// `select('*')`. Reusa `lerTolerante`/schemaGuard (Módulo 28/L) — mesmo padrão do app do
+// motorista, movido para shared/lib nesta passada justamente para ser reusável pelos dois apps.
 
 export type VeiculoFrota = {
   id: string;
@@ -56,28 +61,62 @@ export type LocalizacaoRecente = {
   timestamp_localizacao: string;
 };
 
-// Limite de linhas: o suficiente pra cobrir a última captura de cada veículo ativo de uma
-// empresa de porte razoável sem depender de DISTINCT ON via RPC (auditoria, seção 4/9-10).
-// Se uma empresa tiver uma frota realmente grande a ponto de estourar isso, é sinal de que vale
-// a pena revisitar a decisão de não criar RPC — não inventado silenciosamente aqui.
-const LIMITE_LOCALIZACOES_RECENTES = 500;
+const MODULO_LOCALIZACAO_FROTA = 'motorista_localizacoes_atual';
 
+/**
+ * Última posição conhecida de CADA veículo (uma linha por veiculo_id) — via a view
+ * `motorista_localizacoes_atual` (migration 0052), não mais buscando N linhas cruas e
+ * deduplicando em memória. Corrige um risco real da versão anterior: numa frota grande, as
+ * últimas 500 CAPTURAS podiam vir todas de poucos veículos muito ativos, deixando de fora a
+ * última posição de um veículo que só capturou há mais tempo (o card "SEM LOCALIZAÇÃO" mentiria
+ * pra esse veículo). A view faz DISTINCT ON no banco — sempre uma linha por veículo, sempre a
+ * mais recente, não importa o tamanho da frota.
+ */
 async function listLocalizacoesRecentes(): Promise<LocalizacaoRecente[]> {
-  const { data, error } = await supabase
-    .from('motorista_localizacoes')
-    .select('motorista_id, veiculo_id, latitude, longitude, accuracy_m, timestamp_localizacao')
-    .order('timestamp_localizacao', { ascending: false })
-    .limit(LIMITE_LOCALIZACOES_RECENTES);
-  if (error) {
-    // Schema pode ainda não existir neste ambiente (migration 0051 sem autorização de produção
-    // ainda) — mesmo padrão de honestidade de schemaGuard.ts, tratado aqui porque este arquivo é
-    // do lado staff (schemaGuard.ts vive em motorista-app/api, não importado daqui de propósito
-    // — evita acoplar os dois apps por uma função de 3 linhas).
-    const code = (error as { code?: string }).code;
-    if (code === 'PGRST205' || code === '42P01') return [];
-    throw error;
-  }
-  return data as LocalizacaoRecente[];
+  return lerTolerante(
+    MODULO_LOCALIZACAO_FROTA,
+    async () => {
+      const { data, error } = await supabase
+        .from('motorista_localizacoes_atual')
+        .select('motorista_id, veiculo_id, latitude, longitude, accuracy_m, timestamp_localizacao');
+      if (error) throw error;
+      return data as LocalizacaoRecente[];
+    },
+    [],
+  );
+}
+
+export type PontoHistorico = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  accuracy_m: number | null;
+  timestamp_localizacao: string;
+};
+
+// Módulo 24/12 (2ª passada): a tela NUNCA carrega o histórico inteiro de cara — só a última
+// posição (acima). Histórico é consulta SEPARADA, chamada só quando o staff clica "Ver
+// histórico" de um veículo específico (nunca no mount do Centro de Inteligência). Limite
+// defensivo: 200 pontos mais recentes — o suficiente pra qualquer leitura visual de percurso
+// recente sem devolver um histórico ilimitado numa única resposta.
+const LIMITE_HISTORICO_POR_VEICULO = 200;
+
+/** Histórico de localizações de UM veículo, sob demanda (Módulo 12/24 — nunca eager). */
+export async function getHistoricoLocalizacoes(veiculoId: string): Promise<PontoHistorico[]> {
+  return lerTolerante(
+    'motorista_localizacoes',
+    async () => {
+      const { data, error } = await supabase
+        .from('motorista_localizacoes')
+        .select('id, latitude, longitude, accuracy_m, timestamp_localizacao')
+        .eq('veiculo_id', veiculoId)
+        .order('timestamp_localizacao', { ascending: false })
+        .limit(LIMITE_HISTORICO_POR_VEICULO);
+      if (error) throw error;
+      return data as PontoHistorico[];
+    },
+    [],
+  );
 }
 
 export type VeiculoFrotaComLocalizacao = VeiculoFrota & {

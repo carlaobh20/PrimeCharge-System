@@ -6,18 +6,80 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-21, fim da Fase 20 — Localização Operacional real: tabela
-`motorista_localizacoes` criada (migration 0051, **só local, NÃO aplicada em produção**), RLS
-DUAL (motorista dono + empresa via relação real empresa→contrato→motorista→veículo, com
-`eh_staff()` — bug de vazamento motorista×motorista encontrado testando e corrigido), trigger que
-deriva `veiculo_id`/`empresa_id` do contrato e nunca confia no cliente, captura/persistência
-conservadora (reuso total da Fase 19), e a PRIMEIRA UI real de staff da Fase 19 (Centro de
-Inteligência da Frota: 4 cards, mapa Leaflet lazy, filtros, lista sincronizada). Testes: SQL
-suíte 69 nova (10 grupos) + TS `audit-frota-localizacao-fase20.ts` (29/29) + regressão completa
-de 21 scripts TS + 14 suítes SQL, zero falha. Commit: `feat: fase 20 localizacao operacional`.
-Não empurrado para `main`. Migration 0051 aguardando autorização explícita para produção.
+**Última atualização:** 2026-08-21, fim da Fase 20 — 2ª passada (implementação sobre a auditoria
+já aprovada). View derivada `motorista_localizacoes_atual` (migration 0052, DISTINCT ON +
+security_invoker=true) substitui o dedup em memória da API staff — bug real corrigido (frota
+grande podia esconder a última posição de um veículo pouco ativo). `schemaGuard.ts` movido de
+`motorista-app/api/` para `shared/lib/` e reusado pelo lado staff (Módulo 28). Histórico por
+veículo agora existe SOB DEMANDA (nunca eager) no painel de detalhe. Seção honesta "Inteligência
+Histórica: NÃO DISPONÍVEL" adicionada ao Centro (cita o motivo real: RLS de
+`motorista_corridas`/`ganhos`). Suíte SQL 69 ganhou um Grupo 11 (staff sem empresa/inativo,
+motorista desativado, DELETE, veículo/empresa forjados, cascade motorista/contrato — 58 PASS) e
+um Grupo 12 (view). Script de auditoria TS reescrito em 12 categorias A-L, **74/74**. Regressão:
+21 scripts TS + 14 suítes SQL, zero falha. `tsc`/`oxlint`/build limpos. Migrations 0051/0052
+seguem só locais, **NÃO aplicadas em produção**. Não empurrado para `main`.
 
-## 0.-15 Fase 20 — Localização Operacional / Presença / Centro de Inteligência da Frota (2026-08-21, sobre a Fase 19; 1 migration LOCAL — 0051)
+## 0.-15b Fase 20 — 2ª passada: implementação sobre a auditoria já aprovada (2026-08-21; 1 migration LOCAL — 0052)
+
+- Especificação desta passada foi mais prescritiva que a auditoria original (39 seções
+  numeradas) — não refez a auditoria (`claude/auditoria-fase20-localizacao-operacional.md`
+  continua valendo), só comparou a 1ª passada contra o checklist literal e corrigiu os gaps reais.
+- **Módulo 5/11 (view + DISTINCT ON)**: a 1ª passada tinha deliberadamente NÃO criado uma view
+  (risco de segurança sem `security_invoker`) e a API staff buscava até 500 linhas cruas
+  ordenadas por `timestamp_localizacao`, deduplicando em memória (JS) — bug real e não
+  hipotético: numa frota grande, as últimas 500 CAPTURAS podiam vir todas de poucos veículos
+  muito ativos, escondendo a última posição de um veículo que só capturou há mais tempo (card
+  "SEM LOCALIZAÇÃO" mentindo). Migration `0052_frota_localizacao_view.sql` cria
+  `motorista_localizacoes_atual` (`DISTINCT ON (veiculo_id)`, `security_invoker=true` — RLS da
+  tabela base se aplica sem alteração, testado com os 3 papéis). API staff reescrita pra
+  consultar a view em vez de deduplicar.
+- **Módulo 12/24 (histórico sob demanda)**: `getHistoricoLocalizacoes(veiculoId)` — nova função,
+  chamada só quando o staff clica "Ver histórico" no painel de detalhe (`enabled: false` no
+  `useQuery`, nunca no mount). Tabela com data/hora/lat/lng/precisão, limite defensivo de 200
+  pontos. Rota no mapa (percurso) não foi construída — marcada como não feita, não fingida.
+- **Módulo 25/26 (separação crítica)**: em vez de simplesmente omitir a seção de inteligência
+  histórica (como a 1ª passada fez), agora existe um bloco explícito "Inteligência Histórica: NÃO
+  DISPONÍVEL" no Centro, citando a causa real (RLS de privacidade invertida em
+  `motorista_corridas`/`motorista_ganhos`, inalterada desde as Fases 16-18). Nenhuma "demanda em
+  tempo real" é mostrada sem fonte real — nem por omissão silenciosa, nem por dado fabricado.
+- **Módulo 28 (schemaGuard — reuso, não reinvenção)**: `schemaGuard.ts` vivia em
+  `motorista-app/api/` (único consumidor até a Fase 19); a API staff da 1ª passada tinha um check
+  ad-hoc de 3 linhas pro mesmo problema (`PGRST205`/`42P01`) em vez de reusar o padrão — exatamente
+  o tipo de duplicação que a Regra Absoluta desta passada proíbe. Movido pra `src/shared/lib/
+  schemaGuard.ts` (zero dependência de React/DOM, mover não muda comportamento) e os 5
+  importadores existentes + a API staff atualizados pro novo caminho.
+- **Módulo 31 (testes SQL — checklist completo)**: suíte 69 ganhou um Grupo 11 cobrindo os itens
+  que a 1ª passada não tinha testado EXPLICITAMENTE — staff sem empresa (usuário inline com
+  `empresa_id null`), staff inativo (reusa "Staff Inativo A" do seed base), motorista desativado
+  (assert de CONTAGEM, não só `current_motorista_id() is null`), DELETE (tentativa real, não só
+  checagem estrutural), veículo/empresa forjados no INSERT (confirmando que o trigger sobrescreve
+  em vez de rejeitar), e os dois cascades. **Achado sobre cascade motorista vs. contrato**:
+  `contratos.motorista_id` é `on delete restrict` (0005) — um motorista só pode ser apagado
+  depois que todos os contratos dele já sumiram, e apagar um contrato já cascade-apaga (via
+  `contrato_id`) a localização primeiro. Os dois cascades nunca disparam sobre a mesma linha em
+  sequência observável — não é uma lacuna de teste, é a topologia real do schema. Documentado e
+  confirmado via `pg_constraint` (a declaração `on delete cascade` existe), em vez de forçar um
+  cenário artificial que o schema não permite acontecer. Suíte 69: **58 PASS** (era 24).
+- **Módulo 35 (script de auditoria — 12 categorias, ≥40 asserts)**: `scripts/audit-frota-
+  localizacao-fase20.ts` reescrito nas categorias A-L pedidas (schema/RLS/vínculo contrato/GPS/
+  presença/API/mapa/privacidade/inteligência/performance/Uber-99/schemaGuard) — **74/74** (era
+  29). Processo encontrou e corrigiu, de novo, o bug de regex-sobre-comentário-de-negação (4ª/5ª
+  ocorrência na história do projeto — Fases 17/18/19/20×2): um comentário explicando por que
+  "localStorage"/"demanda atual"/"audit_log"/"oportunidadeOperacional(" estão AUSENTES contém,
+  ele mesmo, a palavra proibida — corrigido com strip de comentário por linha antes de cada regex
+  desse tipo, e reformulando o texto renderizado pro usuário quando o problema não era o
+  comentário, mas a própria string exibida na tela.
+- Filtros explícitos de veículo/motorista (Módulo 19) — decisão deliberada de NÃO adicionar
+  dropdowns redundantes: a busca por texto livre já cobre placa E motorista simultaneamente, e um
+  dropdown de veículo numa frota grande seria pior UX que a busca. Registrado aqui como decisão
+  de produto, não como item pulado silenciosamente.
+- Regressão completa (harness SQL do zero, 21 scripts TS, `tsc`, `oxlint`, `npm run build`): zero
+  falha, zero warning novo. Achado colateral: a mesma migration nova (0052) quebrou de novo os 10
+  scripts com "teto de migration" hardcoded que a 1ª passada já tinha corrigido pra 0051 —
+  corrigidos de novo pra incluir 0052 (padrão que vai se repetir a cada nova migration; considerar
+  um helper único no futuro em vez de 10 asserções duplicadas).
+
+## 0.-15 Fase 20 — 1ª passada: Localização Operacional / Presença / Centro de Inteligência da Frota (2026-08-21, sobre a Fase 19; 1 migration LOCAL — 0051)
 
 - Auditoria antes de qualquer código: `claude/auditoria-fase20-localizacao-operacional.md`,
   respondendo as 20 perguntas da Regra 0 (leu Fase 19 completa, os 3 docs de frota, migrations

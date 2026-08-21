@@ -321,4 +321,171 @@ select _assert(
   ),
   'LOC GRUPO10: SEM trigger de audit_log (localização é dado sensível — mesmo cuidado do 0047/0049)');
 
-select _assert(true, '==== LOCALIZAÇÃO OPERACIONAL (0051): TODOS OS TESTES PASSARAM ====');
+-- =========================================================================
+-- GRUPO 11 — checklist completo do Módulo 31 (2ª passada, 2026-08-21)
+-- =========================================================================
+-- Casos que o GRUPO 1-10 já provam indiretamente (motorista A lê A / A não lê B / empresa A lê A
+-- / empresa A não lê B / contrato ativo permite / contrato encerrado bloqueia / contrato de
+-- outro motorista bloqueia / IDOR / UPDATE bloqueado) não são repetidos aqui — só o que faltava
+-- do checklist literal do Módulo 31: staff sem empresa, staff inativo, motorista desativado
+-- (assert direto de contagem, não só current_motorista_id() is null), DELETE, veículo/empresa
+-- enviados manualmente, e os dois cascades (motorista/contrato).
+
+reset role; -- setup roda como superuser, não como authenticated
+
+-- --- Staff sem empresa = 0 ---------------------------------------------------------------
+-- Staff "global" sem empresa não existe no seed base — criado inline (mesmo padrão de Staff B
+-- no topo do arquivo). usuarios.empresa_id é nullable (0001) — current_empresa_id() resolve pra
+-- NULL, e `empresa_id = NULL` nunca é verdadeiro em SQL (nem pra outro NULL), então a policy de
+-- staff nunca casa com nenhuma linha real.
+insert into auth.users (id, email) values
+  ('78787878-7878-7878-7878-787878787878', 'staffSemEmpresa@nowhere.com');
+insert into usuarios (id, empresa_id, nome_completo, email, role, ativo, motorista_id) values
+  ('78787878-7878-7878-7878-787878787878', null, 'Staff Sem Empresa', 'staffSemEmpresa@nowhere.com', 'owner', true, null);
+
+set role authenticated;
+select _login('78787878-7878-7878-7878-787878787878');
+select _assert(public.current_empresa_id() is null, 'LOC GRUPO11: setup — staff sem empresa_id -> current_empresa_id() = NULL');
+select _assert((select count(*) from motorista_localizacoes) = 0,
+  'LOC GRUPO11: Módulo 31 — staff SEM empresa enxerga ZERO localizações (current_empresa_id() NULL nunca casa)');
+
+-- --- Staff inativo = 0 ---------------------------------------------------------------------
+-- Reusa "Staff Inativo A" do seed base (55555555..., empresa A, ativo=false) — já existe pra
+-- exatamente este propósito em outras suítes de segurança do projeto.
+select _login('55555555-5555-5555-5555-555555555555');
+select _assert(public.eh_staff() = false, 'LOC GRUPO11: setup — staff inativo -> eh_staff() = false (0039)');
+select _assert((select count(*) from motorista_localizacoes) = 0,
+  'LOC GRUPO11: Módulo 31 — staff INATIVO da própria empresa A enxerga ZERO localizações (eh_staff() exige ativo=true)');
+
+-- --- Motorista desativado = 0 (assert de CONTAGEM, não só current_motorista_id()) ----------
+select _login('11111111-1111-1111-1111-111111111111'); -- Staff A — identidade diferente da linha alterada
+reset role;
+update usuarios set ativo = false where id = '44444444-4444-4444-4444-444444444444'; -- Motorista C (empresa B)
+
+set role authenticated;
+select _login('44444444-4444-4444-4444-444444444444'); -- Motorista C, agora desativado
+select _assert((select count(*) from motorista_localizacoes) = 0,
+  'LOC GRUPO11: Módulo 31 — motorista DESATIVADO enxerga ZERO localizações, mesmo tendo 1 própria gravada antes (caso 004)');
+
+select _login('11111111-1111-1111-1111-111111111111');
+reset role;
+update usuarios set ativo = true where id = '44444444-4444-4444-4444-444444444444'; -- reativa (não afeta os outros grupos, C não é usado depois)
+
+-- --- DELETE bloqueado (tentativa real, não só checagem estrutural do GRUPO 10) -------------
+set role authenticated;
+select _login('22222222-2222-2222-2222-222222222222'); -- Motorista A, dono das linhas
+select _assert((select count(*) from motorista_localizacoes where motorista_id = 'a2222222-0000-0000-0000-000000000000') > 0,
+  'LOC GRUPO11: setup — Motorista A tem linhas próprias antes da tentativa de DELETE');
+delete from motorista_localizacoes where motorista_id = 'a2222222-0000-0000-0000-000000000000';
+select _assert((select count(*) from motorista_localizacoes where motorista_id = 'a2222222-0000-0000-0000-000000000000') > 0,
+  'LOC GRUPO11: Módulo 31 — DELETE não apaga NENHUMA linha própria (zero policy de DELETE, mesmo o dono não consegue)');
+
+-- --- veiculo_id/empresa_id enviados manualmente = ignorados/derivados (não "aceitos") ------
+-- Motorista A, usando o PRÓPRIO contrato (c2222222, válido), tenta enviar explicitamente o
+-- veiculo_id de B e o empresa_id de B junto no INSERT — o trigger sobrescreve os dois a partir
+-- do contrato de qualquer forma (fn_validar_localizacao_operacional, seção 2 da 0051), então o
+-- INSERT nem falha: só ignora silenciosamente o que foi enviado e usa o valor real derivado.
+insert into motorista_localizacoes (id, contrato_id, veiculo_id, empresa_id, latitude, longitude, timestamp_localizacao)
+values ('10000000-0000-0000-0000-000000000006', 'c2222222-0000-0000-0000-000000000000',
+        'e3333333-0000-0000-0000-000000000000', -- veículo de B — INCOERENTE com o contrato de A
+        'b0000000-0000-0000-0000-000000000001',  -- empresa B — INCOERENTE com o contrato de A
+        -23.555, -46.635, now());
+select _assert(
+  (select veiculo_id from motorista_localizacoes where id = '10000000-0000-0000-0000-000000000006') = 'e2222222-0000-0000-0000-000000000000',
+  'LOC GRUPO11: Módulo 31 — veiculo_id enviado manualmente (incoerente) foi IGNORADO; o trigger gravou o derivado do contrato');
+select _assert(
+  (select empresa_id from motorista_localizacoes where id = '10000000-0000-0000-0000-000000000006') = 'a0000000-0000-0000-0000-000000000001',
+  'LOC GRUPO11: Módulo 31 — empresa_id enviado manualmente (incoerente) foi IGNORADO; o trigger gravou o derivado do contrato');
+
+-- --- Cascade: contrato (real, operacional) --------------------------------------------------
+-- Motorista/usuário/veículo/contrato TOTALMENTE descartáveis, isolados dos outros grupos, só
+-- pra este teste — nunca reusa uma linha que outro grupo ainda depende.
+reset role;
+insert into motoristas (id, empresa_id, nome_completo, cpf, status) values
+  ('c1000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-000000000001', 'Motorista Descartável Cascade', '00000099999', 'ativo');
+insert into auth.users (id, email) values ('c1000000-0000-0000-0000-000000000001', 'cascade@a.com');
+insert into usuarios (id, empresa_id, nome_completo, email, role, ativo, motorista_id) values
+  ('c1000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'Motorista Descartável Cascade', 'cascade@a.com', 'motorista', true, 'c1000000-0000-0000-0000-000000000000');
+insert into veiculos (id, empresa_id, marca_id, modelo_id, ano_fabricacao, ano_modelo, chassi, renavam, placa, categoria, tipo_aquisicao, status, quilometragem, valor_compra, valor_financiado, banco) values
+  ('c1000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001', 2024, 2025, 'CHASSI-CASCADE', 'RENAV-CASCADE', 'CAS1C11', 'hatch', 'compra_direta', 'alugado', 100, 100000, null, null);
+insert into contratos (id, empresa_id, veiculo_id, motorista_id, status, data_inicio, periodicidade, valor_periodico, dia_vencimento, valor_caucao, observacoes) values
+  ('c1000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-000000000002', 'c1000000-0000-0000-0000-000000000000', 'ativo', current_date, 'semanal', 1400, null, 3000, 'Contrato descartável — cascade');
+
+set role authenticated;
+select _login('c1000000-0000-0000-0000-000000000001');
+insert into motorista_localizacoes (id, contrato_id, latitude, longitude, timestamp_localizacao)
+values ('c1000000-0000-0000-0000-000000000004', 'c1000000-0000-0000-0000-000000000003', -23.60, -46.60, now());
+select _assert((select count(*) from motorista_localizacoes where id = 'c1000000-0000-0000-0000-000000000004') = 1,
+  'LOC GRUPO11: setup — localização descartável criada pro teste de cascade');
+
+reset role;
+delete from contratos where id = 'c1000000-0000-0000-0000-000000000003';
+select _assert((select count(*) from motorista_localizacoes where id = 'c1000000-0000-0000-0000-000000000004') = 0,
+  'LOC GRUPO11: Módulo 31 — cascade CONTRATO real: apagar o contrato apaga a localização (contrato_id ... on delete cascade)');
+
+-- --- Cascade: motorista (declarado + achado sobre por que não é observável ponta-a-ponta) --
+-- `contratos.motorista_id` é `on delete restrict` (0005) — um motorista SÓ pode ser apagado
+-- depois que TODOS os contratos dele já sumiram, e apagar um contrato já cascade-apaga (acima)
+-- as localizações daquele contrato. Ou seja: no momento em que apagar um motorista deixa de ser
+-- bloqueado pelo restrict, as localizações que ele gerou já foram embora pelo cascade do
+-- contrato — os dois cascades nunca disparam sobre a MESMA linha em sequência observável.
+-- Isso não é uma lacuna de teste: é a topologia real do schema. Confirma-se aqui a DECLARAÇÃO
+-- (o cascade existe e dispararia se um dia uma linha órfã de contrato existisse) via
+-- pg_constraint, em vez de forçar um cenário artificial que o schema não permite acontecer.
+select _assert(
+  exists (
+    select 1 from pg_constraint
+    where conrelid = 'motorista_localizacoes'::regclass
+      and confrelid = 'motoristas'::regclass
+      and confdeltype = 'c' -- 'c' = CASCADE
+  ),
+  'LOC GRUPO11: Módulo 31 — cascade MOTORISTA está DECLARADO no schema (motorista_id ... on delete cascade); '
+  'não observável ponta-a-ponta pq contratos.motorista_id é ON DELETE RESTRICT (0005) — um motorista só é '
+  'apagável depois que seus contratos já sumiram, e apagar o contrato já cascade-apagou a localização primeiro '
+  '(comportamento documentado, não uma lacuna — mesmo padrão que o Módulo 31 pede pro caso do contrato)');
+
+-- A limpeza abaixo cascade-atualiza usuarios.motorista_id (on delete set null) da PRÓPRIA linha
+-- de usuário do motorista descartável — e o guard de auto-escalação (0039) bloqueia
+-- `UPDATE usuarios` quando `old.id = auth.uid()`. auth.uid() ainda é essa mesma identidade
+-- (último _login(), linha 415) porque a GUC persiste entre reset role/set role (mesmo achado já
+-- documentado nos GRUPOs 6/7 desta suíte) — troca de identidade antes da limpeza, mesmo truque.
+select _login('11111111-1111-1111-1111-111111111111'); -- Staff A — não é a linha sendo atualizada pelo cascade
+delete from motoristas where id = 'c1000000-0000-0000-0000-000000000000'; -- limpo (sem contrato mais, permitido)
+select _assert((select count(*) from motoristas where id = 'c1000000-0000-0000-0000-000000000000') = 0,
+  'LOC GRUPO11: limpeza — motorista descartável removido com sucesso (contrato já não existia mais, restrict não bloqueia)');
+
+-- =========================================================================
+-- GRUPO 12 — view derivada motorista_localizacoes_atual (migration 0052)
+-- =========================================================================
+select _assert(
+  (select count(*) from information_schema.views where table_name = 'motorista_localizacoes_atual') = 1,
+  'LOC GRUPO12: view motorista_localizacoes_atual existe');
+
+-- DISTINCT ON: exatamente 1 linha por veiculo_id, mesmo Motorista A tendo várias capturas pro
+-- mesmo veículo (e2222222) ao longo da suíte.
+set role authenticated;
+select _login('11111111-1111-1111-1111-111111111111'); -- Staff A
+select _assert(
+  (select count(*) from motorista_localizacoes_atual where veiculo_id = 'e2222222-0000-0000-0000-000000000000') = 1,
+  'LOC GRUPO12: a view devolve EXATAMENTE 1 linha por veículo, mesmo havendo múltiplas capturas históricas (DISTINCT ON)');
+select _assert(
+  (select count(*) from motorista_localizacoes_atual) = (select count(distinct veiculo_id) from motorista_localizacoes where empresa_id = 'a0000000-0000-0000-0000-000000000001'),
+  'LOC GRUPO12: total de linhas na view (pro staff A) bate com o total de veículos DISTINTOS visíveis pela mesma RLS');
+
+-- RLS: a view herda security_invoker=true — motorista só vê a própria linha através dela também.
+reset role;
+set role authenticated;
+select _login('33333333-3333-3333-3333-333333333333'); -- Motorista B
+select _assert(
+  (select count(*) from motorista_localizacoes_atual where motorista_id = 'a2222222-0000-0000-0000-000000000000') = 0,
+  'LOC GRUPO12: Motorista B NÃO vê a última posição de A através da view (mesma RLS da tabela base — security_invoker)');
+
+-- RLS: staff B só vê a própria empresa através da view também.
+reset role;
+set role authenticated;
+select _login('66666666-6666-6666-6666-666666666666'); -- Staff B
+select _assert(
+  (select count(*) from motorista_localizacoes_atual where empresa_id = 'a0000000-0000-0000-0000-000000000001') = 0,
+  'LOC GRUPO12: Staff B NÃO vê nenhuma linha da empresa A através da view (mesma RLS da tabela base)');
+
+select _assert(true, '==== LOCALIZAÇÃO OPERACIONAL (0051/0052): TODOS OS TESTES PASSARAM ====');

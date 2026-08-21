@@ -1,5 +1,5 @@
 import { supabase } from '@/shared/lib/supabase';
-import { lerTolerante } from './schemaGuard';
+import { lerTolerante } from '@/shared/lib/schemaGuard';
 import type { DespesaMeta, GrupoDespesa, PeriodicidadeDespesa } from '../lib/metas';
 
 // MINHA META — API do portal (migration 0047). Regras do portal (R4 da Fase 1 de segurança):

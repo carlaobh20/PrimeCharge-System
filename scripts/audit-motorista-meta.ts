@@ -225,7 +225,7 @@ check('L', !/eh_staff/.test(mig), '0047: NENHUMA policy de staff (privacidade �
 check('L', !/audit_log/i.test(mig.replace(/--.*$/gm, '')), '0047: sem trigger de audit_log (comentário explica o porquê)');
 check('L', /NÃO APLICADA EM PRODUÇÃO/.test(mig), '0047: aviso de não aplicada em produção no cabeçalho');
 const migs = readdirSync(join(raiz, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 47);
-check('L', migs.every((f) => f.startsWith('0048') || f.startsWith('0049') || f.startsWith('0050') || f.startsWith('0051')), 'acima da 0047: 0048 (diário — Fase 12.1), 0049/0050 (Copiloto — Fase 16), 0051 (Localização — Fase 20)');
+check('L', migs.every((f) => f.startsWith('0048') || f.startsWith('0049') || f.startsWith('0050') || f.startsWith('0051') || f.startsWith('0052')), 'acima da 0047: 0048 (diário — Fase 12.1), 0049/0050 (Copiloto — Fase 16), 0051 (Localização — Fase 20)');
 
 // =============================== relatório ===================================================
 for (const r of resultados) console.log(`${r.ok ? 'PASS' : 'FALHOU'} [${r.caso}] ${r.msg}`);

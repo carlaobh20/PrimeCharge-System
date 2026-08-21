@@ -182,3 +182,20 @@ explicação, nunca um ponto inventado.
 `npm run build` confirmado limpo depois de todas as mudanças desta fase; leaflet isolado no
 próprio chunk (seção 5.3). Nenhuma tela do app do motorista importa qualquer arquivo novo desta
 seção — confirmado por grep, não assumido.
+
+## 6. Fase 20 — 2ª passada (histórico sob demanda + honestidade sobre inteligência histórica)
+
+- **Histórico por veículo, sob demanda** (não existia na 1ª passada): botão "Ver histórico" no
+  painel de detalhe — tabela com data/hora/lat/lng/precisão das últimas 200 capturas, carregada
+  só ao clicar (nunca no mount da tela nem ao selecionar o veículo). Ver
+  `LOCALIZACAO-OPERACIONAL.md`, seção 8.
+- **Bloco honesto "Inteligência Histórica: NÃO DISPONÍVEL"** adicionado ao Centro — em vez de
+  simplesmente não ter a seção (como a 1ª passada fez), agora existe um card explicando POR QUE:
+  depende de acesso agregado a `motorista_corridas`/`motorista_ganhos`, que têm RLS de
+  privacidade invertida (só o dono lê, staff sem policy) desde as Fases 16-18. Nenhuma "demanda
+  em tempo real" aparece como se estivesse disponível.
+- **Última posição via view** (não mais dedup em memória) — ver `LOCALIZACAO-OPERACIONAL.md`,
+  seção 8, para o detalhe técnico e o bug real que isso corrigiu.
+- **Filtros de veículo/motorista via dropdown**: avaliado e deliberadamente NÃO adicionado — a
+  busca por texto livre já cobre placa e motorista simultaneamente; um dropdown de veículo numa
+  frota grande seria pior UX. Decisão de produto registrada, não um item pulado silenciosamente.

@@ -1,5 +1,5 @@
 import { supabase } from '@/shared/lib/supabase';
-import { lerTolerante } from './schemaGuard';
+import { lerTolerante } from '@/shared/lib/schemaGuard';
 
 // COPILOTO DO MOTORISTA — API (migrations 0049/0050, Fase 16). Mesmas regras de finansPessoais.ts
 // (R4): NENHUM select('*'); colunas explícitas; RLS 0049/0050 garante que o motorista só alcança

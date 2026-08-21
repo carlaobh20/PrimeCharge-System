@@ -1,9 +1,9 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MapPin, Car, Radio, Clock, CircleOff } from 'lucide-react';
+import { MapPin, Car, Radio, Clock, CircleOff, History } from 'lucide-react';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { cn } from '@/shared/lib/utils';
-import { listFrotaComLocalizacao, type VeiculoFrotaComLocalizacao } from '../../api/localizacaoFrota';
+import { listFrotaComLocalizacao, getHistoricoLocalizacoes, type VeiculoFrotaComLocalizacao } from '../../api/localizacaoFrota';
 import { frescorLocalizacao, resumoFrota, type EstadoFrescorLocalizacao } from '../../lib/localizacaoFrota';
 import { presencaMotorista, JANELAS_PRESENCA_PADRAO } from '../../lib/presenca';
 import type { MarcadorFrota } from './MapaFrota';
@@ -203,7 +203,33 @@ export function CentroInteligenciaFrota() {
         </div>
       </div>
 
-      {selecionado && <PainelDetalhe item={selecionado} agoraMs={agoraMs} onFechar={() => setSelecionadoId(null)} />}
+      {selecionado && <PainelDetalhe key={selecionado.id} item={selecionado} agoraMs={agoraMs} onFechar={() => setSelecionadoId(null)} />}
+
+      <InteligenciaHistoricaIndisponivel />
+    </div>
+  );
+}
+
+// Módulos 15/16/25/26 (2ª passada) — reafirma por que esta seção NÃO existe como dado real
+// ainda: inteligenciaFrotaHistorica()/oportunidadeOperacional() (Fase 19) precisam de registros
+// COM VALOR (corridas/ganhos) de VÁRIOS motoristas agregados. `motorista_corridas`/
+// `motorista_ganhos` têm exatamente 1 policy de RLS cada — o dono — e ZERO policy de staff
+// (privacidade invertida, Fases 16-18). Nada que a Fase 20 construiu muda isso: localização
+// operacional não é receita, e ligar os dois exigiria uma decisão de RLS separada sobre
+// corridas/ganhos que nenhuma fase deve tomar sozinha. Mostrar isso explicitamente aqui (em vez
+// de simplesmente omitir a seção) é o que a Separação Crítica (Módulo 26) pede: "demanda atual"
+// nunca pode aparecer como se estivesse disponível quando não está.
+function InteligenciaHistoricaIndisponivel() {
+  return (
+    <div className="rounded-2xl border border-dashed border-neutral-200 p-4 text-sm dark:border-white/10">
+      <h3 className="font-semibold text-neutral-700 dark:text-neutral-300">Inteligência Histórica</h3>
+      <p className="mt-1 text-[13px] text-neutral-500">
+        NÃO DISPONÍVEL. Depende de acesso agregado a corridas/ganhos de vários motoristas
+        (<code className="text-[11px]">motorista_corridas</code>/<code className="text-[11px]">motorista_ganhos</code>),
+        que hoje têm RLS de privacidade invertida — só o próprio motorista lê, staff não tem
+        policy nenhuma. Ligar esta seção a dado real exige uma decisão de RLS separada, que esta
+        fase não toma sozinha. Nenhuma indicação de demanda em tempo real é mostrada sem fonte real.
+      </p>
     </div>
   );
 }
@@ -280,6 +306,69 @@ function PainelDetalhe({ item, agoraMs, onFechar }: { item: VeiculoFrotaComLocal
         <Campo label="Última atualização" valor={item.ultimaLocalizacao ? `há ${idadeLegivel(item.ultimaLocalizacao.timestampMs, agoraMs)}` : 'Sem dado'} />
         <Campo label="Precisão" valor={item.ultimaLocalizacao?.accuracyM != null ? `≈ ${Math.round(item.ultimaLocalizacao.accuracyM)} m` : 'Não informado'} />
       </dl>
+      <HistoricoVeiculo veiculoId={item.id} agoraMs={agoraMs} />
+    </div>
+  );
+}
+
+// Módulo 12/24 (2ª passada) — histórico SOB DEMANDA: `enabled: false` garante que
+// getHistoricoLocalizacoes() nunca roda sozinho (nem no mount do painel, nem ao trocar de
+// veículo) — só dispara quando o staff clica "Ver histórico" explicitamente. Reseta o estado
+// "aberto" sempre que o veículo selecionado muda (troca de key), pra não mostrar o histórico do
+// veículo anterior por um instante enquanto o novo ainda carrega.
+function HistoricoVeiculo({ veiculoId, agoraMs }: { veiculoId: string; agoraMs: number }) {
+  const [aberto, setAberto] = useState(false);
+  const query = useQuery({
+    queryKey: ['frota', 'inteligencia', 'historico', veiculoId],
+    queryFn: () => getHistoricoLocalizacoes(veiculoId),
+    enabled: aberto,
+  });
+
+  if (!aberto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-neutral-500 underline decoration-dotted hover:text-neutral-900 dark:hover:text-neutral-100"
+      >
+        <History className="h-3 w-3" /> Ver histórico
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-3 border-t border-neutral-100 pt-3 dark:border-white/10">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">Histórico (últimas capturas)</span>
+        <button type="button" onClick={() => setAberto(false)} className="text-[11px] text-neutral-400 underline">recolher</button>
+      </div>
+      {query.isLoading && <p className="text-[12px] text-neutral-400">Carregando…</p>}
+      {query.isError && <p className="text-[12px] text-neutral-400">Não foi possível carregar o histórico.</p>}
+      {query.data && query.data.length === 0 && <p className="text-[12px] text-neutral-400">Nenhuma captura registrada para este veículo.</p>}
+      {query.data && query.data.length > 0 && (
+        <div className="max-h-48 overflow-y-auto">
+          <table className="w-full text-left text-[11px]">
+            <thead>
+              <tr className="text-neutral-400">
+                <th className="pb-1 font-medium">Quando</th>
+                <th className="pb-1 font-medium">Latitude</th>
+                <th className="pb-1 font-medium">Longitude</th>
+                <th className="pb-1 font-medium">Precisão</th>
+              </tr>
+            </thead>
+            <tbody>
+              {query.data.map((p) => (
+                <tr key={p.id} className="border-t border-neutral-100 dark:border-white/5">
+                  <td className="py-1">há {idadeLegivel(new Date(p.timestamp_localizacao).getTime(), agoraMs)}</td>
+                  <td className="py-1">{p.latitude.toFixed(5)}</td>
+                  <td className="py-1">{p.longitude.toFixed(5)}</td>
+                  <td className="py-1">{p.accuracy_m != null ? `≈ ${Math.round(p.accuracy_m)} m` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

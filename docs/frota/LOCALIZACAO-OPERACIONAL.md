@@ -286,6 +286,33 @@ retenção/expurgo — não inventado aqui.
 
 ### 7.9 Produção (Módulo 28)
 
-Migration 0051 **não foi aplicada em produção**. Só validada no harness local (Postgres 16.13,
-migrations 0001→0051 aplicadas do zero, 14 suítes SQL incluindo a nova 69, 0 falhas). Aplicar em
-produção exige autorização explícita do Carlos — mesmo protocolo já usado em 0049/0050.
+Migrations 0051/0052 **não foram aplicadas em produção**. Só validadas no harness local
+(Postgres 16.13, migrations 0001→0052 aplicadas do zero, 14 suítes SQL incluindo a 69, 0
+falhas). Aplicar em produção exige autorização explícita do Carlos — mesmo protocolo já usado em
+0049/0050.
+
+## 8. Fase 20 — 2ª passada (view derivada + histórico sob demanda)
+
+> Migration nova: `supabase/migrations/0052_frota_localizacao_view.sql`.
+
+**Última posição, revisitada**: a seção 7.1 já dizia que "última posição" é uma QUERY, não uma
+tabela — a 2ª passada só trocou COMO essa query é feita. A 1ª passada buscava até 500 linhas
+cruas ordenadas por `timestamp_localizacao` e deduplicava em memória (JS) — bug real: numa frota
+grande, as últimas 500 CAPTURAS podiam vir todas de poucos veículos muito ativos, escondendo a
+última posição de um veículo que só capturou há mais tempo (o card "SEM LOCALIZAÇÃO" mentiria
+pra esse veículo). A view `motorista_localizacoes_atual` (`DISTINCT ON (veiculo_id)`,
+`security_invoker=true`) faz essa dedução NO BANCO — sempre uma linha por veículo, sempre a mais
+recente, independente do tamanho da frota. `security_invoker=true` garante que a view roda com o
+privilégio de QUEM CONSULTA — as mesmas 3 policies RLS da tabela base se aplicam sem alteração
+(testado nos 3 papéis: motorista, staff da própria empresa, staff de outra empresa).
+
+**Histórico por veículo, sob demanda**: `getHistoricoLocalizacoes(veiculoId)` — nova função,
+nunca chamada automaticamente. No painel de detalhe do Centro de Inteligência, um botão "Ver
+histórico" dispara a consulta (`enabled: false` no `useQuery` até o clique). Mostra data/hora,
+latitude, longitude e precisão das últimas 200 capturas daquele veículo. Desenhar o percurso no
+mapa (polyline) não foi construído nesta passada — ficou só a tabela.
+
+**schemaGuard, agora compartilhado**: vivia em `motorista-app/api/schemaGuard.ts` desde a
+correção de 2026-08-20 (único consumidor até a Fase 19). Movido para `src/shared/lib/
+schemaGuard.ts` pra ser reusado pelo lado staff também — a API de frota agora usa
+`lerTolerante()` do mesmo arquivo em vez de um check ad-hoc próprio.

@@ -1,5 +1,5 @@
 import { supabase } from '@/shared/lib/supabase';
-import { ehRecursoAusente, registrarAusente } from './schemaGuard';
+import { ehRecursoAusente, registrarAusente } from '@/shared/lib/schemaGuard';
 
 // FASE 20 — Módulo 6: captura/persistência da localização operacional do motorista.
 // Nenhuma coluna client-side além do essencial: motorista_id/veiculo_id/empresa_id são
