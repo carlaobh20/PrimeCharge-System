@@ -2348,3 +2348,269 @@ export function insightsCopiloto(i: {
 
   return insights;
 }
+
+// ===========================================================================
+// FASE 18 — COPILOTO PROATIVO DO MOTORISTA (assistente operacional determinístico)
+// "Com base no que eu registrei, como está minha operação e quais informações são relevantes
+// para minha decisão agora?" — NUNCA um chatbot genérico, NUNCA inventa dado, NUNCA promete
+// ganho, NUNCA decide aceitar/recusar corrida, NUNCA diz onde o motorista "deve" trabalhar.
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// PLANO DE HOJE INTELIGENTE (Módulo J) — reordena inteligenciaPorHorario() (Módulo B) por dois
+// critérios INDEPENDENTES: volume (quantidade de registros) e rentabilidade (maior R$/h
+// REGISTRADO). Nunca a mesma ordenação: uma faixa pode ter muito volume e baixa média; outra,
+// pouco volume e média alta — o sistema mostra a diferença em vez de misturar as duas métricas
+// numa nota só. REUSA inteligenciaPorHorario() — nenhuma agregação nova, só ordenação/filtro.
+// ---------------------------------------------------------------------------
+
+/** Janelas ordenadas por VOLUME (quantidade de corridas) — nunca por rentabilidade. */
+export function janelasPorVolume(faixas: ResumoFaixaHorario[]): ResumoFaixaHorario[] {
+  return [...faixas].sort((a, b) => b.qtdCorridas - a.qtdCorridas);
+}
+
+/** Janelas ordenadas por MAIOR MÉDIA R$/h REGISTRADA — só entre as que têm R$/h calculável
+ *  (duração informada em ao menos 1 corrida da faixa). Nunca "melhor horário". */
+export function janelasPorMediaRegistrada(faixas: ResumoFaixaHorario[]): ResumoFaixaHorario[] {
+  return [...faixas].filter((f) => f.rpHora != null).sort((a, b) => (b.rpHora as number) - (a.rpHora as number));
+}
+
+// ---------------------------------------------------------------------------
+// ASSISTENTE CONTEXTUAL (Módulo K) — motor 100% puro (zero rede, zero IA externa, zero LLM,
+// zero window/localStorage). CONSOME insightsCopiloto() (Módulo F), inconsistenciasOperacionais()
+// e projecoesDuplas() (Fase 12.2) e qualidadeBaseCopiloto() (Módulo G) já calculados — nunca
+// recalcula nenhuma métrica por conta própria. Acrescenta: prioridade determinística, ação de
+// navegação sugerida (nunca ação sobre a corrida em si) e consciência do horário atual SÓ quando
+// ele é passado explicitamente pelo chamador — este motor nunca lê relógio, nunca acessa Date;
+// "SEM horário atual disponível" quando o chamador não fornece um horário confiável, declarando
+// sempre a origem ("relógio do dispositivo") quando ele existe. "O sistema informa. O motorista
+// decide." — nunca aconselha, nunca ordena, nunca promete ganho, nunca decide aceitar/recusar
+// corrida, nunca diz onde o motorista "deve" trabalhar.
+// ---------------------------------------------------------------------------
+
+export type TipoInsightAssistente =
+  | 'META'
+  | 'REGISTRO'
+  | 'HISTORICO'
+  | 'HORARIO'
+  | 'DIA_SEMANA'
+  | 'DADO_INSUFICIENTE'
+  | 'INCONSISTENCIA'
+  | 'CORRIDA'
+  | 'PROJECAO';
+
+export type OrigemInsightAssistente = 'DADO REGISTRADO' | 'HISTÓRICO' | 'DADOS INSUFICIENTES' | 'INCONSISTÊNCIA' | 'PROJEÇÃO';
+
+/** Pra onde "Ver dados" leva — mesma seção que já existe na tela, nunca uma navegação paralela. */
+export type AcaoInsightAssistente = 'meta' | 'historico' | 'padrao' | 'qualidade' | 'inconsistencias' | 'projecao' | null;
+
+export type InsightAssistente = {
+  id: string;
+  prioridade: number; // 1 = mais prioritário (ordem: dados faltantes → divergências → meta →
+  // estado operacional → histórico → horário → dia da semana → projeção)
+  tipo: TipoInsightAssistente;
+  titulo: string;
+  mensagem: string;
+  origem: OrigemInsightAssistente;
+  dadosBase: number;
+  acaoDisponivel: AcaoInsightAssistente;
+};
+
+/** Ordem de prioridade EXATA pedida na Fase 18: 1 dados faltantes, 2 divergências, 3 meta,
+ *  4 estado operacional/corrida, 5 histórico, 6 horário, 7 dia da semana, 8 projeção. */
+export const PRIORIDADE_TIPO_ASSISTENTE: Record<TipoInsightAssistente, number> = {
+  DADO_INSUFICIENTE: 1,
+  INCONSISTENCIA: 2,
+  META: 3,
+  CORRIDA: 4,
+  REGISTRO: 5,
+  HISTORICO: 6,
+  HORARIO: 7,
+  DIA_SEMANA: 8,
+  PROJECAO: 9,
+};
+
+export const ACAO_TIPO_ASSISTENTE: Record<TipoInsightAssistente, AcaoInsightAssistente> = {
+  DADO_INSUFICIENTE: 'qualidade',
+  INCONSISTENCIA: 'inconsistencias',
+  META: 'meta',
+  CORRIDA: 'meta',
+  REGISTRO: 'meta',
+  HISTORICO: 'historico',
+  HORARIO: 'padrao',
+  DIA_SEMANA: 'padrao',
+  PROJECAO: 'projecao',
+};
+
+// Mapeia o tipo (mais granular) do Módulo F pro tipo (mais grosso) do Assistente — EVOLUCAO/RPH/
+// RPKM viram HISTORICO; os demais são 1-pra-1. DADO_INSUFICIENTE do F é tratado à parte (ver
+// abaixo — o Assistente gera o seu próprio, mais específico, a partir de qualidadeBaseCopiloto).
+const TIPO_F_PARA_ASSISTENTE: Record<TipoInsightCopiloto, TipoInsightAssistente> = {
+  HORARIO: 'HORARIO',
+  DIA_SEMANA: 'DIA_SEMANA',
+  EVOLUCAO: 'HISTORICO',
+  RPH: 'HISTORICO',
+  RPKM: 'HISTORICO',
+  META: 'META',
+  CORRIDA: 'CORRIDA',
+  REGISTRO: 'REGISTRO',
+  DADO_INSUFICIENTE: 'DADO_INSUFICIENTE',
+};
+
+// Estado operacional (Módulo 1 da Fase 14) → mensagem factual, só nos estados que pedem atenção.
+// 'pronto_para_encerrar' e 'encerrado' não geram insight (nada de anormal a relatar).
+const MENSAGEM_ESTADO_DIA: Partial<Record<EstadoDoDia, string>> = {
+  sem_dados: 'Você ainda não tem nenhum registro no seu histórico.',
+  nao_comecou: 'Você ainda não registrou nada hoje.',
+  em_andamento: 'Hoje já tem um valor registrado, mas ainda sem horas lançadas.',
+  dados_parciais: 'Hoje tem ganho e horas registrados, mas o odômetro está incompleto.',
+};
+
+/** Faixa fixa (das 7 de FAIXAS_HORARIO — REUSO, nunca uma segunda lista de faixas) em que
+ *  `horaAtual` cai. Retorna null se `horaAtual` for ausente ou inválido — nunca inventa. */
+function faixaHorarioAtual(horaAtual: string | null): { inicio: number; fim: number; label: string } | null {
+  if (!horaAtual) return null;
+  const h = Number.parseInt(horaAtual.slice(0, 2), 10);
+  if (!Number.isFinite(h) || h < 0 || h > 23) return null;
+  return FAIXAS_HORARIO.find((f) => (f.fim === 24 ? h >= f.inicio : h >= f.inicio && h < f.fim)) ?? null;
+}
+
+export function assistenteContextual(i: {
+  estadoHoje: EstadoDoDia;
+  /** Insights já produzidos por insightsCopiloto() (Módulo F) — REUSO, nunca recalculados aqui. */
+  insightsHistorico: InsightCopiloto[];
+  qualidadeBase: QualidadeBaseCopiloto;
+  /** historicoPorPeriodo(corridas, periodoDiasBase, hoje).atual.diasComRegistro — já calculado. */
+  diasComRegistroPeriodo: number;
+  /** O período (em dias) usado no campo acima — só pra rotular a mensagem (ex.: 30). */
+  periodoDiasBase: number;
+  inconsistencias: Inconsistencia[];
+  projecoes: ProjecoesDuplas | null;
+  /** Dias com lançamento no mês — só pra popular `dadosBase` do insight de PROJEÇÃO. */
+  diasRegistradosProjecao: number;
+  /** 'HH:MM' do relógio do DISPOSITIVO, já formatado pelo chamador — null quando indisponível.
+   *  Este motor NUNCA lê relógio: sem este parâmetro, nunca inventa um horário "atual". */
+  horaAtual: string | null;
+  /** inteligenciaPorHorario() (Módulo B) — pra contextualizar a faixa atual, quando horaAtual existir. */
+  porHorario: ResumoFaixaHorario[];
+}): InsightAssistente[] {
+  const insights: InsightAssistente[] = [];
+  let seq = 0;
+  const proximoId = (tipo: string) => `assistente-insight-${tipo.toLowerCase()}-${seq++}`;
+
+  // ---- 2. Divergências (INCONSISTENCIA) ----
+  if (i.inconsistencias.length > 0) {
+    const primeira = i.inconsistencias[0];
+    insights.push({
+      id: proximoId('INCONSISTENCIA'),
+      prioridade: PRIORIDADE_TIPO_ASSISTENTE.INCONSISTENCIA,
+      tipo: 'INCONSISTENCIA',
+      titulo: i.inconsistencias.length === 1 ? primeira.achado : `${i.inconsistencias.length} divergências nos seus registros`,
+      mensagem:
+        i.inconsistencias.length === 1
+          ? `${primeira.achado} — origem: ${primeira.origem}. Falta: ${primeira.falta}.`
+          : `Encontradas ${i.inconsistencias.length} divergências nos seus registros, incluindo "${primeira.achado}". Nada foi alterado automaticamente.`,
+      origem: 'INCONSISTÊNCIA',
+      dadosBase: i.inconsistencias.length,
+      acaoDisponivel: ACAO_TIPO_ASSISTENTE.INCONSISTENCIA,
+    });
+  }
+
+  // ---- 1. Dados faltantes importantes (DADO_INSUFICIENTE, dedicado — dias sem registro no
+  // período-base). Só aparece quando a base ainda é insuficiente/inicial — não repete o aviso
+  // depois que a base já virou consistente/relevante. ----
+  const diasSemRegistro = Math.max(0, i.periodoDiasBase - i.diasComRegistroPeriodo);
+  if (
+    diasSemRegistro > 0 &&
+    (i.qualidadeBase.classificacaoAmostra === 'dados_insuficientes' || i.qualidadeBase.classificacaoAmostra === 'base_inicial')
+  ) {
+    insights.push({
+      id: proximoId('DADO_INSUFICIENTE'),
+      prioridade: PRIORIDADE_TIPO_ASSISTENTE.DADO_INSUFICIENTE,
+      tipo: 'DADO_INSUFICIENTE',
+      titulo: `Você ainda possui ${diasSemRegistro} dia(s) sem registros neste período`,
+      mensagem: `Nos últimos ${i.periodoDiasBase} dias, ${i.diasComRegistroPeriodo} tiveram ao menos um registro. Mais registros ajudam a comparar horários e dias da semana com mais segurança.`,
+      origem: 'DADOS INSUFICIENTES',
+      dadosBase: i.diasComRegistroPeriodo,
+      acaoDisponivel: ACAO_TIPO_ASSISTENTE.DADO_INSUFICIENTE,
+    });
+  }
+
+  // ---- 3/5/6/7 — META, HISTORICO (EVOLUCAO/RPH/RPKM), HORARIO, DIA_SEMANA, CORRIDA, REGISTRO:
+  // reformatados a partir do Módulo F, nunca recalculados. ----
+  for (const f of i.insightsHistorico) {
+    if (f.tipo === 'DADO_INSUFICIENTE') continue; // já coberto acima, de forma mais específica
+    const tipo = TIPO_F_PARA_ASSISTENTE[f.tipo];
+    let mensagem = f.descricao;
+
+    // Contexto temporal (só no insight de HORARIO, só quando horaAtual existe — nunca inventado).
+    if (tipo === 'HORARIO') {
+      const faixa = faixaHorarioAtual(i.horaAtual);
+      if (faixa) {
+        const resumoFaixaAtual = i.porHorario.find((h) => h.inicio === faixa.inicio && h.fim === faixa.fim);
+        if (resumoFaixaAtual && resumoFaixaAtual.classificacaoAmostra !== 'dados_insuficientes') {
+          mensagem += ` Agora são ${i.horaAtual} (relógio do dispositivo) — você está na faixa ${faixa.label}, com ${resumoFaixaAtual.qtdCorridas} registro(s)${resumoFaixaAtual.rpHora != null ? ` e ${formatBRL(resumoFaixaAtual.rpHora)}/h` : ''} nos dados disponíveis.`;
+        } else {
+          mensagem += ` Agora são ${i.horaAtual} (relógio do dispositivo) — a faixa atual (${faixa.label}) ainda não tem registros suficientes para comparar.`;
+        }
+      } else {
+        mensagem += ' Sem horário atual disponível.';
+      }
+    }
+
+    insights.push({
+      id: proximoId(tipo),
+      prioridade: PRIORIDADE_TIPO_ASSISTENTE[tipo],
+      tipo,
+      titulo: f.titulo,
+      mensagem,
+      origem:
+        f.origem === 'SEM DADOS SUFICIENTES'
+          ? 'DADOS INSUFICIENTES'
+          : tipo === 'META' || tipo === 'CORRIDA' || tipo === 'REGISTRO'
+            ? 'DADO REGISTRADO'
+            : 'HISTÓRICO',
+      dadosBase: f.dadosBase,
+      acaoDisponivel: ACAO_TIPO_ASSISTENTE[tipo],
+    });
+  }
+
+  // ---- 4. Estado operacional (REGISTRO) — só quando o Módulo F não gerou nenhum REGISTRO
+  // (ele cobre "faltam km/duração"; isto aqui cobre "o dia em si ainda não tem registro/está
+  // incompleto") ----
+  const jaTemInsightDeRegistro = insights.some((ins) => ins.tipo === 'REGISTRO');
+  const msgEstado = MENSAGEM_ESTADO_DIA[i.estadoHoje];
+  if (!jaTemInsightDeRegistro && msgEstado) {
+    const semDadoNenhum = i.estadoHoje === 'sem_dados' || i.estadoHoje === 'nao_comecou';
+    insights.push({
+      id: proximoId('REGISTRO'),
+      prioridade: PRIORIDADE_TIPO_ASSISTENTE.REGISTRO,
+      tipo: 'REGISTRO',
+      titulo: 'Estado do seu dia',
+      mensagem: msgEstado,
+      origem: semDadoNenhum ? 'DADOS INSUFICIENTES' : 'DADO REGISTRADO',
+      dadosBase: semDadoNenhum ? 0 : 1,
+      acaoDisponivel: ACAO_TIPO_ASSISTENTE.REGISTRO,
+    });
+  }
+
+  // ---- 8. Projeção (menor prioridade) ----
+  if (i.projecoes) {
+    const partes = [`Pela sua premissa: ${formatBRL(i.projecoes.pelaPremissa.valor)} (${i.projecoes.pelaPremissa.formula}).`];
+    if (i.projecoes.peloHistorico) {
+      partes.push(`Pelo seu histórico registrado: ${formatBRL(i.projecoes.peloHistorico.valor)} (${i.projecoes.peloHistorico.formula}).`);
+    }
+    insights.push({
+      id: proximoId('PROJECAO'),
+      prioridade: PRIORIDADE_TIPO_ASSISTENTE.PROJECAO,
+      tipo: 'PROJECAO',
+      titulo: 'Projeção do mês',
+      mensagem: `${partes.join(' ')} Projeção — não é promessa de resultado.`,
+      origem: 'PROJEÇÃO',
+      dadosBase: Math.max(0, Math.floor(seguro(i.diasRegistradosProjecao))),
+      acaoDisponivel: ACAO_TIPO_ASSISTENTE.PROJECAO,
+    });
+  }
+
+  return insights.sort((a, b) => a.prioridade - b.prioridade);
+}

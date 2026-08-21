@@ -1,18 +1,46 @@
 import { useState } from 'react';
 import { Secao, Linha, Pill } from '../ui';
 import {
+  CLASSIFICACAO_AMOSTRA_LABEL,
   formatBRL,
   formatHoras,
+  janelasPorMediaRegistrada,
+  janelasPorVolume,
+  type ClassificacaoAmostra,
   type MetaHojeCockpit,
   type PararAgora,
+  type ResumoFaixaHorario,
   type RitmoMes,
   type SimulacaoHoras,
 } from '../../lib/metas';
 
-// PLANO DE HOJE (Fase 11, Módulos 1–3/5–8/10–12/18) — responde em segundos: quanto preciso
-// fazer hoje, em quantas horas (premissa × MEU histórico), o que acontece se eu parar agora e
-// se eu trabalhar ±1/2/3h. TUDO é cálculo sobre registros e premissas — "Se você ...,
-// matematicamente ..." — a decisão é do motorista. Simulações NUNCA gravam nada.
+// PLANO DE HOJE (Fase 11, Módulos 1–3/5–8/10–12/18; Fase 18 — Módulo J acrescenta as janelas de
+// horário por volume × por média registrada) — responde em segundos: quanto preciso fazer hoje,
+// em quantas horas (premissa × MEU histórico), o que acontece se eu parar agora e se eu
+// trabalhar ±1/2/3h. TUDO é cálculo sobre registros e premissas — "Se você ..., matematicamente
+// ..." — a decisão é do motorista. Simulações NUNCA gravam nada.
+
+const TOM_AMOSTRA_PLANO: Record<ClassificacaoAmostra, 'verde' | 'ambar' | 'vermelho' | 'neutro' | 'azul'> = {
+  dados_insuficientes: 'neutro',
+  base_inicial: 'ambar',
+  base_consistente: 'azul',
+  base_relevante: 'verde',
+};
+
+function LinhaJanela({ f }: { f: ResumoFaixaHorario }) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-neutral-100 px-3 py-2 dark:border-white/10">
+      <div>
+        <p className="text-[12px] font-semibold text-neutral-800 dark:text-neutral-100">{f.label}</p>
+        <p className="text-[11px] text-neutral-500">
+          {f.qtdCorridas} registro{f.qtdCorridas > 1 ? 's' : ''}
+          {f.rpHora != null && ` · ${formatBRL(f.rpHora)}/h`}
+        </p>
+      </div>
+      <Pill tom={TOM_AMOSTRA_PLANO[f.classificacaoAmostra]}>{CLASSIFICACAO_AMOSTRA_LABEL[f.classificacaoAmostra]}</Pill>
+    </div>
+  );
+}
 
 export function PlanoDeHoje({
   hoje,
@@ -27,6 +55,7 @@ export function PlanoDeHoje({
   simulacoes,
   amanha,
   horasRestantesMesDia,
+  porHorarioCorridas = [],
 }: {
   hoje: MetaHojeCockpit;
   ritmo: RitmoMes;
@@ -40,11 +69,15 @@ export function PlanoDeHoje({
   simulacoes: SimulacaoHoras[];
   amanha: { original: number; rebalanceada: number | null };
   horasRestantesMesDia: number | null;
+  /** Fase 18, Módulo J: inteligenciaPorHorario() já calculado (Módulo B) — REUSO, sem query nova. */
+  porHorarioCorridas?: ResumoFaixaHorario[];
 }) {
   const [simAberta, setSimAberta] = useState<SimulacaoHoras | null>(null);
   const mais = simulacoes.filter((s) => s.horas > 0);
   const menos = simulacoes.filter((s) => s.horas < 0);
   const rebalanceadaDifere = Math.abs(hoje.metaHoje - hoje.metaDiariaOriginal) > 0.5;
+  const porVolume = janelasPorVolume(porHorarioCorridas).slice(0, 3);
+  const porMedia = janelasPorMediaRegistrada(porHorarioCorridas).slice(0, 3);
 
   return (
     <Secao titulo="Plano de hoje">
@@ -200,6 +233,34 @@ export function PlanoDeHoje({
           <p className="text-[13px] font-bold text-neutral-900 dark:text-white">{horasRestantesMesDia != null ? formatHoras(horasRestantesMesDia) : '—'}</p>
         </div>
       </div>
+
+      {/* ===== Fase 18, Módulo J — janelas de horário: volume × média registrada, SEPARADOS ===== */}
+      {porHorarioCorridas.length > 0 && (
+        <div className="mt-3 border-t border-neutral-100 pt-2 dark:border-white/10">
+          <p className="text-[11px] text-neutral-400">
+            Volume e rentabilidade são coisas diferentes: uma janela pode ter muitos registros e média baixa; outra, poucos registros e média alta.
+          </p>
+          {porVolume.length > 0 && (
+            <div className="mt-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Janelas com mais registros</p>
+              <div className="mt-1 space-y-1.5">
+                {porVolume.map((f) => <LinhaJanela key={`vol-${f.label}`} f={f} />)}
+              </div>
+            </div>
+          )}
+          {porMedia.length > 0 && (
+            <div className="mt-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Janelas com maior média registrada</p>
+              <div className="mt-1 space-y-1.5">
+                {porMedia.map((f) => <LinhaJanela key={`media-${f.label}`} f={f} />)}
+              </div>
+              <p className="mt-1 text-[10px] text-neutral-400">
+                Seus registros têm maior média registrada nesta faixa — leitura do que já aconteceu, não uma indicação de quando trabalhar.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ===== Módulo 12 — meta de amanhã ===== */}
       {ritmo.diasRestantesPlanejados > 0 && (hoje.status === 'encerrado' || hoje.realizadoHoje != null) && amanha.rebalanceada != null && (

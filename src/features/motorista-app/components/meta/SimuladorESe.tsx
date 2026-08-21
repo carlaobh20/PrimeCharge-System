@@ -1,15 +1,20 @@
 import { useState } from 'react';
-import { Secao } from '../ui';
-import { formatBRL, formatHoras, simular, type Cenario } from '../../lib/metas';
+import { Secao, Linha } from '../ui';
+import { formatBRL, formatHoras, horasParaValor, simular, type Cenario } from '../../lib/metas';
 
-// SIMULADOR "E SE?" (Módulo 25; expandido na Fase 9 — Módulo 23 com cenários prontos).
-// Mexe em CÓPIAS locais; nunca altera os dados reais. Cenários são SIMULAÇÃO, não recomendação.
+// SIMULADOR "E SE?" (Módulo 25; expandido na Fase 9 — Módulo 23 com cenários prontos; Fase 18
+// — Módulo I acrescenta a comparação explícita PREMISSA × DADO REGISTRADO em horas).
+// Mexe em CÓPIAS locais; nunca altera os dados reais (renda_hora/meta/configuração/banco). Tudo
+// aqui é SIMULAÇÃO, não recomendação.
 
-export function SimuladorESe({ base, cenarios = [], mediaRegistrada = null }: {
+export function SimuladorESe({ base, cenarios = [], mediaRegistrada = null, faltaMeta = null }: {
   base: { custoTotal: number; diasTrabalho: number; rendaHora: number };
   cenarios?: Cenario[];
   /** Módulo 18 (Fase 10): média R$/h REGISTRADA — simular com ela, sem alterar dado real */
   mediaRegistrada?: number | null;
+  /** Fase 18, Módulo I: quanto falta pra meta MENSAL (max(0, metaMensal − realizado)) — cópia
+   *  local, mesmo valor já mostrado em "Falta p/ meta" no Plano de Hoje. */
+  faltaMeta?: number | null;
 }) {
   const [dias, setDias] = useState(base.diasTrabalho);
   const [renda, setRenda] = useState(base.rendaHora);
@@ -18,9 +23,34 @@ export function SimuladorESe({ base, cenarios = [], mediaRegistrada = null }: {
   const r = simular(base, { custoTotal: custo, diasTrabalho: dias, rendaHora: renda });
   const mudou = dias !== base.diasTrabalho || renda !== base.rendaHora || Math.abs(custo - base.custoTotal) > 0.01;
 
+  // Módulo I — "Usar minha média registrada": PREMISSA × DADO REGISTRADO em horas, pra cobrir o
+  // que falta na meta mensal. REUSA horasParaValor (mesma função do impacto de corrida da Fase
+  // 17, Módulo D) — nunca uma divisão nova. "Matematicamente", nunca "você consegue/vai conseguir".
+  const horasPelaPremissa = faltaMeta != null && faltaMeta > 0 ? horasParaValor(faltaMeta, base.rendaHora) : null;
+  const horasPelaMedia = faltaMeta != null && faltaMeta > 0 ? horasParaValor(faltaMeta, mediaRegistrada) : null;
+
   return (
     <Secao titulo='Simulador "E se?"'>
       <p className="mb-2 text-[11px] text-neutral-400">Ajuste os valores abaixo para simular. Nada aqui altera seus dados reais.</p>
+
+      {/* Módulo I (Fase 18) — quanto falta, em horas: PREMISSA × DADO REGISTRADO */}
+      {faltaMeta != null && faltaMeta > 0 && (
+        <div className="mb-3 rounded-xl border border-neutral-100 p-3 dark:border-white/10">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Quanto falta, em horas?</p>
+          <Linha label="Falta" value={formatBRL(faltaMeta)} />
+          <Linha label={`Meta pela PREMISSA (${formatBRL(base.rendaHora)}/h)`} value={horasPelaPremissa != null ? formatHoras(horasPelaPremissa) : 'SEM DADO'} />
+          {mediaRegistrada != null && mediaRegistrada > 0 ? (
+            <>
+              <Linha label={`Minha média registrada (${formatBRL(mediaRegistrada)}/h) · DADO REGISTRADO`} value={horasPelaMedia != null ? formatHoras(horasPelaMedia) : 'SEM DADO'} />
+              <p className="mt-1 text-[10px] text-neutral-400">
+                Matematicamente, utilizando sua média registrada, a diferença corresponde a {horasPelaMedia != null ? formatHoras(horasPelaMedia) : 'SEM DADO'} — SIMULAÇÃO, não é garantia de resultado.
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 text-[10px] text-neutral-400">Não há registros suficientes para usar sua média.</p>
+          )}
+        </div>
+      )}
       <div className="space-y-3">
         <label className="block text-sm">
           <span className="text-neutral-500">Dias de trabalho: <strong className="text-neutral-800 dark:text-neutral-100">{dias}</strong></span>

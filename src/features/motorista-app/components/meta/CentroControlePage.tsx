@@ -4,6 +4,7 @@ import { ChecklistHojeCard } from './ChecklistHojeCard';
 import { RotinaDoDiaCard } from './RotinaDoDiaCard';
 import { CopilotoCard } from './CopilotoCard';
 import { CopilotoInteligenteCard } from './CopilotoInteligenteCard';
+import { AssistenteContextualCard } from './AssistenteContextualCard';
 import { HistoricoCorridasCard, PadraoHorarioDiaCard, QualidadeBaseCopilotoCard } from './CopilotoHistoricoCard';
 import { FechamentoCard } from './FechamentoCard';
 import { HeroHoje } from './HeroHoje';
@@ -152,8 +153,9 @@ export function CentroControlePage() {
         />
       )}
 
-      {/* ===== 4. SEU COPILOTO (Fase 17, Módulos D/E) + ferramenta de avaliar/registrar corrida
-          (Fase 16) + 5. Histórico de corridas / 6-7. Inteligência por horário e dia da semana /
+      {/* ===== 4. SEU COPILOTO (Fase 17, Módulo D) + Assistente Contextual (Fase 18, Módulo K,
+          substitui o antigo Módulo E) + ferramenta de avaliar/registrar corrida (Fase 16) +
+          5. Histórico de corridas / 6-7. Inteligência por horário e dia da semana /
           8. Qualidade da base ===== */}
       {!d.copilotoIndisponivel && (
         <>
@@ -161,8 +163,8 @@ export function CentroControlePage() {
             hojeCockpit={d.hojeCockpit}
             qtdCorridasHoje={d.qtdCorridasHoje}
             somaValorCorridasHoje={d.somaValorCorridasHoje}
-            insightsCopilotoLista={d.insightsCopilotoLista}
           />
+          <AssistenteContextualCard insights={d.assistenteInsights} />
           <CopilotoCard
             corridasHoje={d.corridasHoje}
             qtdCorridasHoje={d.qtdCorridasHoje}
@@ -229,6 +231,7 @@ export function CentroControlePage() {
         simulacoes={d.planoHoje.simulacoes}
         amanha={d.planoHoje.amanha}
         horasRestantesMesDia={d.planoHoje.horasRestantesMesDia}
+        porHorarioCorridas={d.porHorarioCorridas}
       />
 
       {/* ===== TRÊS NÚMEROS — META × REAL × PROJEÇÃO ===== */}
@@ -352,6 +355,7 @@ export function CentroControlePage() {
         base={{ custoTotal: d.totais.total, diasTrabalho: d.meta.diasTrabalho ?? 26, rendaHora: d.meta.rendaHora }}
         cenarios={d.cenarios}
         mediaRegistrada={d.realHora14?.valor ?? null}
+        faltaMeta={d.faltaMeta}
       />
 
       <p className="pb-2 text-center text-[10px] text-neutral-400">

@@ -1,5 +1,27 @@
 # MINHA META — Inteligência Financeira Pessoal do Motorista
 
+> **Fase 18 — Copiloto Proativo do Motorista** (2026-08-21, sobre a Fase 17; **ZERO migration**):
+> Módulos I/J/K. **I** (`SimuladorESe.tsx`) — comparação PREMISSA × DADO REGISTRADO em horas
+> ("Quanto falta, em horas?"), via `horasParaValor()` (REUSO). **J** (`PlanoDeHoje.tsx`) —
+> `janelasPorVolume`/`janelasPorMediaRegistrada` (motor novo, reordenações puras de
+> `inteligenciaPorHorario()`, Módulo B da Fase 17) mostradas em duas seções deliberadamente
+> separadas: "Janelas com mais registros" × "Janelas com maior média registrada" — volume e
+> rentabilidade nunca misturados numa nota só. **K** (`AssistenteContextualCard.tsx` +
+> `assistenteContextual()`, motor 100% puro, **zero IA externa/LLM/API**) — CONSOME
+> `insightsCopiloto()` (Módulo F) como fonte primária, acrescentando prioridade determinística (1
+> dados faltantes → 2 divergências → 3 meta → 4 corrida → 5 registro → 6 histórico → 7 horário → 8
+> dia da semana → 9 projeção), navegação "Ver dados" (scroll pra seção existente, zero rota nova),
+> `DADO_INSUFICIENTE` dedicado, `INCONSISTENCIA` e `PROJECAO` próprios, e contexto temporal (só no
+> insight de horário, só quando `horaAtual` — computado no HOOK, nunca no motor — existe). Máximo
+> 3 insights na 1ª dobra. "O sistema informa. O motorista decide." O antigo Módulo E (lista de
+> insights da Fase 17) saiu de `CopilotoInteligenteCard.tsx` — virou redundante com o Assistente.
+> Testes: `audit-motorista-copiloto-proativo.ts`, **91/91**, 26 categorias. Regressão: os 18
+> scripts anteriores + o novo, **1021/1021 combinados**; SQL **346/346** (zero regressão, zero SQL
+> tocado); `tsc`/`oxlint`/`build` limpos. Discrepância aritmética divulgada: o exemplo da
+> especificação ("5.500/47,80 ≈ 114,96h") estava matematicamente incorreto — implementado com o
+> valor correto (≈115,06h). Detalhe completo em `CLAUDE.md`, seção 0.-13, e em
+> `docs/motorista/COPILOTO-PROATIVO.md`.
+
 > **Fase 17 — Copiloto Inteligente do Motorista** (2026-08-21, **2ª passada — reconciliação**;
 > **ZERO migration** — tudo derivado de 0049/0050, já aplicadas em produção): motor puro novo em
 > `metas.ts` — `historicoPorPeriodo`/`compararPeriodoCorridas` (Módulo A, histórico 7/14/30/90d

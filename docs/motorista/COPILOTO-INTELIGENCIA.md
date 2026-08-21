@@ -133,28 +133,33 @@ Inteligente).
 ## 8. Decisões de escopo (registradas, não silenciosas)
 
 Ver `claude/auditoria-fase17-copiloto-inteligente.md`, seção 0. Resumo: Módulos A/B/C/D/E/F/G/H
-implementados e testados nesta passada; Módulos I/J/K ficam para a próxima; Módulo L
-(arquitetura futura) é só documentação (ver `COPILOTO-INTELIGENCIA-FUTURA.md`).
+implementados e testados na primeira passada; Módulo L (arquitetura futura) é só documentação
+(ver `COPILOTO-INTELIGENCIA-FUTURA.md`). **Módulos I/J/K, citados abaixo como "não implementados
+nesta passada", foram implementados na Fase 18 — ver `COPILOTO-PROATIVO.md`.**
 
 ## 9. O que NÃO existe (declarado explicitamente)
 
 - Nenhuma rota nova (`/motorista/copiloto/configuracoes` NÃO existe — Configurações é um bloco
   inline, seguindo o padrão já estabelecido).
-- Nenhum assistente conversacional (Módulo K) — não implementado nesta passada.
-- Nenhuma extensão de `cenariosOperacionais` (Módulo I) — não implementada nesta passada.
-- Nenhuma migration nova.
+- ~~Nenhum assistente conversacional (Módulo K)~~ — implementado na Fase 18 como
+  `AssistenteContextualCard.tsx`/`assistenteContextual()`, **determinístico** (zero IA
+  externa/LLM/API) — ver `COPILOTO-PROATIVO.md`.
+- ~~Nenhuma extensão de `cenariosOperacionais` (Módulo I)~~ — o Simulador "E se?" ganhou a
+  comparação PREMISSA × DADO REGISTRADO em horas na Fase 18 (Módulo I) — ver `COPILOTO-PROATIVO.md`.
+- Nenhuma migration nova (continua valendo na Fase 18).
 - Nenhuma integração com IA externa em nenhum ponto (todo o Copiloto é determinístico, motor
-  puro sobre dados registrados).
+  puro sobre dados registrados — continua valendo na Fase 18).
 
 ## 10. Próximos passos recomendados
 
-1. Módulo K (Assistente Contextual) — merece uma auditoria de vocabulário dedicada antes de
-   codificar, dado o risco de deslizar para afirmação categórica.
-2. Módulos I/J — extensões pequenas, mas cada uma pede fixtures determinísticas próprias.
+1. ~~Módulo K (Assistente Contextual)~~ — implementado na Fase 18.
+2. ~~Módulos I/J~~ — implementados na Fase 18.
 3. Resolver o gap de `peso_rpcorrida` (usar ou remover da superfície de configuração/banco, para
-   não deixar um campo gravável que não tem efeito nenhum).
+   não deixar um campo gravável que não tem efeito nenhum) — continua em aberto após a Fase 18.
 4. Se a comparação de período de 90 dias for considerada valiosa o suficiente, avaliar dobrar a
    janela buscada (180 dias) só para viabilizá-la — hoje ela é SEM COMPARAÇÃO na prática (seção 5).
+5. Fase futura: "Inteligência de Frota" (GPS/mapa/heatmap/região/demanda) — arquitetura apenas,
+   documentada em `COPILOTO-PROATIVO.md`, seção "Futuro" — NÃO implementada.
 
 ## 11. Segunda passada — reconciliação com a auditoria de reuso
 

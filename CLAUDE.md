@@ -6,11 +6,60 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-21, fim da Fase 17 (2ª passada — reconciliação) — Copiloto
-Inteligente do Motorista (Módulos A/B/C/D/E/F/G/H; **ZERO migration** — tudo derivado de
-0049/0050, já em produção). Módulos I/J/K (cenários estendidos, plano estendido, assistente Q&A)
-ficam para a próxima passada — corte deliberado, registrado em
-`claude/auditoria-fase17-copiloto-inteligente.md`.
+**Última atualização:** 2026-08-21, fim da Fase 18 — Copiloto Proativo do Motorista (Módulos
+I/J/K: Simulador com premissa × dado registrado em horas, Plano de Hoje com janelas por
+volume/média, Assistente Contextual determinístico). **ZERO migration** — segue exatamente sobre
+a base da Fase 17 (0049/0050, já em produção). Commit: `feat: copiloto proativo do motorista`.
+Não empurrado para `main` (fica em `dev`, aguardando validação/ratificação do Carlos).
+
+## 0.-13 Fase 18 — Copiloto Proativo do Motorista (2026-08-21, sobre a Fase 17; ZERO migration)
+
+- Estende a Fase 17 (validada: 930/930, SQL 346/346) sem tocar em nenhuma migration/RLS. Auditoria
+  automatizada nova: `scripts/audit-motorista-copiloto-proativo.ts` (**91/91**, 26 categorias).
+- **Módulo I** (`SimuladorESe.tsx`) — prop novo `faltaMeta?: number | null`; quando > 0, mostra
+  "Quanto falta, em horas?" comparando Meta pela PREMISSA × Minha média registrada, ambas via
+  `horasParaValor()` (REUSO — Fase 11/Módulo D da Fase 17, nenhuma divisão nova). Sem histórico:
+  "Não há registros suficientes para usar sua média." Continua 100% `useState` local — zero
+  gravação em renda_hora/meta/config/banco.
+- **Módulo J** (`PlanoDeHoje.tsx`) — duas funções novas no motor, `janelasPorVolume`/
+  `janelasPorMediaRegistrada`, ambas reordenações puras de `inteligenciaPorHorario()` (Módulo B,
+  Fase 17) — zero agregação nova. UI mostra as top-3 de cada ranking em duas seções separadas
+  ("Janelas com mais registros" / "Janelas com maior média registrada"), deliberadamente
+  desacopladas (uma faixa pode ter muito volume e média baixa; outra, o oposto).
+- **Módulo K** (`AssistenteContextualCard.tsx` + `assistenteContextual()`, motor 100% puro — zero
+  IA externa/LLM/API/rede) — CONSOME `insightsCopiloto()` (Módulo F) como fonte primária, mapeando
+  9 tipos granulares → 9 tipos do Assistente, e acrescenta: prioridade determinística (1 dados
+  faltantes → 2 divergências → 3 meta → 4 corrida → 5 registro → 6 histórico → 7 horário → 8 dia
+  da semana → 9 projeção), `acaoDisponivel` (scroll pra seção já existente via `id="secao-*"`,
+  ZERO rota/navegação paralela), `DADO_INSUFICIENTE` dedicado (dias sem registro no período),
+  `INCONSISTENCIA` (via `inconsistenciasOperacionais()`), `PROJECAO` (via `projecoesDuplas()`) e
+  contexto temporal — só no insight `HORARIO`, só quando `horaAtual` (computado no HOOK, nunca
+  dentro do motor) existe. Card mostra no máximo 3 insights na 1ª dobra, resto atrás de "Ver
+  mais (N)". O antigo Módulo E (lista de insights, Fase 17, dentro de `CopilotoInteligenteCard`)
+  foi removido — ficou redundante depois que o Assistente passou a consumir a mesma fonte com
+  mais recursos; `CopilotoInteligenteCard.tsx` ficou só com a grade Módulo D.
+- Discrepância aritmética divulgada, não escondida: o exemplo literal da especificação
+  ("5.500/47,80 ≈ 114,96h") está matematicamente incorreto — o valor correto é ≈115,06h. Testado
+  e implementado com o valor correto; a auditoria (categoria 2) inclui um teste que existe
+  justamente pra flagrar se alguém "corrigir" a fórmula pra bater com o número errado do exemplo.
+  Detalhe completo em `docs/motorista/COPILOTO-PROATIVO.md`, seção 9.
+- Vocabulário proibido testado nos 3 componentes (categorias 5/12/20): "você consegue"/"você vai
+  conseguir"/"você precisa trabalhar" (Módulo I), "melhor horário"/"trabalhe neste horário"
+  (Módulo J), "vá trabalhar"/"fique até"/"essa região está melhor"/"vale a pena"/"você vai ganhar
+  mais" (Módulo K). Corrigida durante esta auditoria a MESMA classe de falso-positivo já vista na
+  Fase 17 (guard word "nunca" citando a frase proibida dentro de um comentário/JSDoc explicativo,
+  sem violar a regra de fato) — resolvido filtrando comentários (`//` e `/* */`) antes do grep nas
+  categorias afetadas (5 e 24), em vez de reescrever os comentários linha a linha.
+- Regressão completa reexecutada (não assumida verde): os 18 audit scripts anteriores
+  (motorista+jurídico+amortização) + o novo — **1021/1021 combinados**, zero FALHOU. SQL real
+  reexecutado do zero: **346/346 PASS**, zero regressão (zero SQL alterado nesta fase — confirmado
+  por 0 migrations acima da 0050). `tsc -b --noEmit` limpo, `oxlint` sem warning novo (2 warnings
+  de import não usado no script novo, corrigidos antes do commit), `npm run build` ok.
+- Docs: `docs/motorista/COPILOTO-INTELIGENCIA.md` atualizado (seções 8/9/10 — I/J/K deixam de
+  estar "não implementados"); `docs/motorista/COPILOTO-PROATIVO.md` (novo — arquitetura completa
+  dos Módulos I/J/K, incluindo a seção "Futuro — Inteligência de Frota", arquitetura-only, listando
+  explicitamente o que NÃO foi implementado: GPS/mapa/heatmap/região/demanda/localização de
+  motoristas/direcionamento de carros/preço por região/redistribuição da frota).
 
 ## 0.-12b Fase 17 — 2ª passada: reconciliação com a auditoria de reuso (2026-08-21)
 

@@ -12,7 +12,7 @@ export function TresNumerosCard({ meta, real, projecoes }: {
   const proj = projecoes?.peloHistorico ?? projecoes?.pelaPremissa ?? null;
   const fonte = projecoes?.peloHistorico ? 'PELO HISTÓRICO REGISTRADO' : projecoes ? 'PELA PREMISSA' : null;
   return (
-    <Secao>
+    <Secao id="secao-projecao">
       <div className="grid grid-cols-3 gap-2 text-center" role="img" aria-label={`Meta ${formatBRL(meta)}, real ${formatBRL(real)}, projeção ${proj ? formatBRL(proj.valor) : 'sem dados'}`}>
         <div className="rounded-2xl bg-neutral-100 p-3 dark:bg-white/5">
           <p className="text-[10px] uppercase tracking-wide text-neutral-400">Meta</p>

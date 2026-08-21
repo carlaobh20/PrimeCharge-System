@@ -7,7 +7,7 @@ import type { Inconsistencia } from '../../lib/metas';
 export function InconsistenciasCard({ itens }: { itens: Inconsistencia[] }) {
   if (itens.length === 0) return null;
   return (
-    <Secao titulo="Para completar seus registros">
+    <Secao id="secao-inconsistencias" titulo="Para completar seus registros">
       <ul className="space-y-2">
         {itens.map((i, idx) => (
           <li key={idx} className="rounded-xl border border-neutral-100 px-3 py-2 text-[12px] dark:border-white/10">

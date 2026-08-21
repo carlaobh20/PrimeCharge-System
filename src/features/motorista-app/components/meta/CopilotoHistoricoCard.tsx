@@ -33,7 +33,7 @@ export function HistoricoCorridasCard({ historicoPeriodos }: { historicoPeriodos
   const { atual } = comp;
 
   return (
-    <Secao titulo="Histórico de corridas">
+    <Secao id="secao-historico" titulo="Histórico de corridas">
       <div className="flex gap-1.5" role="tablist" aria-label="Período do histórico de corridas">
         {([7, 14, 30, 90] as const).map((n) => (
           <button
@@ -112,7 +112,7 @@ export function PadraoHorarioDiaCard({
   const vazio = aba === 'horario' ? linhasHorario.length === 0 : linhasDia.length === 0;
 
   return (
-    <Secao titulo="Padrões registrados">
+    <Secao id="secao-padrao" titulo="Padrões registrados">
       <div className="flex gap-1.5" role="tablist" aria-label="Padrão por horário ou por dia da semana">
         <button
           type="button"
@@ -191,13 +191,13 @@ export function QualidadeBaseCopilotoCard({ qualidadeBaseCorridas }: { qualidade
   const q = qualidadeBaseCorridas;
   if (q.totalCorridas === 0) {
     return (
-      <Secao titulo="Qualidade da sua base">
+      <Secao id="secao-qualidade" titulo="Qualidade da sua base">
         <p className="text-sm text-neutral-500">SEM DADO — nenhuma corrida registrada nos últimos 90 dias.</p>
       </Secao>
     );
   }
   return (
-    <Secao titulo="Qualidade da sua base" acao={<Pill tom={TOM_AMOSTRA[q.classificacaoAmostra]}>{CLASSIFICACAO_AMOSTRA_LABEL[q.classificacaoAmostra]}</Pill>}>
+    <Secao id="secao-qualidade" titulo="Qualidade da sua base" acao={<Pill tom={TOM_AMOSTRA[q.classificacaoAmostra]}>{CLASSIFICACAO_AMOSTRA_LABEL[q.classificacaoAmostra]}</Pill>}>
       <p className="text-[11px] text-neutral-500">
         Descrição do que está preenchido nas suas corridas — não é uma nota, é só um retrato do que você tem registrado.
       </p>

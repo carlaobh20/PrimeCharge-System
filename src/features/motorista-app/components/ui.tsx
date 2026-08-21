@@ -5,9 +5,9 @@ import { cn } from '@/shared/lib/utils';
 // e estados (loading/empty/error) consistentes. Mobile-first: alvos de toque generosos,
 // tipografia legível, hierarquia forte.
 
-export function Secao({ titulo, acao, children, className }: { titulo?: string; acao?: ReactNode; children: ReactNode; className?: string }) {
+export function Secao({ id, titulo, acao, children, className }: { id?: string; titulo?: string; acao?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cn('rounded-2xl border border-neutral-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]', className)}>
+    <section id={id} className={cn('rounded-2xl border border-neutral-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]', className)}>
       {(titulo || acao) && (
         <div className="mb-2 flex items-center justify-between">
           {titulo && <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{titulo}</h2>}

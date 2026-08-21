@@ -71,6 +71,7 @@ import {
   inteligenciaPorDiaSemana,
   qualidadeBaseCopiloto,
   insightsCopiloto,
+  assistenteContextual,
   type CorridaHistorico,
   type PeriodoCorridas,
   resumoDiaOperacional,
@@ -452,6 +453,29 @@ export function useMinhaMeta() {
       qtdCorridasHoje,
     });
 
+    // ===== FASE 18 — COPILOTO PROATIVO =====
+    // Módulo I: quanto falta na meta MENSAL — mesma expressão já usada no Plano de Hoje
+    // ("Falta p/ meta"), só exposta aqui pra o Simulador reusar sem recalcular nada.
+    const faltaMeta = Math.max(0, ritmo.metaMensal - ritmo.realizado);
+
+    // Módulo K: assistente contextual — CONSOME o que já foi calculado acima (insightsCopilotoLista,
+    // inconsistencias, cenarios/projecoes, qualidadeBaseCorridas, porHorarioCorridas); zero query
+    // nova, zero recálculo. `horaAtual` vem do relógio do DISPOSITIVO (só aqui, nunca dentro do
+    // motor puro em metas.ts) — formatado 'HH:MM' e declarado como origem na mensagem do insight.
+    const horaAtualStr = new Date().toTimeString().slice(0, 5);
+    const assistenteInsights = assistenteContextual({
+      estadoHoje,
+      insightsHistorico: insightsCopilotoLista,
+      qualidadeBase: qualidadeBaseCorridas,
+      diasComRegistroPeriodo: historicoPeriodos[30].atual.diasComRegistro,
+      periodoDiasBase: 30,
+      inconsistencias,
+      projecoes,
+      diasRegistradosProjecao: progresso.diasComLancamento,
+      horaAtual: horaAtualStr,
+      porHorario: porHorarioCorridas,
+    });
+
     return {
       contratoAtivo,
       aluguelCarroMensal,
@@ -541,6 +565,9 @@ export function useMinhaMeta() {
       porDiaSemanaCorridas,
       qualidadeBaseCorridas,
       insightsCopilotoLista,
+      // Fase 18 — Copiloto Proativo (Simulador em horas, Plano de Hoje por volume/média, Assistente)
+      faltaMeta,
+      assistenteInsights,
     };
   }, [base.data, anoMes]);
 
