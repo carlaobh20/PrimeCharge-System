@@ -3,7 +3,8 @@ import { Secao, Linha, Pill, SkeletonPortal, ErroPortal } from '../ui';
 import { ChecklistHojeCard } from './ChecklistHojeCard';
 import { RotinaDoDiaCard } from './RotinaDoDiaCard';
 import { CopilotoCard } from './CopilotoCard';
-import { HistoricoCorridasCard, PadraoHorarioDiaCard, QualidadeBaseCopilotoCard } from './CopilotoInteligenteCard';
+import { CopilotoInteligenteCard } from './CopilotoInteligenteCard';
+import { HistoricoCorridasCard, PadraoHorarioDiaCard, QualidadeBaseCopilotoCard } from './CopilotoHistoricoCard';
 import { FechamentoCard } from './FechamentoCard';
 import { HeroHoje } from './HeroHoje';
 import { PlanoDeHoje } from './PlanoDeHoje';
@@ -142,9 +143,26 @@ export function CentroControlePage() {
         onEncerrar={onEncerrarSimples}
       />
 
-      {/* ===== 1.6 COPILOTO DO MOTORISTA (Fase 16 + Fase 17 — inteligência) ===== */}
+      {/* ===== 3. MEU DIA (reuso Fase 12.1) ===== */}
+      {d.resumoHoje && (
+        <MeuDiaCard
+          resumo={d.resumoHoje}
+          janelas={{ 7: d.janelas[7], 14: d.janelas[14], 30: d.janelas[30] }}
+          comparacaoOdometro={d.comparacaoOdometro}
+        />
+      )}
+
+      {/* ===== 4. SEU COPILOTO (Fase 17, Módulos D/E) + ferramenta de avaliar/registrar corrida
+          (Fase 16) + 5. Histórico de corridas / 6-7. Inteligência por horário e dia da semana /
+          8. Qualidade da base ===== */}
       {!d.copilotoIndisponivel && (
         <>
+          <CopilotoInteligenteCard
+            hojeCockpit={d.hojeCockpit}
+            qtdCorridasHoje={d.qtdCorridasHoje}
+            somaValorCorridasHoje={d.somaValorCorridasHoje}
+            insightsCopilotoLista={d.insightsCopilotoLista}
+          />
           <CopilotoCard
             corridasHoje={d.corridasHoje}
             qtdCorridasHoje={d.qtdCorridasHoje}
@@ -154,7 +172,8 @@ export function CentroControlePage() {
             configCopiloto={d.configCopiloto}
             copilotoConfigurado={d.copilotoConfigurado}
             copilotoAtivo={d.copilotoAtivo}
-            insightsCopilotoLista={d.insightsCopilotoLista}
+            hojeCockpit={d.hojeCockpit}
+            mediaHistoricaRph={d.realHora14?.valor ?? null}
             salvando={mCorridaRegistrar.isPending}
             onRegistrar={(c) => mCorridaRegistrar.mutate({ data: hojeIso, ...c })}
             onSalvarConfig={(patch) => mConfigCopiloto.mutate(patch)}
@@ -167,10 +186,36 @@ export function CentroControlePage() {
         </>
       )}
 
-      {/* ===== 2. CHECKLIST DO DIA + SAÚDE ===== */}
+      {/* ===== 9. OPERAÇÃO REAL (tendência, evolução, janelas) ===== */}
+      <OperacaoRealCard
+        realHora={d.realHora14}
+        realDia={d.realDia14}
+        metaDiaria={d.meta.metaDiaria}
+        premissaHora={d.meta.rendaHora}
+        eficiencia={d.eficiencia}
+        custoDia={d.custoDia}
+        custoHoraRealMes={d.custoHoraRealMes}
+        janelas={d.janelas}
+        tendencia7={d.tendencia7}
+        confianca={d.confianca}
+        qualidade={d.qualidadeOp}
+        evolucao={d.evolucao}
+        recargasResumo={d.recargasResumo30}
+        energia={d.energia30}
+        equilibrio={d.equilibrio}
+        melhoresDias={d.melhoresDias}
+        ganhosJanela={d.ganhos14}
+        onUsarComoPremissa={() => {/* escolha explícita — não automática */}}
+        salvandoPremissa={false}
+      />
+
+      {/* ===== 10. RESTANTE — checklist, plano, três números, custo, ritmo do mês, semana,
+          inconsistências, recargas, carro, calendário, fechamento, histórico, simulador ===== */}
+
+      {/* ===== CHECKLIST DO DIA + SAÚDE ===== */}
       <ChecklistHojeCard checklist={checklist} saude={saude} />
 
-      {/* ===== 3. PLANO DE HOJE (reuso Fase 11) ===== */}
+      {/* ===== PLANO DE HOJE (reuso Fase 11) ===== */}
       <PlanoDeHoje
         hoje={d.hojeCockpit}
         ritmo={d.ritmo}
@@ -186,16 +231,7 @@ export function CentroControlePage() {
         horasRestantesMesDia={d.planoHoje.horasRestantesMesDia}
       />
 
-      {/* ===== 4. MEU DIA (reuso Fase 12.1) ===== */}
-      {d.resumoHoje && (
-        <MeuDiaCard
-          resumo={d.resumoHoje}
-          janelas={{ 7: d.janelas[7], 14: d.janelas[14], 30: d.janelas[30] }}
-          comparacaoOdometro={d.comparacaoOdometro}
-        />
-      )}
-
-      {/* ===== 5. TRÊS NÚMEROS — META × REAL × PROJEÇÃO ===== */}
+      {/* ===== TRÊS NÚMEROS — META × REAL × PROJEÇÃO ===== */}
       <TresNumerosCard meta={d.meta.metaMensal} real={d.progresso.realizado} projecoes={d.projecoes} />
 
       {/* ===== 6. CUSTO DA OPERAÇÃO (separação FIXO × REGISTRADO × ESTIMADO) ===== */}
@@ -282,30 +318,7 @@ export function CentroControlePage() {
         custoPorKmRegistrado={d.janelas[30].custoPorKmRegistrado}
       />
 
-      {/* ===== 12. OPERAÇÃO REAL (tendência, evolução, janelas) ===== */}
-      <OperacaoRealCard
-        realHora={d.realHora14}
-        realDia={d.realDia14}
-        metaDiaria={d.meta.metaDiaria}
-        premissaHora={d.meta.rendaHora}
-        eficiencia={d.eficiencia}
-        custoDia={d.custoDia}
-        custoHoraRealMes={d.custoHoraRealMes}
-        janelas={d.janelas}
-        tendencia7={d.tendencia7}
-        confianca={d.confianca}
-        qualidade={d.qualidadeOp}
-        evolucao={d.evolucao}
-        recargasResumo={d.recargasResumo30}
-        energia={d.energia30}
-        equilibrio={d.equilibrio}
-        melhoresDias={d.melhoresDias}
-        ganhosJanela={d.ganhos14}
-        onUsarComoPremissa={() => {/* escolha explícita — não automática */}}
-        salvandoPremissa={false}
-      />
-
-      {/* ===== 13. CALENDÁRIO ===== */}
+      {/* ===== CALENDÁRIO ===== */}
       <CalendarioMeta
         dias={d.calendario}
         onLancar={(dados) => mGanho.mutate({

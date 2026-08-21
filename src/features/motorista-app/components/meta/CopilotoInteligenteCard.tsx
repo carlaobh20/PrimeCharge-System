@@ -1,192 +1,141 @@
 import { useState } from 'react';
-import { Secao, Pill, Linha } from '../ui';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Secao, Pill } from '../ui';
 import {
   CLASSIFICACAO_AMOSTRA_LABEL,
   formatBRL,
-  type ClassificacaoAmostra,
-  type ComparacaoPeriodoCorridas,
-  type PeriodoCorridas,
-  type QualidadeBaseCopiloto,
-  type ResumoDiaSemanaCorridas,
-  type ResumoFaixaHorario,
+  formatHoras,
+  STATUS_DIA_HOJE_LABEL,
+  type InsightCopiloto,
+  type MetaHojeCockpit,
 } from '../../lib/metas';
 
-// COPILOTO INTELIGENTE (Fase 17, Módulos A/B/C/G) — histórico de corridas por período, por
-// faixa de horário e por dia da semana, e qualidade descritiva da base. Tudo derivado
-// exclusivamente de motorista_corridas (0049), zero query nova, zero migration.
-// Nunca usa "melhor horário/dia" — sempre "maior média REGISTRADA", com o dado base ao lado.
+// SEU COPILOTO (Fase 17, Módulos D/E) — card contextual: conecta o Copiloto à meta do dia
+// (Módulo D, reusando SOMENTE o que useMinhaMeta já deriva de calcularMetaHoje/rebalancear —
+// nenhum motor de meta novo aqui) e mostra os insights automáticos mais relevantes do momento
+// (Módulo E, consumindo insightsCopiloto() — Módulo F — sem recalcular nada). Card deliberadamente
+// separado do CopilotoCard: este é só leitura contextual, o outro é onde se avalia/registra
+// corrida — responsabilidades diferentes, sem sobrecarregar um componente só.
 
-const TOM_AMOSTRA: Record<ClassificacaoAmostra, 'verde' | 'ambar' | 'vermelho' | 'neutro' | 'azul'> = {
-  dados_insuficientes: 'neutro',
-  base_inicial: 'ambar',
-  base_consistente: 'azul',
-  base_relevante: 'verde',
+const TOM_ORIGEM: Record<InsightCopiloto['origem'], 'verde' | 'ambar' | 'neutro'> = {
+  'DADO REGISTRADO': 'verde',
+  'SEM DADOS SUFICIENTES': 'neutro',
 };
 
-// ---------------------------------------------------------------------------
-// Módulo A — Histórico Inteligente de Corridas (7/14/30/90d + comparação)
-// ---------------------------------------------------------------------------
-export function HistoricoCorridasCard({ historicoPeriodos }: { historicoPeriodos: Record<PeriodoCorridas, ComparacaoPeriodoCorridas> }) {
-  const [periodo, setPeriodo] = useState<PeriodoCorridas>(30);
-  const comp = historicoPeriodos[periodo];
-  const { atual } = comp;
+const PRIORIDADE_TIPO: InsightCopiloto['tipo'][] = ['META', 'CORRIDA', 'EVOLUCAO', 'RPH', 'RPKM', 'HORARIO', 'DIA_SEMANA', 'REGISTRO', 'DADO_INSUFICIENTE'];
+
+export function CopilotoInteligenteCard({
+  hojeCockpit,
+  qtdCorridasHoje,
+  somaValorCorridasHoje,
+  insightsCopilotoLista,
+}: {
+  hojeCockpit: MetaHojeCockpit;
+  qtdCorridasHoje: number;
+  somaValorCorridasHoje: number;
+  insightsCopilotoLista: InsightCopiloto[];
+}) {
+  const [mostrarTodos, setMostrarTodos] = useState(false);
+
+  const insightsReais = insightsCopilotoLista.filter((i) => i.tipo !== 'DADO_INSUFICIENTE');
+  const ordenados = [...insightsCopilotoLista].sort(
+    (a, b) => PRIORIDADE_TIPO.indexOf(a.tipo) - PRIORIDADE_TIPO.indexOf(b.tipo),
+  );
+  const principais = ordenados.slice(0, 3);
+  const restantes = ordenados.slice(3);
 
   return (
-    <Secao titulo="Histórico de corridas">
-      <div className="flex gap-1.5" role="tablist" aria-label="Período do histórico de corridas">
-        {([7, 14, 30, 90] as const).map((n) => (
-          <button
-            key={n}
-            type="button"
-            role="tab"
-            aria-selected={periodo === n}
-            onClick={() => setPeriodo(n)}
-            className={`flex-1 rounded-full border py-1.5 text-[12px] font-medium ${periodo === n ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'border-neutral-200 text-neutral-500 dark:border-white/10'}`}
-          >
-            {n}d
-          </button>
-        ))}
+    <Secao titulo="Seu Copiloto">
+      {/* Módulo D — Copiloto conectado à Meta (zero motor novo, só leitura do que já existe) */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
+          <p className="text-[9px] uppercase tracking-wide text-neutral-400">Meta de hoje</p>
+          <p className="text-[13px] font-bold text-neutral-900 dark:text-white">{formatBRL(hojeCockpit.metaHoje)}</p>
+        </div>
+        <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
+          <p className="text-[9px] uppercase tracking-wide text-neutral-400">Realizado</p>
+          <p className="text-[13px] font-bold text-neutral-900 dark:text-white">
+            {hojeCockpit.realizadoHoje != null ? formatBRL(hojeCockpit.realizadoHoje) : 'NÃO INFORMADO'}
+          </p>
+        </div>
+        <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
+          <p className="text-[9px] uppercase tracking-wide text-neutral-400">Corridas registradas</p>
+          <p className="text-[13px] font-bold text-neutral-900 dark:text-white">{qtdCorridasHoje}</p>
+        </div>
+        <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
+          <p className="text-[9px] uppercase tracking-wide text-neutral-400">Valor das corridas</p>
+          <p className="text-[13px] font-bold text-neutral-900 dark:text-white">{formatBRL(somaValorCorridasHoje)}</p>
+        </div>
+        <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
+          <p className="text-[9px] uppercase tracking-wide text-neutral-400">Restante</p>
+          <p className="text-[13px] font-bold text-neutral-900 dark:text-white">
+            {hojeCockpit.faltanteHoje != null ? formatBRL(hojeCockpit.faltanteHoje) : 'R$ 0,00'}
+          </p>
+        </div>
+        <div className="rounded-xl bg-neutral-50 p-2 dark:bg-white/5">
+          <p className="text-[9px] uppercase tracking-wide text-neutral-400">Horas necessárias</p>
+          <p className="text-[13px] font-bold text-neutral-900 dark:text-white">
+            {hojeCockpit.horasNecessariasHoje != null ? formatHoras(hojeCockpit.horasNecessariasHoje) : 'SEM DADO'}
+          </p>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-1.5">
+        <span className="text-[11px] text-neutral-500">Ritmo:</span>
+        <Pill tom={hojeCockpit.status === 'acima_ritmo' ? 'verde' : hojeCockpit.status === 'abaixo_ritmo' ? 'ambar' : 'neutro'}>
+          {STATUS_DIA_HOJE_LABEL[hojeCockpit.status]}
+        </Pill>
       </div>
 
-      {atual.qtdCorridas === 0 ? (
-        <p className="mt-2 text-sm text-neutral-500">SEM DADO neste período — registre corridas no Copiloto para começar o histórico.</p>
-      ) : (
-        <div className="mt-2 space-y-0.5">
-          <Linha label="Corridas registradas" value={atual.qtdCorridas} />
-          <Linha label="Valor total" value={formatBRL(atual.valorTotal)} />
-          <Linha label="Valor médio/corrida" value={atual.valorMedioPorCorrida != null ? formatBRL(atual.valorMedioPorCorrida) : 'SEM DADO'} />
-          <Linha label="R$/h (estimado)" value={atual.rpHora != null ? `${formatBRL(atual.rpHora)}/h` : 'SEM DADO'} />
-          <Linha label="R$/km (estimado)" value={atual.rpKm != null ? `${formatBRL(atual.rpKm)}/km` : 'SEM DADO'} />
-          <Linha label="Dias com registro" value={atual.diasComRegistro} />
-          <Linha
-            label="Média de corridas/dia"
-            value={atual.mediaCorridasPorDiaComRegistro != null ? atual.mediaCorridasPorDiaComRegistro : 'SEM DADO'}
-          />
-
-          {atual.distribuicaoPorApp.length > 0 && (
-            <div className="mt-2 border-t border-neutral-100 pt-2 dark:border-white/10">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Por app</p>
-              {atual.distribuicaoPorApp.map((a) => (
-                <p key={a.app} className="text-[12px] text-neutral-600 dark:text-neutral-300">
-                  {a.app} · {a.qtd} corrida{a.qtd > 1 ? 's' : ''} · {formatBRL(a.valorTotal)}
-                </p>
+      {/* Módulo E — insights automáticos mais relevantes do momento (Módulo F consumido, não recalculado) */}
+      <div className="mt-3 border-t border-neutral-100 pt-3 dark:border-white/10">
+        {insightsReais.length === 0 ? (
+          <p className="text-sm text-neutral-500">Não há registros suficientes para gerar este insight.</p>
+        ) : (
+          <>
+            <div className="space-y-2">
+              {principais.map((ins) => (
+                <div key={ins.id} className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Pill tom={TOM_ORIGEM[ins.origem]}>{ins.origem}</Pill>
+                    <span className="text-[12px] font-medium text-neutral-800 dark:text-neutral-100">{ins.titulo}</span>
+                  </div>
+                  <p className="text-[11px] text-neutral-500">{ins.descricao}</p>
+                </div>
               ))}
             </div>
-          )}
-
-          <div className="mt-2 border-t border-neutral-100 pt-2 dark:border-white/10">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Vs. período anterior de {periodo}d</p>
-            {comp.anterior == null || comp.campos == null ? (
-              <p className="mt-1 text-[12px] text-neutral-500">SEM COMPARAÇÃO — não há corridas suficientes no período anterior.</p>
-            ) : (
-              comp.campos.map((c) => (
-                <p key={c.rotulo} className="text-[12px] text-neutral-600 dark:text-neutral-300">
-                  {c.rotulo}: {c.variacaoPct != null ? `${c.variacaoPct >= 0 ? '+' : ''}${c.variacaoPct}%` : 'SEM COMPARAÇÃO'}
-                </p>
-              ))
+            {restantes.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  className="mt-2 flex items-center gap-1 text-[11px] font-medium text-neutral-500 underline"
+                  onClick={() => setMostrarTodos((v) => !v)}
+                >
+                  {mostrarTodos ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  {mostrarTodos ? 'Ver menos' : `Ver mais insights (${restantes.length})`}
+                </button>
+                {mostrarTodos && (
+                  <div className="mt-2 space-y-2">
+                    {restantes.map((ins) => (
+                      <div key={ins.id} className="space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <Pill tom={TOM_ORIGEM[ins.origem]}>{ins.origem}</Pill>
+                          <span className="text-[12px] font-medium text-neutral-800 dark:text-neutral-100">{ins.titulo}</span>
+                        </div>
+                        <p className="text-[11px] text-neutral-500">{ins.descricao}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
-          </div>
-        </div>
-      )}
-    </Secao>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Módulos B/C — Inteligência por Horário e por Dia da Semana
-// ---------------------------------------------------------------------------
-export function PadraoHorarioDiaCard({
-  porHorarioCorridas,
-  porDiaSemanaCorridas,
-}: {
-  porHorarioCorridas: ResumoFaixaHorario[];
-  porDiaSemanaCorridas: ResumoDiaSemanaCorridas[];
-}) {
-  const [aba, setAba] = useState<'horario' | 'dia_semana'>('horario');
-  const linhas = aba === 'horario' ? porHorarioCorridas : porDiaSemanaCorridas;
-
-  return (
-    <Secao titulo="Padrões registrados">
-      <div className="flex gap-1.5" role="tablist" aria-label="Padrão por horário ou por dia da semana">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={aba === 'horario'}
-          onClick={() => setAba('horario')}
-          className={`flex-1 rounded-full border py-1.5 text-[12px] font-medium ${aba === 'horario' ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'border-neutral-200 text-neutral-500 dark:border-white/10'}`}
-        >
-          Por horário
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={aba === 'dia_semana'}
-          onClick={() => setAba('dia_semana')}
-          className={`flex-1 rounded-full border py-1.5 text-[12px] font-medium ${aba === 'dia_semana' ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'border-neutral-200 text-neutral-500 dark:border-white/10'}`}
-        >
-          Por dia da semana
-        </button>
+          </>
+        )}
       </div>
 
-      <p className="mt-2 text-[11px] text-neutral-500">
-        Maiores médias REGISTRADAS — leitura do que já aconteceu, não uma indicação de quando trabalhar.
+      <p className="mt-2 text-[9px] text-neutral-400">
+        Classificação de amostra: {CLASSIFICACAO_AMOSTRA_LABEL.dados_insuficientes.toLowerCase()}, base inicial, base consistente ou
+        base relevante — mede só a QUANTIDADE de registros, nunca confiança estatística ou causalidade.
       </p>
-
-      {linhas.length === 0 ? (
-        <p className="mt-2 text-sm text-neutral-500">
-          {aba === 'horario' ? 'SEM DADO — registre o horário das corridas para ver este padrão.' : 'SEM DADO por dia da semana ainda.'}
-        </p>
-      ) : (
-        <div className="mt-2 space-y-1.5">
-          {linhas.map((l) => (
-            <div key={l.label} className="flex items-center justify-between rounded-xl border border-neutral-100 px-3 py-2 dark:border-white/10">
-              <div>
-                <p className="text-[12px] font-semibold text-neutral-800 dark:text-neutral-100">{l.label}</p>
-                <p className="text-[11px] text-neutral-500">
-                  {l.qtdCorridas} corrida{l.qtdCorridas > 1 ? 's' : ''}
-                  {l.rpHora != null && ` · ${formatBRL(l.rpHora)}/h`}
-                  {l.rpKm != null && ` · ${formatBRL(l.rpKm)}/km`}
-                </p>
-              </div>
-              <Pill tom={TOM_AMOSTRA[l.classificacaoAmostra]}>{CLASSIFICACAO_AMOSTRA_LABEL[l.classificacaoAmostra]}</Pill>
-            </div>
-          ))}
-        </div>
-      )}
-    </Secao>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Módulo G — Qualidade da Base (descritivo, nunca julga)
-// ---------------------------------------------------------------------------
-export function QualidadeBaseCopilotoCard({ qualidadeBaseCorridas }: { qualidadeBaseCorridas: QualidadeBaseCopiloto }) {
-  const q = qualidadeBaseCorridas;
-  if (q.totalCorridas === 0) {
-    return (
-      <Secao titulo="Qualidade da sua base">
-        <p className="text-sm text-neutral-500">SEM DADO — nenhuma corrida registrada nos últimos 90 dias.</p>
-      </Secao>
-    );
-  }
-  return (
-    <Secao titulo="Qualidade da sua base" acao={<Pill tom={TOM_AMOSTRA[q.classificacaoAmostra]}>{CLASSIFICACAO_AMOSTRA_LABEL[q.classificacaoAmostra]}</Pill>}>
-      <p className="text-[11px] text-neutral-500">
-        Descrição do que está preenchido nas suas corridas — não é uma nota, é só um retrato do que você tem registrado.
-      </p>
-      <div className="mt-2 space-y-0.5">
-        <Linha label="Total de corridas (90d)" value={q.totalCorridas} />
-        <Linha label="Com km estimado" value={`${q.comKm} de ${q.totalCorridas}`} />
-        <Linha label="Com duração estimada" value={`${q.comDuracao} de ${q.totalCorridas}`} />
-        <Linha label="Com horário" value={`${q.comHorario} de ${q.totalCorridas}`} />
-        <Linha label="Com app informado" value={`${q.comApp} de ${q.totalCorridas}`} />
-        <Linha label="Dias com registro" value={q.diasComRegistro} />
-      </div>
-      {(q.semKm > 0 || q.semDuracao > 0) && (
-        <p className="mt-2 text-[11px] text-neutral-500">
-          Preencher km e duração nas próximas corridas melhora a precisão do R$/km e R$/h nos seus históricos.
-        </p>
-      )}
     </Secao>
   );
 }

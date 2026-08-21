@@ -1841,6 +1841,8 @@ export type ResumoPeriodoCorridas = {
   rpKm: number | null;
   kmEstimadoTotal: number | null;
   horasEstimadasTotal: number | null;
+  duracaoTotalMin: number | null; // mesma informação de horasEstimadasTotal, em minutos (unidade da coluna)
+  duracaoMediaMin: number | null;
   diasComRegistro: number;
   mediaCorridasPorDiaComRegistro: number | null;
   distribuicaoPorApp: { app: string; qtd: number; valorTotal: number }[];
@@ -1855,14 +1857,15 @@ function corridasNaJanela(corridas: CorridaHistorico[], diasJanela: number, ateI
   });
 }
 
-/** Módulo A — resumo de um período (7/14/30/90d). Distância/duração ausentes nunca entram como
- *  zero: só corridas com o dado presente contam pro total, e o total vira null se ninguém informou. */
-export function resumoPeriodoCorridas(
+/** Módulo A — histórico de um período (7/14/30/90d). Distância/duração ausentes nunca entram
+ *  como zero: só corridas com o dado presente contam pro total, e o total vira null se ninguém
+ *  informou. `periodoDias` aceita qualquer PeriodoCorridas (7/14/30/90); `hojeIso` é a data-base. */
+export function historicoPorPeriodo(
   corridas: CorridaHistorico[],
-  periodo: PeriodoCorridas,
-  ateIso: string,
+  periodoDias: PeriodoCorridas,
+  hojeIso: string,
 ): ResumoPeriodoCorridas {
-  const doPeriodo = corridasNaJanela(corridas, periodo, ateIso);
+  const doPeriodo = corridasNaJanela(corridas, periodoDias, hojeIso);
   const valorTotal = arred(doPeriodo.reduce((s, c) => s + seguro(c.valor), 0));
   const qtdCorridas = doPeriodo.length;
   const valorMedioPorCorrida = qtdCorridas > 0 ? arred(valorTotal / qtdCorridas) : null;
@@ -1872,10 +1875,10 @@ export function resumoPeriodoCorridas(
   const rpKm = calcularRpKm(valorTotal, kmEstimadoTotal); // REUSO — nunca valorTotal/km inline
 
   const comDuracao = doPeriodo.filter((c) => c.duracaoEstimadaMin != null && c.duracaoEstimadaMin > 0);
-  const horasEstimadasTotal =
-    comDuracao.length > 0
-      ? Math.round((comDuracao.reduce((s, c) => s + (c.duracaoEstimadaMin as number), 0) / 60) * 100) / 100
-      : null;
+  const duracaoTotalMin =
+    comDuracao.length > 0 ? Math.round(comDuracao.reduce((s, c) => s + (c.duracaoEstimadaMin as number), 0)) : null;
+  const duracaoMediaMin = duracaoTotalMin != null && comDuracao.length > 0 ? Math.round(duracaoTotalMin / comDuracao.length) : null;
+  const horasEstimadasTotal = duracaoTotalMin != null ? Math.round((duracaoTotalMin / 60) * 100) / 100 : null;
   const rpHora = calcularRph(valorTotal, horasEstimadasTotal); // REUSO
 
   const diasComRegistro = new Set(doPeriodo.map((c) => c.data)).size;
@@ -1894,7 +1897,7 @@ export function resumoPeriodoCorridas(
     .sort((a, b) => b.valorTotal - a.valorTotal);
 
   return {
-    periodo,
+    periodo: periodoDias,
     qtdCorridas,
     valorTotal,
     valorMedioPorCorrida,
@@ -1902,6 +1905,8 @@ export function resumoPeriodoCorridas(
     rpKm,
     kmEstimadoTotal,
     horasEstimadasTotal,
+    duracaoTotalMin,
+    duracaoMediaMin,
     diasComRegistro,
     mediaCorridasPorDiaComRegistro,
     distribuicaoPorApp,
@@ -1916,18 +1921,20 @@ export type ComparacaoPeriodoCorridas = {
 };
 
 /** Compara o período atual com o imediatamente anterior de mesmo tamanho. REUSA
- *  resumoPeriodoCorridas dos dois lados e campoEvolucao (mesmo formato de variação da Fase 12.2).
- *  Anterior sem NENHUMA corrida → comparação null ("SEM COMPARAÇÃO"), nunca delta contra zero. */
+ *  historicoPorPeriodo dos dois lados e campoEvolucao (mesmo formato de variação — rotulo/atual/
+ *  anterior/variacaoAbs/variacaoPct — já usado pela Evolução da Fase 12.2; não inventa 8 campos
+ *  "deltaX/deltaXPct" novos quando o formato reusável já cobre exatamente isso). Anterior sem
+ *  NENHUMA corrida → comparação null ("SEM COMPARAÇÃO"), nunca delta contra zero/Infinity. */
 export function compararPeriodoCorridas(
   corridas: CorridaHistorico[],
   periodo: PeriodoCorridas,
   ateIso: string,
 ): ComparacaoPeriodoCorridas {
-  const atual = resumoPeriodoCorridas(corridas, periodo, ateIso);
+  const atual = historicoPorPeriodo(corridas, periodo, ateIso);
   const fimAnterior = new Date(new Date(`${ateIso}T12:00:00`).getTime() - periodo * 86_400_000)
     .toISOString()
     .slice(0, 10);
-  const anterior = resumoPeriodoCorridas(corridas, periodo, fimAnterior);
+  const anterior = historicoPorPeriodo(corridas, periodo, fimAnterior);
   if (anterior.qtdCorridas === 0) return { periodo, atual, anterior: null, campos: null };
   const campos = [
     campoEvolucao('Valor total', atual.valorTotal, anterior.valorTotal),
@@ -1974,23 +1981,27 @@ export const FAIXAS_HORARIO: { inicio: number; fim: number; label: string }[] = 
 ];
 
 export type ResumoFaixaHorario = {
+  inicio: number;
+  fim: number;
   label: string;
   qtdCorridas: number;
+  valorTotal: number;
   valorMedioPorCorrida: number | null;
   rpHora: number | null;
   rpKm: number | null;
+  diasObservados: number;
   classificacaoAmostra: ClassificacaoAmostra;
 };
 
 /** Módulo B — agrupa corridas por faixa de horário fixa, só entre quem tem `hora` informado
- *  (horário nunca é inventado). "MAIOR MÉDIA REGISTRADA", nunca "melhor horário para trabalhar". */
+ *  (horário ausente OU inválido é SEM DADO — nunca vira "00h"). "MAIOR MÉDIA REGISTRADA", nunca "melhor horário para trabalhar". */
 export function inteligenciaPorHorario(corridas: CorridaHistorico[]): ResumoFaixaHorario[] {
   const comHora = corridas.filter((c) => c.hora != null && c.hora.trim() !== '');
   const out: ResumoFaixaHorario[] = [];
   for (const faixa of FAIXAS_HORARIO) {
     const doGrupo = comHora.filter((c) => {
       const h = Number.parseInt((c.hora as string).slice(0, 2), 10);
-      if (!Number.isFinite(h)) return false;
+      if (!Number.isFinite(h) || h < 0 || h > 23) return false; // hora inválida → SEM DADO, nunca 0
       return faixa.fim === 24 ? h >= faixa.inicio : h >= faixa.inicio && h < faixa.fim;
     });
     if (doGrupo.length === 0) continue;
@@ -2004,11 +2015,15 @@ export function inteligenciaPorHorario(corridas: CorridaHistorico[]): ResumoFaix
       comDur.length > 0 ? Math.round((comDur.reduce((s, c) => s + (c.duracaoEstimadaMin as number), 0) / 60) * 100) / 100 : null;
     const rpHora = calcularRph(valorTotal, horasTotal);
     out.push({
+      inicio: faixa.inicio,
+      fim: faixa.fim,
       label: faixa.label,
       qtdCorridas: doGrupo.length,
+      valorTotal,
       valorMedioPorCorrida,
       rpHora,
       rpKm,
+      diasObservados: new Set(doGrupo.map((c) => c.data)).size,
       classificacaoAmostra: classificarAmostra(doGrupo.length),
     });
   }
@@ -2019,15 +2034,20 @@ export type ResumoDiaSemanaCorridas = {
   diaSemana: number;
   label: string;
   qtdCorridas: number;
+  valorTotal: number;
   valorMedioPorCorrida: number | null;
   rpHora: number | null;
   rpKm: number | null;
+  duracaoMediaMin: number | null;
+  diasObservados: number;
   classificacaoAmostra: ClassificacaoAmostra;
 };
 
-/** Módulo C — agrupa corridas por dia da semana. Mesma disciplina do Módulo B: nunca "melhor dia",
- *  sempre "maior média registrada", com a classificação de amostra ao lado pra nunca esconder que
- *  um dia com 1 corrida não é uma base confiável. */
+/** Módulo C — agrupa corridas por dia da semana, usando a DATA REAL da corrida (nunca
+ *  `motorista_ganhos` — este módulo é sobre corridas individuais). Mesma disciplina do Módulo B:
+ *  nunca "melhor dia", sempre "maior média registrada", com a classificação de amostra ao lado
+ *  pra nunca esconder que um dia com 1 corrida não é uma base confiável (nunca comparado a um
+ *  dia com 20 como se fossem equivalentes — a UI decide isso a partir de classificacaoAmostra). */
 export function inteligenciaPorDiaSemana(corridas: CorridaHistorico[]): ResumoDiaSemanaCorridas[] {
   const grupos = new Map<number, CorridaHistorico[]>();
   for (const c of corridas) {
@@ -2044,16 +2064,20 @@ export function inteligenciaPorDiaSemana(corridas: CorridaHistorico[]): ResumoDi
     const kmTotal = comKm.length > 0 ? Math.round(comKm.reduce((s, c) => s + (c.kmEstimado as number), 0) * 10) / 10 : null;
     const rpKm = calcularRpKm(valorTotal, kmTotal);
     const comDur = lista.filter((c) => c.duracaoEstimadaMin != null && c.duracaoEstimadaMin > 0);
-    const horasTotal =
-      comDur.length > 0 ? Math.round((comDur.reduce((s, c) => s + (c.duracaoEstimadaMin as number), 0) / 60) * 100) / 100 : null;
+    const duracaoTotalMin = comDur.length > 0 ? Math.round(comDur.reduce((s, c) => s + (c.duracaoEstimadaMin as number), 0)) : null;
+    const duracaoMediaMin = duracaoTotalMin != null ? Math.round(duracaoTotalMin / comDur.length) : null;
+    const horasTotal = duracaoTotalMin != null ? Math.round((duracaoTotalMin / 60) * 100) / 100 : null;
     const rpHora = calcularRph(valorTotal, horasTotal);
     out.push({
       diaSemana: ds,
       label: DIA_SEMANA_LABEL[ds],
       qtdCorridas: lista.length,
+      valorTotal,
       valorMedioPorCorrida,
       rpHora,
       rpKm,
+      duracaoMediaMin,
+      diasObservados: new Set(lista.map((c) => c.data)).size,
       classificacaoAmostra: classificarAmostra(lista.length),
     });
   }
@@ -2071,11 +2095,15 @@ export type QualidadeBaseCopiloto = {
   comApp: number;
   semApp: number;
   diasComRegistro: number;
+  faixasHorarioComDados: number; // quantas das 7 faixas fixas já têm ao menos 1 observação
+  diasSemanaComDados: number; // quantos dos 7 dias da semana já têm ao menos 1 observação
   classificacaoAmostra: ClassificacaoAmostra;
 };
 
 /** Módulo G — puramente descritivo. Nunca julga ("sua base é ruim/boa"), só descreve o que está e
- *  não está preenchido, para decisão do motorista sobre o que registrar com mais detalhe. */
+ *  não está preenchido, para decisão do motorista sobre o que registrar com mais detalhe. REUSA
+ *  inteligenciaPorHorario/inteligenciaPorDiaSemana pra contar cobertura — não reimplementa o
+ *  agrupamento por faixa/dia por conta própria. */
 export function qualidadeBaseCopiloto(corridas: CorridaHistorico[]): QualidadeBaseCopiloto {
   const comKm = corridas.filter((c) => c.kmEstimado != null && c.kmEstimado > 0).length;
   const comDuracao = corridas.filter((c) => c.duracaoEstimadaMin != null && c.duracaoEstimadaMin > 0).length;
@@ -2093,6 +2121,8 @@ export function qualidadeBaseCopiloto(corridas: CorridaHistorico[]): QualidadeBa
     comApp,
     semApp: corridas.length - comApp,
     diasComRegistro,
+    faixasHorarioComDados: inteligenciaPorHorario(corridas).length, // REUSO — Módulo B
+    diasSemanaComDados: inteligenciaPorDiaSemana(corridas).length, // REUSO — Módulo C
     classificacaoAmostra: classificarAmostra(corridas.length),
   };
 }
@@ -2111,18 +2141,20 @@ export type TipoInsightCopiloto =
 export type OrigemInsightCopiloto = 'DADO REGISTRADO' | 'SEM DADOS SUFICIENTES';
 
 export type InsightCopiloto = {
+  id: string;
   tipo: TipoInsightCopiloto;
   titulo: string;
   descricao: string;
   origem: OrigemInsightCopiloto;
   periodo: PeriodoCorridas | null;
-  confiancaDados: ClassificacaoAmostra;
+  classificacaoAmostra: ClassificacaoAmostra;
   dadosBase: number; // qtd de observações que sustentam o insight
 };
 
 /**
- * Módulo F — motor de insights automáticos (100% puro, zero rede). CONSOME os retornos de
- * resumoPeriodoCorridas/compararPeriodoCorridas/inteligenciaPorHorario/inteligenciaPorDiaSemana/
+ * Módulo F — motor de insights automáticos (100% puro, zero rede: nada de Supabase/React/hooks/
+ * window/localStorage — só os dados recebidos no parâmetro). CONSOME os retornos de
+ * historicoPorPeriodo/compararPeriodoCorridas/inteligenciaPorHorario/inteligenciaPorDiaSemana/
  * qualidadeBaseCopiloto — nunca recalcula agregação por conta própria. Vocabulário proibido:
  * nunca "melhor horário/dia/região", nunca "você deve/precisa trabalhar", nunca promessa de renda.
  * Sempre "maior média REGISTRADA" com o dado base explícito ao lado.
@@ -2136,17 +2168,20 @@ export function insightsCopiloto(i: {
 }): InsightCopiloto[] {
   const periodo = i.periodo ?? 30;
   const insights: InsightCopiloto[] = [];
+  let seq = 0;
+  const proximoId = (tipo: string) => `copiloto-insight-${tipo.toLowerCase()}-${seq++}`;
   const doPeriodo = corridasNaJanela(i.corridas, periodo, i.ateIso);
 
   if (doPeriodo.length === 0) {
     insights.push({
+      id: proximoId('DADO_INSUFICIENTE'),
       tipo: 'DADO_INSUFICIENTE',
       titulo: 'Ainda não há corridas registradas neste período',
       descricao:
         'Não há registros suficientes para gerar qualquer leitura. Registre suas corridas no Copiloto para começar a ver padrões.',
       origem: 'SEM DADOS SUFICIENTES',
       periodo,
-      confiancaDados: 'dados_insuficientes',
+      classificacaoAmostra: 'dados_insuficientes',
       dadosBase: 0,
     });
     return insights;
@@ -2157,24 +2192,26 @@ export function insightsCopiloto(i: {
     const valorCampo = comparacao.campos.find((c) => c.rotulo === 'Valor total');
     if (valorCampo && valorCampo.variacaoPct != null) {
       insights.push({
+        id: proximoId('EVOLUCAO'),
         tipo: 'EVOLUCAO',
         titulo: `Valor total ${valorCampo.variacaoPct >= 0 ? 'subiu' : 'caiu'} ${Math.abs(valorCampo.variacaoPct)}% vs. período anterior`,
         descricao: `No período de ${periodo} dias você registrou R$ ${arred(comparacao.atual.valorTotal)}; no período anterior de mesmo tamanho, R$ ${arred(comparacao.anterior.valorTotal)}. Comparação feita só com dados registrados.`,
         origem: 'DADO REGISTRADO',
         periodo,
-        confiancaDados: classificarAmostra(doPeriodo.length),
+        classificacaoAmostra: classificarAmostra(doPeriodo.length),
         dadosBase: doPeriodo.length,
       });
     }
   } else {
     insights.push({
+      id: proximoId('EVOLUCAO'),
       tipo: 'EVOLUCAO',
       titulo: 'Sem período anterior para comparar',
       descricao:
         'Ainda não há corridas registradas no período imediatamente anterior — sem base, não é possível comparar evolução.',
       origem: 'SEM DADOS SUFICIENTES',
       periodo,
-      confiancaDados: 'dados_insuficientes',
+      classificacaoAmostra: 'dados_insuficientes',
       dadosBase: 0,
     });
   }
@@ -2185,22 +2222,24 @@ export function insightsCopiloto(i: {
   if (porHorario.length > 0) {
     const maior = [...porHorario].sort((a, b) => (b.rpHora ?? 0) - (a.rpHora ?? 0))[0];
     insights.push({
+      id: proximoId('HORARIO'),
       tipo: 'HORARIO',
       titulo: `Maior R$/h registrado na faixa ${maior.label}`,
       descricao: `Entre as corridas com horário informado, a faixa ${maior.label} teve a maior média de R$/h registrada (R$ ${arred(maior.rpHora as number)}/h, ${maior.qtdCorridas} corrida(s)). Leitura do que já aconteceu, não uma indicação de quando trabalhar.`,
       origem: 'DADO REGISTRADO',
       periodo,
-      confiancaDados: maior.classificacaoAmostra,
+      classificacaoAmostra: maior.classificacaoAmostra,
       dadosBase: maior.qtdCorridas,
     });
   } else {
     insights.push({
+      id: proximoId('HORARIO'),
       tipo: 'HORARIO',
       titulo: 'Sem dados suficientes por horário',
       descricao: 'Registre o horário das corridas para ver a maior média por faixa de horário registrada.',
       origem: 'SEM DADOS SUFICIENTES',
       periodo,
-      confiancaDados: 'dados_insuficientes',
+      classificacaoAmostra: 'dados_insuficientes',
       dadosBase: 0,
     });
   }
@@ -2211,46 +2250,50 @@ export function insightsCopiloto(i: {
   if (porDia.length > 0) {
     const maior = [...porDia].sort((a, b) => (b.rpHora ?? 0) - (a.rpHora ?? 0))[0];
     insights.push({
+      id: proximoId('DIA_SEMANA'),
       tipo: 'DIA_SEMANA',
       titulo: `Maior R$/h registrado às ${maior.label}`,
       descricao: `Entre os dias da semana com base suficiente, ${maior.label} teve a maior média de R$/h registrada (R$ ${arred(maior.rpHora as number)}/h, ${maior.qtdCorridas} corrida(s)). Leitura do histórico registrado, não indicação de melhor dia.`,
       origem: 'DADO REGISTRADO',
       periodo,
-      confiancaDados: maior.classificacaoAmostra,
+      classificacaoAmostra: maior.classificacaoAmostra,
       dadosBase: maior.qtdCorridas,
     });
   } else {
     insights.push({
+      id: proximoId('DIA_SEMANA'),
       tipo: 'DIA_SEMANA',
       titulo: 'Sem dados suficientes por dia da semana',
       descricao: 'Ainda não há dias da semana com corridas suficientes (mínimo 3) para uma leitura por dia.',
       origem: 'SEM DADOS SUFICIENTES',
       periodo,
-      confiancaDados: 'dados_insuficientes',
+      classificacaoAmostra: 'dados_insuficientes',
       dadosBase: 0,
     });
   }
 
-  const resumo = resumoPeriodoCorridas(i.corridas, periodo, i.ateIso);
+  const resumo = historicoPorPeriodo(i.corridas, periodo, i.ateIso);
   if (resumo.rpHora != null) {
     insights.push({
+      id: proximoId('RPH'),
       tipo: 'RPH',
       titulo: `R$/h médio do período: R$ ${arred(resumo.rpHora)}`,
       descricao: `Calculado a partir de ${resumo.qtdCorridas} corrida(s) com duração informada nos últimos ${periodo} dias.`,
       origem: 'DADO REGISTRADO',
       periodo,
-      confiancaDados: classificarAmostra(resumo.qtdCorridas),
+      classificacaoAmostra: classificarAmostra(resumo.qtdCorridas),
       dadosBase: resumo.qtdCorridas,
     });
   }
   if (resumo.rpKm != null) {
     insights.push({
+      id: proximoId('RPKM'),
       tipo: 'RPKM',
       titulo: `R$/km médio do período: R$ ${arred(resumo.rpKm)}`,
       descricao: `Calculado a partir de ${resumo.qtdCorridas} corrida(s) com distância informada nos últimos ${periodo} dias.`,
       origem: 'DADO REGISTRADO',
       periodo,
-      confiancaDados: classificarAmostra(resumo.qtdCorridas),
+      classificacaoAmostra: classificarAmostra(resumo.qtdCorridas),
       dadosBase: resumo.qtdCorridas,
     });
   }
@@ -2265,24 +2308,26 @@ export function insightsCopiloto(i: {
             ? 'Dia encerrado'
             : 'Meta de hoje em andamento';
     insights.push({
+      id: proximoId('META'),
       tipo: 'META',
       titulo: rotuloStatus,
       descricao: `Meta de hoje: R$ ${arred(i.metaHoje.metaHoje)}. Realizado: ${i.metaHoje.realizadoHoje != null ? `R$ ${arred(i.metaHoje.realizadoHoje)}` : 'ainda não registrado'}.`,
       origem: 'DADO REGISTRADO',
       periodo: null,
-      confiancaDados: 'base_relevante',
+      classificacaoAmostra: 'base_relevante',
       dadosBase: 1,
     });
   }
 
   if (i.qtdCorridasHoje != null && i.qtdCorridasHoje > 0) {
     insights.push({
+      id: proximoId('CORRIDA'),
       tipo: 'CORRIDA',
       titulo: `${i.qtdCorridasHoje} corrida(s) registrada(s) hoje`,
       descricao: 'Contagem de corridas individuais registradas no Copiloto hoje.',
       origem: 'DADO REGISTRADO',
       periodo: null,
-      confiancaDados: 'base_relevante',
+      classificacaoAmostra: 'base_relevante',
       dadosBase: i.qtdCorridasHoje,
     });
   }
@@ -2290,12 +2335,13 @@ export function insightsCopiloto(i: {
   const qualidade = qualidadeBaseCopiloto(doPeriodo);
   if (qualidade.totalCorridas > 0 && (qualidade.semKm > 0 || qualidade.semDuracao > 0)) {
     insights.push({
+      id: proximoId('REGISTRO'),
       tipo: 'REGISTRO',
       titulo: 'Parte das corridas está sem km ou duração',
       descricao: `${qualidade.semKm} corrida(s) sem km estimado e ${qualidade.semDuracao} sem duração estimada nos últimos ${periodo} dias — preencher esses campos melhora a precisão do R$/km e R$/h.`,
       origem: 'DADO REGISTRADO',
       periodo,
-      confiancaDados: classificarAmostra(qualidade.totalCorridas),
+      classificacaoAmostra: classificarAmostra(qualidade.totalCorridas),
       dadosBase: qualidade.totalCorridas,
     });
   }

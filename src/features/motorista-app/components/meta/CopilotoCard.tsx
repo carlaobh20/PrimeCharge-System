@@ -5,10 +5,12 @@ import {
   avaliarCorrida,
   CLASSIFICACAO_CORRIDA_LABEL,
   formatBRL,
+  formatHoras,
+  horasParaValor,
   type AvaliacaoCorrida,
   type ClassificacaoCorrida,
   type ConfigCopiloto,
-  type InsightCopiloto,
+  type MetaHojeCockpit,
 } from '../../lib/metas';
 import type { CorridaRow } from '../../api/corridasPessoais';
 
@@ -16,6 +18,9 @@ import type { CorridaRow } from '../../api/corridasPessoais';
 // avaliarCorrida() roda no cliente (é pura, zero rede) assim que os 3 campos mínimos existem;
 // SALVAR é uma ação separada e explícita — nada é gravado só por ter sido avaliado.
 // "O sistema informa. O motorista decide." — nunca um botão "Aceitar"/"Recusar".
+// O card contextual "Seu Copiloto" (Módulos D/E, meta conectada + insights) fica em
+// CopilotoInteligenteCard.tsx — este componente continua só responsável por avaliar/registrar/
+// listar corrida, pra não sobrecarregar um componente com responsabilidades diferentes.
 
 const TOM_CLASSIFICACAO: Record<ClassificacaoCorrida, 'verde' | 'ambar' | 'vermelho'> = {
   BOM: 'verde',
@@ -23,11 +28,6 @@ const TOM_CLASSIFICACAO: Record<ClassificacaoCorrida, 'verde' | 'ambar' | 'verme
   RUIM: 'vermelho',
 };
 const EMOJI_CLASSIFICACAO: Record<ClassificacaoCorrida, string> = { BOM: '🟢', ATENCAO: '🟡', RUIM: '🔴' };
-
-const TOM_ORIGEM_INSIGHT: Record<InsightCopiloto['origem'], 'verde' | 'ambar' | 'neutro'> = {
-  'DADO REGISTRADO': 'verde',
-  'SEM DADOS SUFICIENTES': 'neutro',
-};
 
 export function CopilotoCard({
   corridasHoje,
@@ -38,7 +38,8 @@ export function CopilotoCard({
   configCopiloto,
   copilotoConfigurado,
   copilotoAtivo,
-  insightsCopilotoLista,
+  hojeCockpit,
+  mediaHistoricaRph,
   onRegistrar,
   salvando,
   onSalvarConfig,
@@ -52,7 +53,8 @@ export function CopilotoCard({
   configCopiloto: ConfigCopiloto;
   copilotoConfigurado: boolean;
   copilotoAtivo: boolean;
-  insightsCopilotoLista: InsightCopiloto[];
+  hojeCockpit: MetaHojeCockpit;
+  mediaHistoricaRph: number | null;
   onRegistrar: (c: { valor: number; km_estimado: number | null; duracao_estimada_min: number | null; app: string | null; classificacao: ClassificacaoCorrida | null }) => void;
   salvando: boolean;
   onSalvarConfig: (patch: {
@@ -68,8 +70,8 @@ export function CopilotoCard({
 }) {
   const [f, setF] = useState({ valor: '', km: '', min: '', app: '' });
   const [avaliacao, setAvaliacao] = useState<AvaliacaoCorrida | null>(null);
-  const [mostrarInsights, setMostrarInsights] = useState(false);
   const [mostrarConfig, setMostrarConfig] = useState(false);
+  const [ultimoImpacto, setUltimoImpacto] = useState<{ valor: number; restanteEstimado: number | null; horasEstimadas: number | null } | null>(null);
   const [cf, setCf] = useState({
     limiarRpkmBom: configCopiloto.limiarRpkmBom != null ? String(configCopiloto.limiarRpkmBom) : '',
     limiarRpkmRuim: configCopiloto.limiarRpkmRuim != null ? String(configCopiloto.limiarRpkmRuim) : '',
@@ -100,6 +102,18 @@ export function CopilotoCard({
       app: f.app.trim() || null,
       classificacao: avaliacao?.configurado ? avaliacao.classificacao : null,
     });
+    // Módulo D — impacto matemático desta corrida sobre a meta de hoje: sempre "a diferença
+    // corresponde a aproximadamente X horas pela média registrada", nunca uma ordem sobre quanto
+    // tempo o motorista teria que dirigir — cálculo, não conselho. restanteAntes usa o
+    // faltanteHoje ANTES deste registro (hojeCockpit ainda não reflete a corrida recém-registrada
+    // nesta mesma renderização).
+    const restanteAntes = hojeCockpit.faltanteHoje;
+    const restanteEstimado = restanteAntes != null ? Math.max(0, restanteAntes - valor) : null;
+    setUltimoImpacto({
+      valor,
+      restanteEstimado,
+      horasEstimadas: restanteEstimado != null && restanteEstimado > 0 ? horasParaValor(restanteEstimado, mediaHistoricaRph) : null,
+    });
     setF({ valor: '', km: '', min: '', app: '' });
     setAvaliacao(null);
   };
@@ -116,42 +130,30 @@ export function CopilotoCard({
     });
   };
 
-  const insightPrincipal = insightsCopilotoLista.find((i) => i.tipo === 'META') ?? insightsCopilotoLista[0] ?? null;
-
   return (
     <Secao titulo="Copiloto" acao={<Pill tom="neutro">Beta</Pill>}>
       <p className="text-[11px] text-neutral-500">
         Avalie uma corrida antes de decidir. O sistema mostra os números — a decisão de aceitar ou não é sempre sua.
       </p>
 
-      {/* Módulo E — Seu Copiloto (leitura contextual do momento) */}
-      {insightPrincipal && (
-        <div className="mt-2 rounded-xl border border-neutral-100 p-3 dark:border-white/10">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Seu Copiloto</p>
-          <p className="mt-1 text-[12px] font-medium text-neutral-800 dark:text-neutral-100">{insightPrincipal.titulo}</p>
-          <p className="text-[11px] text-neutral-500">{insightPrincipal.descricao}</p>
-          {insightsCopilotoLista.length > 1 && (
-            <button
-              type="button"
-              className="mt-1 flex items-center gap-1 text-[11px] font-medium text-neutral-500 underline"
-              onClick={() => setMostrarInsights((v) => !v)}
-            >
-              {mostrarInsights ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              {mostrarInsights ? 'Ver menos' : `Ver todos os insights (${insightsCopilotoLista.length})`}
-            </button>
+      {/* Módulo D — impacto matemático da última corrida registrada sobre a meta de hoje.
+          Cálculo, nunca conselho: nunca uma ordem sobre quanto tempo dirigir. */}
+      {ultimoImpacto && (
+        <div className="mt-2 space-y-0.5 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+          <p className="text-[12px] font-medium text-neutral-800 dark:text-neutral-100">
+            Esta corrida adicionou {formatBRL(ultimoImpacto.valor)} ao seu realizado registrado.
+          </p>
+          {ultimoImpacto.restanteEstimado != null && (
+            <p className="text-[11px] text-neutral-600 dark:text-neutral-300">
+              {ultimoImpacto.restanteEstimado > 0
+                ? `Após este registro, faltam ${formatBRL(ultimoImpacto.restanteEstimado)}.`
+                : 'Após este registro, a meta de hoje está coberta pelo realizado registrado.'}
+            </p>
           )}
-          {mostrarInsights && (
-            <div className="mt-2 space-y-2 border-t border-neutral-100 pt-2 dark:border-white/10">
-              {insightsCopilotoLista.map((ins, idx) => (
-                <div key={`${ins.tipo}-${idx}`} className="space-y-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <Pill tom={TOM_ORIGEM_INSIGHT[ins.origem]}>{ins.origem}</Pill>
-                    <span className="text-[11px] font-medium text-neutral-700 dark:text-neutral-200">{ins.titulo}</span>
-                  </div>
-                  <p className="text-[11px] text-neutral-500">{ins.descricao}</p>
-                </div>
-              ))}
-            </div>
+          {ultimoImpacto.horasEstimadas != null && (
+            <p className="text-[11px] text-neutral-500">
+              Com sua média registrada de R$/h, isso representa aproximadamente {formatHoras(ultimoImpacto.horasEstimadas)}.
+            </p>
           )}
         </div>
       )}

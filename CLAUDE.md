@@ -6,12 +6,58 @@ código de verdade vive no GitHub e no PC do Carlos, não neste container. Este 
 a cada parada de trabalho pra que a próxima sessão (ou você mesmo, depois de um reset) não precise
 reconstruir o contexto do zero.
 
-**Última atualização:** 2026-08-21, fim da Fase 17 — Copiloto Inteligente do Motorista (Módulos
-A/B/C/D/E/F/G/H; **ZERO migration** — tudo derivado de 0049/0050, já em produção). Módulos I/J/K
-(cenários estendidos, plano estendido, assistente Q&A) ficam para a próxima passada — corte
-deliberado, registrado em `claude/auditoria-fase17-copiloto-inteligente.md`.
+**Última atualização:** 2026-08-21, fim da Fase 17 (2ª passada — reconciliação) — Copiloto
+Inteligente do Motorista (Módulos A/B/C/D/E/F/G/H; **ZERO migration** — tudo derivado de
+0049/0050, já em produção). Módulos I/J/K (cenários estendidos, plano estendido, assistente Q&A)
+ficam para a próxima passada — corte deliberado, registrado em
+`claude/auditoria-fase17-copiloto-inteligente.md`.
 
-## 0.-12 Fase 17 — Copiloto Inteligente do Motorista (2026-08-21, sobre a Fase 16; ZERO migration)
+## 0.-12b Fase 17 — 2ª passada: reconciliação com a auditoria de reuso (2026-08-21)
+
+Mesma sessão, mesmo dia. Uma segunda especificação (mais detalhada, citando uma auditoria de
+reuso com nomes de função/campo literais) pediu ajustes sobre o que a 1ª passada já havia
+entregado — sem mudar o escopo (ainda A–H+L, ainda sem I/J/K):
+
+- `resumoPeriodoCorridas` **renomeada** para `historicoPorPeriodo` (nome exigido pela 2ª spec).
+- `ResumoFaixaHorario`/`ResumoDiaSemanaCorridas` ganharam campos novos: `inicio`/`fim`,
+  `valorTotal`, `diasObservados` (horário); `valorTotal`, `duracaoMediaMin`, `diasObservados`
+  (dia da semana). `ResumoPeriodoCorridas` ganhou `duracaoTotalMin`/`duracaoMediaMin`.
+  `QualidadeBaseCopiloto` ganhou `faixasHorarioComDados`/`diasSemanaComDados` (REUSA
+  `inteligenciaPorHorario`/`inteligenciaPorDiaSemana` pra contar cobertura).
+- `InsightCopiloto.confiancaDados` renomeado para `classificacaoAmostra`; ganhou `id` único.
+- UI reestruturada em 3 componentes (era 2): `CopilotoInteligenteCard.tsx` agora É literalmente
+  o card "Seu Copiloto" (Módulos D+E — meta conectada + insights); o histórico/padrões/qualidade
+  (Módulos A/B/C/G) foi para `CopilotoHistoricoCard.tsx` (novo); `CopilotoCard.tsx` ganhou o
+  impacto matemático da corrida registrada sobre a meta ("Esta corrida adicionou R$X…", parte do
+  Módulo D) e perdeu o bloco de insights (que virou responsabilidade só do
+  `CopilotoInteligenteCard`).
+- Ordem da tela ajustada no Centro de Controle: Hero → Rotina → Meu Dia → Seu Copiloto → (avaliar
+  corrida) → Histórico → Horário/Dia da semana → Qualidade da base → Operação Real → resto
+  (checklist, plano, três números, custo, mês, semana, inconsistências, recargas, carro,
+  calendário, fechamento, histórico operacional, simulador).
+- `audit-motorista-copiloto-inteligente.ts` reescrito de 22 para **26 categorias numeradas**
+  (**90/90**), cobrindo as fixtures obrigatórias da 2ª spec (R$1000/20h=R$50/h,
+  R$1000/200km=R$5/km, R$1000/10corridas=R$100/corrida, 1160 vs. 1000 anterior ⇒ Δ=+160/+16%) e
+  NaN/Infinity/divisão-por-zero/imutabilidade explícitos.
+- Regressão: os 17 audit scripts restantes (8 motorista + 9 não-motorista) + o reescrito —
+  **930/930 combinados**, zero FALHOU. Corrigidas 2 regressões de vocabulário-proibido
+  introduzidas por comentários novos desta 2ª passada (guard word "nunca" numa linha, frase
+  proibida na linha seguinte — mesma classe de falso-positivo já vista na 1ª passada; corrigido
+  reescrevendo os comentários numa linha só). SQL real reexecutado do zero: **346/346 PASS**,
+  zero regressão (zero SQL alterado). `tsc -b --noEmit` limpo, `oxlint` sem warning novo,
+  `npm run build` ok.
+- Discrepância notada, não escondida: a 2ª especificação citava um caminho de auditoria
+  (`claude/auditoria-reuso-fase17-copiloto-inteligente-2026-08-21.md`) e um commit-base
+  (`01e9c6c`/`db80bd8`) que não correspondem ao que existe neste repositório — a auditoria real
+  desta fase é `claude/auditoria-fase17-copiloto-inteligente.md`, sobre o commit `b90a25a`/
+  `8152a35` (já entregue pela 1ª passada). Tratado como discrepância de referência entre as duas
+  mensagens; todo o conteúdo técnico pedido foi aplicado literalmente mesmo assim.
+- Decisão de engenharia mantida (não é bug): `compararPeriodoCorridas` reusa o formato
+  `campoEvolucao` (`rotulo/atual/anterior/variacaoAbs/variacaoPct`) em vez dos 8 campos
+  `deltaX`/`deltaXPct` citados literalmente pela 2ª spec — favorece a "REGRA ABSOLUTA" de reuso
+  da própria especificação sobre a nomenclatura literal dos campos.
+
+## 0.-12 Fase 17 — 1ª passada: implementação inicial (2026-08-21, sobre a Fase 16; ZERO migration)
 
 - Auditoria de reuso ANTES de qualquer código: `claude/auditoria-fase17-copiloto-inteligente.md`
   (10 pontos: o que já existe / reutilizável / a estender / não existe / migration necessária? /
