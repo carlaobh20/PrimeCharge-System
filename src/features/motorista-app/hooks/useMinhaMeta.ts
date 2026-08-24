@@ -33,6 +33,7 @@ import {
   type CorridaRow,
 } from '../api/corridasPessoais';
 import {
+  aindaPrecisoFaturar,
   alertasCockpit,
   alertasMeta,
   calcularMeta,
@@ -46,11 +47,18 @@ import {
   custoPorHoraReal,
   eficienciaVsPremissa,
   estadoDoDia,
+  faltaLiquidoDoDia,
   fechamentoDoPeriodo,
   evolucaoPeriodo,
+  gastosDoDia,
   horasParaValor,
   inconsistenciasOperacionais,
   janelaOperacional,
+  liquidoDoDia,
+  progressoLiquidoDoDia,
+  resumoMensalCompacto,
+  statusMetaLiquidaDia,
+  textoMetaLiquidaDia,
   mediaRealPorDia,
   mediaRealPorHora,
   mediasPorDiaSemana,
@@ -368,6 +376,28 @@ export function useMinhaMeta() {
 
     // ===== FASE 14 — rotina do dia (estado DERIVADO; nada gravado artificialmente) =====
     const recargasDeHoje = recargasPorData.get(hojeStr) ?? [];
+
+    // ===== FASE 23 — VISÃO RÁPIDA DIÁRIA (faturamento × gastos × líquido) =====
+    // GASTOS_HOJE = recargas de hoje (única fonte de gasto variável já registrada por data —
+    // ver nota de escopo em lib/metas.ts). META LÍQUIDA do dia reusa hojeCockpit.metaHoje.
+    const gastosHoje = gastosDoDia(recargasDeHoje);
+    const faturamentoHoje = hojeCockpit.realizadoHoje;
+    const liquidoHoje = faturamentoHoje != null ? liquidoDoDia(faturamentoHoje, gastosHoje) : null;
+    const metaLiquidaHoje = hojeCockpit.metaHoje;
+    const faltaLiquidaHoje = liquidoHoje != null ? faltaLiquidoDoDia(metaLiquidaHoje, liquidoHoje) : metaLiquidaHoje;
+    const progressoLiquidoHoje = liquidoHoje != null ? progressoLiquidoDoDia(liquidoHoje, metaLiquidaHoje) : 0;
+    const statusLiquidoHoje = statusMetaLiquidaDia(metaLiquidaHoje, liquidoHoje);
+    const textoLiquidoHoje = textoMetaLiquidaDia(metaLiquidaHoje, liquidoHoje);
+    const calcularAindaPrecisoFaturar = (gastosPrevistos = 0) =>
+      aindaPrecisoFaturar(metaLiquidaHoje, liquidoHoje ?? 0, gastosPrevistos);
+    const resumoMensal = resumoMensalCompacto({
+      metaMensal: meta.metaMensal,
+      totalCustosFixos: totais.total,
+      realizado: progresso.realizado,
+      pctCoberto: progresso.pctCoberto,
+      diasTrabalhados: progresso.diasComLancamento,
+      diasRestantesPlanejados: ritmo.diasRestantesPlanejados,
+    });
     const estadoHoje = estadoDoDia({
       registroDeHoje: ganhoHoje ?? null,
       totalRegistrosHistorico: ganhos60.length,
@@ -535,6 +565,8 @@ export function useMinhaMeta() {
       estadoHoje,
       revisaoHoje,
       recargasDeHoje,
+      // Fase 23 — registro bruto do dia (preserva km/corridas/observacao em updates parciais)
+      ganhoHoje: ganhoHoje ?? null,
       fechamentoSemana,
       fechamentoMes,
       // Fase 12.2 — inteligência operacional
@@ -568,6 +600,17 @@ export function useMinhaMeta() {
       // Fase 18 — Copiloto Proativo (Simulador em horas, Plano de Hoje por volume/média, Assistente)
       faltaMeta,
       assistenteInsights,
+      // Fase 23 — Visão rápida diária (faturamento × gastos × líquido) + resumo mensal compacto
+      gastosHoje,
+      faturamentoHoje,
+      liquidoHoje,
+      metaLiquidaHoje,
+      faltaLiquidaHoje,
+      progressoLiquidoHoje,
+      statusLiquidoHoje,
+      textoLiquidoHoje,
+      calcularAindaPrecisoFaturar,
+      resumoMensal,
     };
   }, [base.data, anoMes]);
 

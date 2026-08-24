@@ -406,6 +406,115 @@ export function calcularMetaHoje(i: {
 }
 
 // ---------------------------------------------------------------------------
+// VISÃO RÁPIDA DIÁRIA (Fase 23 — "Minha Meta" como assistente diário) — FATURAMENTO × GASTOS
+// × LÍQUIDO, nunca confundidos entre si nem com "lucro". FATURAMENTO = ganho bruto lançado.
+// GASTOS = custo operacional REGISTRADO no dia. LÍQUIDO = faturamento − gastos (PODE ser
+// negativo — gastos podem superar o faturamento; nunca floramos isso). A meta passa a ser
+// avaliada sobre o LÍQUIDO, não sobre o bruto (reusa `hojeCockpit.metaHoje` como a meta líquida
+// do dia — ela já representa "o que falta pra cobrir seus custos", que é exatamente o papel do
+// líquido zero no Ponto de Equilíbrio existente).
+//
+// NOTA DE ESCOPO (documentado, não inventado — pedido explícito da Fase 23, item 17): hoje o
+// ÚNICO gasto variável do dia que o banco já registra COM DATA é a RECARGA (motorista_recargas).
+// `motorista_despesas` é orçamento FIXO mensal (aluguel, plano, seguro…) — não é um lançamento
+// diário por categoria. Enquanto não existir uma tabela de "gastos do dia" (combustível/pedágio/
+// alimentação/estacionamento/manutenção, com data e categoria), GASTOS_HOJE = soma das recargas
+// de hoje. Proposta de migration para fechar essa lacuna está documentada no relatório da fase
+// (não criada aqui — Supabase não foi alterado nesta fase, conforme instruído).
+// ---------------------------------------------------------------------------
+
+export function gastosDoDia(recargasDoDia: { custo: number }[]): number {
+  return arred(recargasDoDia.reduce((s, r) => s + seguro(r.custo), 0));
+}
+
+/** LÍQUIDO pode ser negativo (gastos > faturamento) — nunca clampado em zero. */
+export function liquidoDoDia(faturamentoDia: number, gastosDia: number): number {
+  const f = Number.isFinite(faturamentoDia) ? faturamentoDia : 0;
+  const g = Number.isFinite(gastosDia) ? gastosDia : 0;
+  return arred(f - g);
+}
+
+export function faltaLiquidoDoDia(metaLiquidaDia: number, liquidoDia: number): number {
+  return arred(Math.max(0, seguro(metaLiquidaDia) - liquidoDia));
+}
+
+/** Pode passar de 100 (meta superada). Sem meta válida → 0 (nunca NaN/Infinity). */
+export function progressoLiquidoDoDia(liquidoDia: number, metaLiquidaDia: number): number {
+  const meta = seguro(metaLiquidaDia);
+  if (meta <= 0) return 0;
+  return Math.round((liquidoDia / meta) * 100);
+}
+
+/**
+ * "Ainda preciso faturar" (Fase 23, item 4): quanto falta GERAR (bruto) pra fechar o dia com a
+ * meta líquida, considerando gastos já feitos + gastos PREVISTOS que ainda vão sair do bolso.
+ * Exemplo da missão: meta líquida 250, líquido atual 150 (após gastos de 100), previsto +30 →
+ * necessário faturar 130 (pra fechar com 250 líquidos).
+ */
+export function aindaPrecisoFaturar(metaLiquidaDia: number, liquidoAtualDia: number, gastosPrevistos = 0): number {
+  const meta = seguro(metaLiquidaDia);
+  const liquido = Number.isFinite(liquidoAtualDia) ? liquidoAtualDia : 0;
+  const previsto = seguro(gastosPrevistos);
+  return arred(Math.max(0, meta - liquido + previsto));
+}
+
+export type StatusMetaLiquidaDia = 'sem_dado' | 'abaixo' | 'atingida' | 'superada';
+
+export function statusMetaLiquidaDia(metaLiquidaDia: number, liquidoDia: number | null): StatusMetaLiquidaDia {
+  if (liquidoDia == null) return 'sem_dado';
+  const meta = seguro(metaLiquidaDia);
+  if (meta <= 0) return 'sem_dado';
+  if (liquidoDia > meta + 0.005) return 'superada';
+  if (liquidoDia >= meta - 0.005) return 'atingida';
+  return 'abaixo';
+}
+
+/** Texto principal da visão rápida (Fase 23, item 3) — nunca recalculado dentro do componente. */
+export function textoMetaLiquidaDia(metaLiquidaDia: number, liquidoDia: number | null): string {
+  const status = statusMetaLiquidaDia(metaLiquidaDia, liquidoDia);
+  if (status === 'sem_dado') return 'Registre seu primeiro ganho de hoje para ver sua meta líquida.';
+  if (status === 'superada') return `Meta superada em ${formatBRL(liquidoDia! - metaLiquidaDia)}.`;
+  if (status === 'atingida') return 'Meta atingida.';
+  return `Faltam ${formatBRL(faltaLiquidoDoDia(metaLiquidaDia, liquidoDia!))} para bater sua meta.`;
+}
+
+// ---------------------------------------------------------------------------
+// RESUMO MENSAL COMPACTO (Fase 23) — mesmos números do Ritmo do Mês/Progresso já existentes,
+// só reempacotados com os nomes do novo card "Este mês" (nada recalculado, nada duplicado; ver
+// nota acima: GASTOS FIXOS do mês é a mesma base que já compõe a META, não é o mesmo conceito
+// de GASTOS variáveis do dia).
+// ---------------------------------------------------------------------------
+
+export type ResumoMensalCompacto = {
+  metaMensal: number;
+  faturadoMes: number;
+  gastosFixosMes: number;
+  liquidoMes: number; // pode ser negativo
+  pctCoberto: number;
+  diasTrabalhados: number;
+  diasRestantes: number;
+};
+
+export function resumoMensalCompacto(i: {
+  metaMensal: number;
+  totalCustosFixos: number;
+  realizado: number;
+  pctCoberto: number;
+  diasTrabalhados: number;
+  diasRestantesPlanejados: number;
+}): ResumoMensalCompacto {
+  return {
+    metaMensal: seguro(i.metaMensal),
+    faturadoMes: seguro(i.realizado),
+    gastosFixosMes: seguro(i.totalCustosFixos),
+    liquidoMes: arred(seguro(i.realizado) - seguro(i.totalCustosFixos)),
+    pctCoberto: i.pctCoberto,
+    diasTrabalhados: Math.max(0, Math.floor(i.diasTrabalhados)),
+    diasRestantes: Math.max(0, Math.floor(i.diasRestantesPlanejados)),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // RITMO DO MÊS + DIAS SEM PRODUÇÃO (Módulos 3/4)
 // ---------------------------------------------------------------------------
 

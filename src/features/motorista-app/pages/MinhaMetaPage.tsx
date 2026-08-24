@@ -16,6 +16,12 @@ import { RecargasCard } from '../components/meta/RecargasCard';
 import { HistoricoOperacionalCard } from '../components/meta/HistoricoOperacionalCard';
 import { TresNumerosCard } from '../components/meta/TresNumerosCard';
 import { InconsistenciasCard } from '../components/meta/InconsistenciasCard';
+import { VisaoRapidaCard } from '../components/meta/VisaoRapidaCard';
+import { GanhosGastosHojeCard } from '../components/meta/GanhosGastosHojeCard';
+import { MesCompactoCard } from '../components/meta/MesCompactoCard';
+import { FaixaHistoricoCard } from '../components/meta/FaixaHistoricoCard';
+import { ProjecaoHorasCompactoCard } from '../components/meta/ProjecaoHorasCompactoCard';
+import { SimuladorCompactoCard } from '../components/meta/SimuladorCompactoCard';
 import { useMinhaMeta } from '../hooks/useMinhaMeta';
 import {
   CATEGORIAS_CARRO,
@@ -42,6 +48,7 @@ export function MinhaMetaPage() {
   const [onboardingConcluido, setOnboardingConcluido] = useState(false);
   const [mostrarConfig, setMostrarConfig] = useState(false);
   const [mostrarDetalhe, setMostrarDetalhe] = useState(false);
+  const [mostrarDetalhesCompletos, setMostrarDetalhesCompletos] = useState(false);
   const [novoObjetivo, setNovoObjetivo] = useState(false);
   const [objForm, setObjForm] = useState({ nome: '', categoria: 'reserva', valor_meta: '', valor_atual: '', prazo: '' });
   const snapshotGravado = useRef(false);
@@ -175,6 +182,68 @@ export function MinhaMetaPage() {
         </Secao>
       )}
 
+      {/* ===== FASE 23 — VISÃO RÁPIDA (topo compacto: assistente do dia) =====
+          Ordem: meta líquida do dia → quanto falta faturar → ganhos/gastos de hoje → mês →
+          semana → projeção/horas → "e se?". Tudo abaixo (Hero completo, ritmo, custo detalhado,
+          carro, recargas, calendário do mês, objetivos, reserva, histórico, simulador completo)
+          continua 100% funcional em "Ver detalhes completos" — nada foi removido, só reordenado. */}
+      <VisaoRapidaCard
+        metaLiquida={d.metaLiquidaHoje}
+        faturamento={d.faturamentoHoje}
+        gastos={d.gastosHoje}
+        liquido={d.liquidoHoje}
+        falta={d.faltaLiquidaHoje}
+        progresso={d.progressoLiquidoHoje}
+        status={d.statusLiquidoHoje}
+        texto={d.textoLiquidoHoje}
+        calcularAindaPrecisoFaturar={d.calcularAindaPrecisoFaturar}
+      />
+
+      <GanhosGastosHojeCard
+        faturamentoHoje={d.faturamentoHoje}
+        ganhoHoje={d.ganhoHoje}
+        gastosHoje={d.gastosHoje}
+        recargasHoje={d.recargasDeHoje}
+        salvandoGanho={m.mGanho.isPending}
+        salvandoRecarga={m.mRecargaCriar.isPending}
+        onRegistrarGanho={({ valor, apps }) =>
+          m.mGanho.mutate({
+            data: hojeIso(),
+            valor,
+            apps,
+            horas: d.ganhoHoje?.horas ?? null,
+            km_inicio: d.ganhoHoje?.km_inicio ?? null,
+            km_fim: d.ganhoHoje?.km_fim ?? null,
+            corridas: d.ganhoHoje?.corridas ?? null,
+            observacao: d.ganhoHoje?.observacao ?? null,
+          })
+        }
+        onRegistrarRecarga={({ custo }) => m.mRecargaCriar.mutate({ data: hojeIso(), custo, kwh: null, pct_inicial: null, pct_final: null, local: null })}
+      />
+
+      <MesCompactoCard resumo={d.resumoMensal} />
+
+      <FaixaHistoricoCard semana={d.semana} />
+
+      <ProjecaoHorasCompactoCard
+        projecoes={d.projecoes}
+        horasNecessariasHoje={d.hojeCockpit.horasNecessariasHoje}
+        rsHoraReal={d.realHora14?.valor ?? null}
+      />
+
+      <SimuladorCompactoCard cenarios={d.cenarios} onVerTodos={() => setMostrarDetalhesCompletos(true)} />
+
+      <button
+        type="button"
+        className="w-full rounded-xl border border-neutral-200 py-2.5 text-sm font-medium text-neutral-600 dark:border-white/10 dark:text-neutral-300"
+        onClick={() => setMostrarDetalhesCompletos(!mostrarDetalhesCompletos)}
+        aria-expanded={mostrarDetalhesCompletos}
+      >
+        {mostrarDetalhesCompletos ? 'Ocultar detalhes completos' : 'Ver detalhes completos'}
+      </button>
+
+      {mostrarDetalhesCompletos && (
+        <>
       {/* ===== 1–4 · HERO: META DE HOJE + status do dia + encerrar dia (Módulos 1/2/5/8/14/18) ===== */}
       <HeroHoje
         hoje={d.hojeCockpit}
@@ -485,6 +554,8 @@ export function MinhaMetaPage() {
 
       {/* ===== 12 · SIMULADOR + CENÁRIOS (Módulos 23/25) ===== */}
       <SimuladorESe base={{ custoTotal: d.totais.total, diasTrabalho: meta.diasTrabalho, rendaHora: meta.rendaHora }} cenarios={d.cenarios} mediaRegistrada={d.realHora14?.valor ?? null} />
+        </>
+      )}
 
       <p className="pb-2 text-center text-[10px] text-neutral-400">
         Ferramenta de organização pessoal com os valores que VOCÊ informou. Não é aconselhamento financeiro.

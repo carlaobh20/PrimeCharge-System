@@ -11,21 +11,29 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  aindaPrecisoFaturar,
   alertasMeta,
   calcularMeta,
   calcularTotais,
   diasDeTrabalhoAte,
   explicarConversao,
+  faltaLiquidoDoDia,
   formatBRL,
   formatHoras,
+  gastosDoDia,
+  liquidoDoDia,
   metaDeHoje,
   montarCalendario,
   normalizarMensal,
   objetivoPorDia,
   progressoDoMes,
+  progressoLiquidoDoDia,
   rebalancear,
+  resumoMensalCompacto,
   simular,
   sobraEstimada,
+  statusMetaLiquidaDia,
+  textoMetaLiquidaDia,
   type DespesaMeta,
 } from '../src/features/motorista-app/lib/metas';
 
@@ -225,7 +233,39 @@ check('L', !/eh_staff/.test(mig), '0047: NENHUMA policy de staff (privacidade �
 check('L', !/audit_log/i.test(mig.replace(/--.*$/gm, '')), '0047: sem trigger de audit_log (comentário explica o porquê)');
 check('L', /NÃO APLICADA EM PRODUÇÃO/.test(mig), '0047: aviso de não aplicada em produção no cabeçalho');
 const migs = readdirSync(join(raiz, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 47);
-check('L', migs.every((f) => f.startsWith('0048') || f.startsWith('0049') || f.startsWith('0050') || f.startsWith('0051') || f.startsWith('0052')), 'acima da 0047: 0048 (diário — Fase 12.1), 0049/0050 (Copiloto — Fase 16), 0051 (Localização — Fase 20)');
+check('L', migs.every((f) => f.startsWith('0048') || f.startsWith('0049') || f.startsWith('0050') || f.startsWith('0051') || f.startsWith('0052') || f.startsWith('0053')), 'acima da 0047: 0048 (diário — Fase 12.1), 0049/0050 (Copiloto — Fase 16), 0051 (Localização — Fase 20)');
+
+// =============================== M — Fase 23 (visão rápida diária: líquido do dia) ============
+// Exemplo LITERAL da missão: Meta R$250 / Ganhos(faturamento) R$300 / Gastos R$80 / Líquido
+// R$220... espera: Líquido = 300 − 80 = 220; Falta = max(0, 250 − 220) = 30.
+check('M', gastosDoDia([{ custo: 50 }, { custo: 30 }]) === 80, 'gastosDoDia soma recargas do dia: 50+30=80');
+const liquidoM = liquidoDoDia(300, 80);
+check('M', liquidoM === 220, 'OBRIGATÓRIO: liquidoDoDia(300, 80) = 220 (faturamento − gastos)');
+check('M', faltaLiquidoDoDia(250, liquidoM) === 30, 'OBRIGATÓRIO: faltaLiquidoDoDia(250, 220) = 30');
+check('M', statusMetaLiquidaDia(250, 220) === 'abaixo', 'liquido 220 < meta 250 → status abaixo (falta 30)');
+check('M', statusMetaLiquidaDia(250, 250) === 'atingida', 'liquido == meta → atingida');
+check('M', statusMetaLiquidaDia(250, 300) === 'superada', 'liquido > meta → superada');
+check('M', statusMetaLiquidaDia(250, null) === 'sem_dado', 'sem faturamento hoje (null) → sem_dado, nunca 0 disfarçado de dado real');
+check('M', statusMetaLiquidaDia(0, 50) === 'sem_dado', 'meta líquida zero/negativa → sem_dado (guard, nunca ÷0 nem 100% falso)');
+check('M', progressoLiquidoDoDia(125, 250) === 50, 'progressoLiquidoDoDia(125,250) = 50%');
+check('M', progressoLiquidoDoDia(300, 250) === 120, 'progresso PODE passar de 100% (meta superada) — nunca clampado aqui');
+check('M', progressoLiquidoDoDia(50, 0) === 0, 'meta zero → progresso 0 (guard, nunca Infinity/NaN)');
+// LÍQUIDO negativo (gastos > faturamento) é um estado real e NUNCA é clampado em zero.
+check('M', liquidoDoDia(50, 80) === -30, 'OBRIGATÓRIO: líquido pode ser negativo (gastos 80 > faturamento 50 → −30)');
+check('M', faltaLiquidoDoDia(250, -30) === 280, 'falta cresce corretamente quando líquido é negativo (250 − (−30) = 280)');
+check('M', Number.isFinite(liquidoDoDia(NaN, Infinity)), 'guards: liquidoDoDia nunca produz NaN/Infinity mesmo com entrada inválida');
+// "Ainda preciso faturar" — considera gastos PREVISTOS que ainda vão sair do bolso hoje.
+check('M', aindaPrecisoFaturar(250, 150, 30) === 130, 'OBRIGATÓRIO: aindaPrecisoFaturar(meta 250, líquido 150, previsto 30) = 130');
+check('M', aindaPrecisoFaturar(250, 300, 0) === 0, 'meta já superada → nada a mais para faturar (nunca negativo)');
+check('M', aindaPrecisoFaturar(250, 0, 0) === 250, 'nenhum líquido ainda → precisa faturar a meta inteira');
+check('M', textoMetaLiquidaDia(250, null).includes('primeiro ganho'), 'texto sem_dado orienta a registrar o primeiro ganho do dia');
+check('M', textoMetaLiquidaDia(250, 300).includes('superada'), 'texto de meta superada menciona o quanto passou');
+check('M', textoMetaLiquidaDia(250, 220).includes('Faltam'), 'texto abaixo da meta usa "Faltam Rx para bater sua meta"');
+// Resumo mensal compacto reusa EXATAMENTE a mesma base do "Custo total do mês"/"Ponto de
+// equilíbrio" já existentes — LÍQUIDO DO MÊS aqui é idêntico ao sobraEstimada() já usado na tela.
+const resumoM = resumoMensalCompacto({ metaMensal: 10000, totalCustosFixos: 10000, realizado: 8000, pctCoberto: 80, diasTrabalhados: 15, diasRestantesPlanejados: 10 });
+check('M', resumoM.liquidoMes === -2000, 'liquidoMes = faturado(8000) − custosFixos(10000) = −2000 (ainda não cobriu o mês, pode ser negativo)');
+check('M', aprox(resumoM.liquidoMes, sobraEstimada(8000, 10000)), 'liquidoMes do resumo compacto bate com sobraEstimada() já usado no Ponto de Equilíbrio (mesma base, sem duplicar cálculo)');
 
 // =============================== relatório ===================================================
 for (const r of resultados) console.log(`${r.ok ? 'PASS' : 'FALHOU'} [${r.caso}] ${r.msg}`);
