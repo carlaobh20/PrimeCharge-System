@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Secao, Linha, Pill, SkeletonPortal, ErroPortal } from '../ui';
 import { ChecklistHojeCard } from './ChecklistHojeCard';
+import { RotinaDoDiaCard } from './RotinaDoDiaCard';
+import { CopilotoCard } from './CopilotoCard';
+import { CopilotoInteligenteCard } from './CopilotoInteligenteCard';
+import { AssistenteContextualCard } from './AssistenteContextualCard';
+import { HistoricoCorridasCard, PadraoHorarioDiaCard, QualidadeBaseCopilotoCard } from './CopilotoHistoricoCard';
+import { FechamentoCard } from './FechamentoCard';
 import { HeroHoje } from './HeroHoje';
 import { PlanoDeHoje } from './PlanoDeHoje';
 import { MeuDiaCard } from './MeuDiaCard';
@@ -11,6 +17,7 @@ import { CarroCard } from './CarroCard';
 import { RecargasCard } from './RecargasCard';
 import { InconsistenciasCard } from './InconsistenciasCard';
 import { HistoricoOperacionalCard } from './HistoricoOperacionalCard';
+import { LocalizacaoOperacionalCard } from './LocalizacaoOperacionalCard';
 import { OperacaoRealCard } from './OperacaoRealCard';
 import { SimuladorESe } from './SimuladorESe';
 import { CalendarioMeta } from './CalendarioMeta';
@@ -28,7 +35,7 @@ import {
 // ZERO nova fonte de verdade. ZERO novo motor. Tudo vem de useMinhaMeta (Fases 8–12.2).
 
 export function CentroControlePage() {
-  const { carregando, erro, derivado, mGanho, mRecargaCriar, mRecargaRemover, mDespesaAtualizar, recarregar } = useMinhaMeta();
+  const { carregando, erro, derivado, mGanho, mRecargaCriar, mRecargaRemover, mDespesaAtualizar, mCorridaRegistrar, mConfigCopiloto, recarregar } = useMinhaMeta();
   const topoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,6 +98,15 @@ export function CentroControlePage() {
     });
   };
 
+  // ===== FASE 14 — registro rápido: cada ação grava SÓ o que ela conhece.
+  // O upsert por (motorista, data) preserva os demais campos do mesmo dia.
+  const onSalvarGanho = (dd: { valor: number; horas: number | null }) =>
+    mGanho.mutate({ data: hojeIso, valor: dd.valor, horas: dd.horas });
+  const onSalvarKm = (dd: { km_inicio: number | null; km_fim: number | null; corridas: number | null }) =>
+    mGanho.mutate({ data: hojeIso, valor: d.resumoHoje?.ganho ?? 0, km_inicio: dd.km_inicio, km_fim: dd.km_fim, corridas: dd.corridas });
+  const onEncerrarSimples = () =>
+    mGanho.mutate({ data: hojeIso, valor: d.resumoHoje?.ganho ?? 0, observacao: 'dia_encerrado' });
+
   return (
     <div ref={topoRef} className="mx-auto max-w-lg space-y-4 pb-24">
       {/* ===== CABEÇALHO DO CENTRO DE CONTROLE ===== */}
@@ -114,10 +130,98 @@ export function CentroControlePage() {
         salvando={mGanho.isPending}
       />
 
-      {/* ===== 2. CHECKLIST DO DIA + SAÚDE ===== */}
+      {/* ===== 1.5 ROTINA DO DIA (Fase 14): estado + registro rápido + encerramento ===== */}
+      <RotinaDoDiaCard
+        estado={d.estadoHoje}
+        hoje={d.hojeCockpit}
+        resumo={d.resumoHoje}
+        revisao={d.revisaoHoje}
+        horasPremissa={d.planoHoje.horasPremissa}
+        horasHistorico={d.planoHoje.horasHistorico}
+        salvando={mGanho.isPending || mRecargaCriar.isPending}
+        onSalvarGanho={onSalvarGanho}
+        onSalvarKm={onSalvarKm}
+        onSalvarRecarga={(rr) => mRecargaCriar.mutate({ data: hojeIso, ...rr })}
+        onEncerrar={onEncerrarSimples}
+      />
+
+      {/* ===== 3. MEU DIA (reuso Fase 12.1) ===== */}
+      {d.resumoHoje && (
+        <MeuDiaCard
+          resumo={d.resumoHoje}
+          janelas={{ 7: d.janelas[7], 14: d.janelas[14], 30: d.janelas[30] }}
+          comparacaoOdometro={d.comparacaoOdometro}
+        />
+      )}
+
+      {/* ===== FASE 20 — Módulo 18: card pequeno de localização operacional (não é dashboard) ===== */}
+      <LocalizacaoOperacionalCard contratoId={d.contratoAtivo?.id ?? null} />
+
+      {/* ===== 4. SEU COPILOTO (Fase 17, Módulo D) + Assistente Contextual (Fase 18, Módulo K,
+          substitui o antigo Módulo E) + ferramenta de avaliar/registrar corrida (Fase 16) +
+          5. Histórico de corridas / 6-7. Inteligência por horário e dia da semana /
+          8. Qualidade da base ===== */}
+      {!d.copilotoIndisponivel && (
+        <>
+          <CopilotoInteligenteCard
+            hojeCockpit={d.hojeCockpit}
+            qtdCorridasHoje={d.qtdCorridasHoje}
+            somaValorCorridasHoje={d.somaValorCorridasHoje}
+          />
+          <AssistenteContextualCard insights={d.assistenteInsights} />
+          <CopilotoCard
+            corridasHoje={d.corridasHoje}
+            qtdCorridasHoje={d.qtdCorridasHoje}
+            somaValorCorridasHoje={d.somaValorCorridasHoje}
+            divergenciaCorridasValor={d.divergenciaCorridasValor}
+            divergenciaCorridasQtd={d.divergenciaCorridasQtd}
+            configCopiloto={d.configCopiloto}
+            copilotoConfigurado={d.copilotoConfigurado}
+            copilotoAtivo={d.copilotoAtivo}
+            hojeCockpit={d.hojeCockpit}
+            mediaHistoricaRph={d.realHora14?.valor ?? null}
+            salvando={mCorridaRegistrar.isPending}
+            onRegistrar={(c) => mCorridaRegistrar.mutate({ data: hojeIso, ...c })}
+            onSalvarConfig={(patch) => mConfigCopiloto.mutate(patch)}
+            salvandoConfig={mConfigCopiloto.isPending}
+          />
+          {/* ===== Fase 17 — Módulos A/B/C/G: histórico, padrões e qualidade da base ===== */}
+          <HistoricoCorridasCard historicoPeriodos={d.historicoPeriodos} />
+          <PadraoHorarioDiaCard porHorarioCorridas={d.porHorarioCorridas} porDiaSemanaCorridas={d.porDiaSemanaCorridas} />
+          <QualidadeBaseCopilotoCard qualidadeBaseCorridas={d.qualidadeBaseCorridas} />
+        </>
+      )}
+
+      {/* ===== 9. OPERAÇÃO REAL (tendência, evolução, janelas) ===== */}
+      <OperacaoRealCard
+        realHora={d.realHora14}
+        realDia={d.realDia14}
+        metaDiaria={d.meta.metaDiaria}
+        premissaHora={d.meta.rendaHora}
+        eficiencia={d.eficiencia}
+        custoDia={d.custoDia}
+        custoHoraRealMes={d.custoHoraRealMes}
+        janelas={d.janelas}
+        tendencia7={d.tendencia7}
+        confianca={d.confianca}
+        qualidade={d.qualidadeOp}
+        evolucao={d.evolucao}
+        recargasResumo={d.recargasResumo30}
+        energia={d.energia30}
+        equilibrio={d.equilibrio}
+        melhoresDias={d.melhoresDias}
+        ganhosJanela={d.ganhos14}
+        onUsarComoPremissa={() => {/* escolha explícita — não automática */}}
+        salvandoPremissa={false}
+      />
+
+      {/* ===== 10. RESTANTE — checklist, plano, três números, custo, ritmo do mês, semana,
+          inconsistências, recargas, carro, calendário, fechamento, histórico, simulador ===== */}
+
+      {/* ===== CHECKLIST DO DIA + SAÚDE ===== */}
       <ChecklistHojeCard checklist={checklist} saude={saude} />
 
-      {/* ===== 3. PLANO DE HOJE (reuso Fase 11) ===== */}
+      {/* ===== PLANO DE HOJE (reuso Fase 11) ===== */}
       <PlanoDeHoje
         hoje={d.hojeCockpit}
         ritmo={d.ritmo}
@@ -131,18 +235,10 @@ export function CentroControlePage() {
         simulacoes={d.planoHoje.simulacoes}
         amanha={d.planoHoje.amanha}
         horasRestantesMesDia={d.planoHoje.horasRestantesMesDia}
+        porHorarioCorridas={d.porHorarioCorridas}
       />
 
-      {/* ===== 4. MEU DIA (reuso Fase 12.1) ===== */}
-      {d.resumoHoje && (
-        <MeuDiaCard
-          resumo={d.resumoHoje}
-          janelas={{ 7: d.janelas[7], 14: d.janelas[14], 30: d.janelas[30] }}
-          comparacaoOdometro={d.comparacaoOdometro}
-        />
-      )}
-
-      {/* ===== 5. TRÊS NÚMEROS — META × REAL × PROJEÇÃO ===== */}
+      {/* ===== TRÊS NÚMEROS — META × REAL × PROJEÇÃO ===== */}
       <TresNumerosCard meta={d.meta.metaMensal} real={d.progresso.realizado} projecoes={d.projecoes} />
 
       {/* ===== 6. CUSTO DA OPERAÇÃO (separação FIXO × REGISTRADO × ESTIMADO) ===== */}
@@ -229,30 +325,7 @@ export function CentroControlePage() {
         custoPorKmRegistrado={d.janelas[30].custoPorKmRegistrado}
       />
 
-      {/* ===== 12. OPERAÇÃO REAL (tendência, evolução, janelas) ===== */}
-      <OperacaoRealCard
-        realHora={d.realHora14}
-        realDia={d.realDia14}
-        metaDiaria={d.meta.metaDiaria}
-        premissaHora={d.meta.rendaHora}
-        eficiencia={d.eficiencia}
-        custoDia={d.custoDia}
-        custoHoraRealMes={d.custoHoraRealMes}
-        janelas={d.janelas}
-        tendencia7={d.tendencia7}
-        confianca={d.confianca}
-        qualidade={d.qualidadeOp}
-        evolucao={d.evolucao}
-        recargasResumo={d.recargasResumo30}
-        energia={d.energia30}
-        equilibrio={d.equilibrio}
-        melhoresDias={d.melhoresDias}
-        ganhosJanela={d.ganhos14}
-        onUsarComoPremissa={() => {/* escolha explícita — não automática */}}
-        salvandoPremissa={false}
-      />
-
-      {/* ===== 13. CALENDÁRIO ===== */}
+      {/* ===== CALENDÁRIO ===== */}
       <CalendarioMeta
         dias={d.calendario}
         onLancar={(dados) => mGanho.mutate({
@@ -269,6 +342,16 @@ export function CentroControlePage() {
       />
 
       {/* ===== 14. HISTÓRICO ===== */}
+      {/* ===== FECHAMENTO DA SEMANA E DO MÊS (Fase 14, Módulos 17/18) ===== */}
+      <FechamentoCard fechamento={d.fechamentoSemana} evolucao={d.evolucao[7]} periodo="semana" />
+      <FechamentoCard
+        fechamento={d.fechamentoMes}
+        evolucao={d.evolucao[30]}
+        periodo="mes"
+        metaMensal={d.meta.metaMensal}
+        realizadoMes={d.progresso.realizado}
+      />
+
       <HistoricoOperacionalCard dias={d.diarioDias} hojeIso={hojeIso} />
 
       {/* ===== 15. SIMULADOR ===== */}
@@ -276,6 +359,7 @@ export function CentroControlePage() {
         base={{ custoTotal: d.totais.total, diasTrabalho: d.meta.diasTrabalho ?? 26, rendaHora: d.meta.rendaHora }}
         cenarios={d.cenarios}
         mediaRegistrada={d.realHora14?.valor ?? null}
+        faltaMeta={d.faltaMeta}
       />
 
       <p className="pb-2 text-center text-[10px] text-neutral-400">

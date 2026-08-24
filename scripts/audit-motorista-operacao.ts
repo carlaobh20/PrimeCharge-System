@@ -172,7 +172,7 @@ check('K', /listGanhosDoMes[\s\S]{0,200}listGanhosPeriodo\(/.test(apiSrc), 'list
 check('K', (apiSrc.match(/from\('motorista_ganhos'\)\s*\n?\s*\.select\(/g) ?? []).length === 1, 'UMA única query de leitura de ganhos');
 check('K', !apiSrc.replace(/\/\/.*$/gm, '').includes("select('*')"), "sem select('*') (Módulo 23)");
 const migs = readdirSync(join(raiz, 'supabase/migrations')).filter((f) => Number(f.slice(0, 4)) > 47);
-check('K', migs.every((f) => f.startsWith('0048')), 'ZERO migration da Fase 10 (só a 0048 do diário existe acima da 0047)');
+check('K', migs.every((f) => f.startsWith('0048') || f.startsWith('0049') || f.startsWith('0050') || f.startsWith('0051') || f.startsWith('0052')), 'ZERO migration da Fase 10 (acima da 0047: 0048 diário, 0049/0050 Copiloto — Fase 16, 0051 Localização — Fase 20)');
 check('K', fonteApp.every(({ s }) => !s.includes("from 'recharts'") && !s.includes('pdfmake') && !s.includes('fflate')), 'sem Recharts/pdfmake/fflate (Módulos 24/28 — gráfico é CSS)');
 const arquivosF10 = fonteApp.filter(({ p }) => /OperacaoReal|lib\/metas|financasPessoais/.test(p));
 check('K', arquivosF10.every(({ s }) => !/features\/contracts\/juridico/.test(s)), 'Fase 10 não toca motores jurídicos');

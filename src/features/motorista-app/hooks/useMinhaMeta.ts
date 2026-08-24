@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUsuario } from '@/shared/hooks/useCurrentUsuario';
 import { listMeusContratos, type MeuContrato } from '../api/meuContrato';
 import { listMinhasVistorias } from '../api/vistorias';
-import { moduloIndisponivel } from '../api/schemaGuard';
+import { moduloIndisponivel } from '@/shared/lib/schemaGuard';
 import {
   atualizarDespesa,
   criarDespesa,
@@ -25,6 +25,15 @@ import {
   type MetaConfig,
 } from '../api/financasPessoais';
 import {
+  getConfigCopiloto,
+  listCorridasPeriodo,
+  registrarCorrida,
+  removerCorrida,
+  salvarConfigCopiloto,
+  type CorridaRow,
+} from '../api/corridasPessoais';
+import {
+  aindaPrecisoFaturar,
   alertasCockpit,
   alertasMeta,
   calcularMeta,
@@ -37,10 +46,19 @@ import {
   custoPorDiaPlanejado,
   custoPorHoraReal,
   eficienciaVsPremissa,
+  estadoDoDia,
+  faltaLiquidoDoDia,
+  fechamentoDoPeriodo,
   evolucaoPeriodo,
+  gastosDoDia,
   horasParaValor,
   inconsistenciasOperacionais,
   janelaOperacional,
+  liquidoDoDia,
+  progressoLiquidoDoDia,
+  resumoMensalCompacto,
+  statusMetaLiquidaDia,
+  textoMetaLiquidaDia,
   mediaRealPorDia,
   mediaRealPorHora,
   mediasPorDiaSemana,
@@ -56,7 +74,16 @@ import {
   qualidadeDados,
   qualidadeOperacional,
   rebalancear,
+  compararPeriodoCorridas,
+  inteligenciaPorHorario,
+  inteligenciaPorDiaSemana,
+  qualidadeBaseCopiloto,
+  insightsCopiloto,
+  assistenteContextual,
+  type CorridaHistorico,
+  type PeriodoCorridas,
   resumoDiaOperacional,
+  revisaoDoDia,
   resumoRecargas,
   resumoSemana,
   ritmoDoMes,
@@ -65,6 +92,8 @@ import {
   seEuPararAgora,
   simularHorasExtras,
   tendencia,
+  CONFIG_COPILOTO_PADRAO,
+  type ConfigCopiloto,
   type DespesaMeta,
 } from '../lib/metas';
 
@@ -88,7 +117,7 @@ export function useMinhaMeta() {
       // até 30×30; a MESMA listGanhosPeriodo suporta — só o intervalo mudou)
       const hojeStr = hojeIso();
       const inicio60 = new Date(new Date(`${hojeStr}T12:00:00`).getTime() - 89 * 86_400_000).toISOString().slice(0, 10);
-      const [contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias] = await Promise.all([
+      const [contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias, corridas60, configCopilotoRow] = await Promise.all([
         listMeusContratos(),
         listDespesas(),
         getConfig(),
@@ -98,8 +127,10 @@ export function useMinhaMeta() {
         listSnapshots(),
         listRecargasPeriodo(inicio60, hojeStr),
         listMinhasVistorias(),
+        listCorridasPeriodo(inicio60, hojeStr), // Fase 16 — Copiloto (0049)
+        getConfigCopiloto(), // Fase 16 — Copiloto (0050)
       ]);
-      return { contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias };
+      return { contratos, despesas, config, objetivos, ganhos, ganhos60, snapshots, recargas60, vistorias, corridas60, configCopilotoRow };
     },
   });
 
@@ -343,6 +374,38 @@ export function useMinhaMeta() {
     });
     const cenarios = cenariosOperacionais({ custoTotal: totais.total, diasTrabalho, rendaHora: meta.rendaHora }, realHora14?.valor ?? null);
 
+    // ===== FASE 14 — rotina do dia (estado DERIVADO; nada gravado artificialmente) =====
+    const recargasDeHoje = recargasPorData.get(hojeStr) ?? [];
+
+    // ===== FASE 23 — VISÃO RÁPIDA DIÁRIA (faturamento × gastos × líquido) =====
+    // GASTOS_HOJE = recargas de hoje (única fonte de gasto variável já registrada por data —
+    // ver nota de escopo em lib/metas.ts). META LÍQUIDA do dia reusa hojeCockpit.metaHoje.
+    const gastosHoje = gastosDoDia(recargasDeHoje);
+    const faturamentoHoje = hojeCockpit.realizadoHoje;
+    const liquidoHoje = faturamentoHoje != null ? liquidoDoDia(faturamentoHoje, gastosHoje) : null;
+    const metaLiquidaHoje = hojeCockpit.metaHoje;
+    const faltaLiquidaHoje = liquidoHoje != null ? faltaLiquidoDoDia(metaLiquidaHoje, liquidoHoje) : metaLiquidaHoje;
+    const progressoLiquidoHoje = liquidoHoje != null ? progressoLiquidoDoDia(liquidoHoje, metaLiquidaHoje) : 0;
+    const statusLiquidoHoje = statusMetaLiquidaDia(metaLiquidaHoje, liquidoHoje);
+    const textoLiquidoHoje = textoMetaLiquidaDia(metaLiquidaHoje, liquidoHoje);
+    const calcularAindaPrecisoFaturar = (gastosPrevistos = 0) =>
+      aindaPrecisoFaturar(metaLiquidaHoje, liquidoHoje ?? 0, gastosPrevistos);
+    const resumoMensal = resumoMensalCompacto({
+      metaMensal: meta.metaMensal,
+      totalCustosFixos: totais.total,
+      realizado: progresso.realizado,
+      pctCoberto: progresso.pctCoberto,
+      diasTrabalhados: progresso.diasComLancamento,
+      diasRestantesPlanejados: ritmo.diasRestantesPlanejados,
+    });
+    const estadoHoje = estadoDoDia({
+      registroDeHoje: ganhoHoje ?? null,
+      totalRegistrosHistorico: ganhos60.length,
+    });
+    const revisaoHoje = revisaoDoDia(ganhoHoje ?? null, recargasDeHoje);
+    const fechamentoSemana = fechamentoDoPeriodo(ganhos60, recargasDia, hojeStr, 'semana', custoDia);
+    const fechamentoMes = fechamentoDoPeriodo(ganhos60, recargasDia, hojeStr, 'mes', custoDia);
+
     const mesAnterior = snapAnterior;
     const alertas = [
       ...alertasMeta({
@@ -360,6 +423,88 @@ export function useMinhaMeta() {
       contratoAtivo && aluguelManual && Math.abs(normalizarMensal(aluguelManual.valor, aluguelManual.periodicidade) - aluguelCarroMensal) > 0.01
         ? { contrato: aluguelCarroMensal, manual: normalizarMensal(aluguelManual.valor, aluguelManual.periodicidade), despesaId: aluguelManual.id }
         : null;
+
+    // ===== FASE 16 — COPILOTO DO MOTORISTA (corrida individual, 0049/0050) =====
+    // Corridas registradas NUNCA sobrescrevem motorista_ganhos — só somam pra COMPARAÇÃO.
+    // Divergência entre a soma das corridas e o dado manual (ganho/contagem do dia) vira
+    // "DADOS DIFERENTES" pra decisão humana, nunca reconciliação automática e silenciosa.
+    const corridas60: CorridaRow[] = base.data.corridas60 ?? [];
+    const corridasHoje = corridas60.filter((c) => c.data === hojeStr);
+    const somaValorCorridasHoje = Math.round(corridasHoje.reduce((s, c) => s + c.valor, 0) * 100) / 100;
+    const qtdCorridasHoje = corridasHoje.length;
+
+    const divergenciaCorridasValor =
+      ganhoHoje && ganhoHoje.valor > 0 && qtdCorridasHoje > 0 && Math.abs(somaValorCorridasHoje - ganhoHoje.valor) > 0.01
+        ? { registradoNoDia: ganhoHoje.valor, somaDasCorridas: somaValorCorridasHoje, diferenca: Math.round((ganhoHoje.valor - somaValorCorridasHoje) * 100) / 100 }
+        : null;
+    const divergenciaCorridasQtd =
+      ganhoHoje?.corridas != null && ganhoHoje.corridas > 0 && qtdCorridasHoje > 0 && ganhoHoje.corridas !== qtdCorridasHoje
+        ? { registradoNoDia: ganhoHoje.corridas, qtdCorridasIndividuais: qtdCorridasHoje }
+        : null;
+
+    const configCopilotoRow = base.data.configCopilotoRow;
+    const configCopiloto: ConfigCopiloto = configCopilotoRow
+      ? {
+          limiarRpkmBom: configCopilotoRow.limiar_rpkm_bom,
+          limiarRpkmRuim: configCopilotoRow.limiar_rpkm_ruim,
+          limiarRphBom: configCopilotoRow.limiar_rph_bom,
+          limiarRphRuim: configCopilotoRow.limiar_rph_ruim,
+          pesoRpkm: configCopilotoRow.peso_rpkm,
+          pesoRph: configCopilotoRow.peso_rph,
+        }
+      : CONFIG_COPILOTO_PADRAO;
+    const copilotoConfigurado = configCopilotoRow != null && (configCopilotoRow.limiar_rpkm_bom != null || configCopilotoRow.limiar_rph_bom != null);
+    const copilotoAtivo = configCopilotoRow?.ativo ?? true;
+
+    // ===== FASE 17 — COPILOTO INTELIGENTE (histórico/horário/dia da semana/insights/qualidade) =====
+    // Motor 100% puro sobre a MESMA janela de 90 dias já buscada (corridas60) — zero query nova.
+    const corridasHistorico: CorridaHistorico[] = corridas60.map((c) => ({
+      data: c.data,
+      hora: c.hora,
+      app: c.app,
+      valor: c.valor,
+      kmEstimado: c.km_estimado,
+      duracaoEstimadaMin: c.duracao_estimada_min,
+    }));
+    const historicoPeriodos: Record<PeriodoCorridas, ReturnType<typeof compararPeriodoCorridas>> = {
+      7: compararPeriodoCorridas(corridasHistorico, 7, hojeStr),
+      14: compararPeriodoCorridas(corridasHistorico, 14, hojeStr),
+      30: compararPeriodoCorridas(corridasHistorico, 30, hojeStr),
+      90: compararPeriodoCorridas(corridasHistorico, 90, hojeStr),
+    };
+    const porHorarioCorridas = inteligenciaPorHorario(corridasHistorico);
+    const porDiaSemanaCorridas = inteligenciaPorDiaSemana(corridasHistorico);
+    const qualidadeBaseCorridas = qualidadeBaseCopiloto(corridasHistorico);
+    const insightsCopilotoLista = insightsCopiloto({
+      corridas: corridasHistorico,
+      ateIso: hojeStr,
+      periodo: 30,
+      metaHoje: hojeCockpit,
+      qtdCorridasHoje,
+    });
+
+    // ===== FASE 18 — COPILOTO PROATIVO =====
+    // Módulo I: quanto falta na meta MENSAL — mesma expressão já usada no Plano de Hoje
+    // ("Falta p/ meta"), só exposta aqui pra o Simulador reusar sem recalcular nada.
+    const faltaMeta = Math.max(0, ritmo.metaMensal - ritmo.realizado);
+
+    // Módulo K: assistente contextual — CONSOME o que já foi calculado acima (insightsCopilotoLista,
+    // inconsistencias, cenarios/projecoes, qualidadeBaseCorridas, porHorarioCorridas); zero query
+    // nova, zero recálculo. `horaAtual` vem do relógio do DISPOSITIVO (só aqui, nunca dentro do
+    // motor puro em metas.ts) — formatado 'HH:MM' e declarado como origem na mensagem do insight.
+    const horaAtualStr = new Date().toTimeString().slice(0, 5);
+    const assistenteInsights = assistenteContextual({
+      estadoHoje,
+      insightsHistorico: insightsCopilotoLista,
+      qualidadeBase: qualidadeBaseCorridas,
+      diasComRegistroPeriodo: historicoPeriodos[30].atual.diasComRegistro,
+      periodoDiasBase: 30,
+      inconsistencias,
+      projecoes,
+      diasRegistradosProjecao: progresso.diasComLancamento,
+      horaAtual: horaAtualStr,
+      porHorario: porHorarioCorridas,
+    });
 
     return {
       contratoAtivo,
@@ -416,6 +561,14 @@ export function useMinhaMeta() {
       divergenciaRecarga,
       comparacaoOdometro,
       consumoFicha,
+      // Fase 14 — rotina operacional
+      estadoHoje,
+      revisaoHoje,
+      recargasDeHoje,
+      // Fase 23 — registro bruto do dia (preserva km/corridas/observacao em updates parciais)
+      ganhoHoje: ganhoHoje ?? null,
+      fechamentoSemana,
+      fechamentoMes,
       // Fase 12.2 — inteligência operacional
       evolucao,
       recargasResumo30,
@@ -428,6 +581,36 @@ export function useMinhaMeta() {
       // vez de oferecer um cadastro que falharia no INSERT.
       indisponivel: moduloIndisponivel('minha-meta'),
       precisaOnboarding: !moduloIndisponivel('minha-meta') && !despesasAtivas.some((d) => d.ativa) && !config,
+      // Fase 16 — Copiloto do Motorista (corrida individual, 0049/0050)
+      corridasHoje,
+      qtdCorridasHoje,
+      somaValorCorridasHoje,
+      divergenciaCorridasValor,
+      divergenciaCorridasQtd,
+      configCopiloto,
+      copilotoConfigurado,
+      copilotoAtivo,
+      copilotoIndisponivel: moduloIndisponivel('copiloto'),
+      // Fase 17 — Copiloto Inteligente (histórico/horário/dia da semana/insights/qualidade)
+      historicoPeriodos,
+      porHorarioCorridas,
+      porDiaSemanaCorridas,
+      qualidadeBaseCorridas,
+      insightsCopilotoLista,
+      // Fase 18 — Copiloto Proativo (Simulador em horas, Plano de Hoje por volume/média, Assistente)
+      faltaMeta,
+      assistenteInsights,
+      // Fase 23 — Visão rápida diária (faturamento × gastos × líquido) + resumo mensal compacto
+      gastosHoje,
+      faturamentoHoje,
+      liquidoHoje,
+      metaLiquidaHoje,
+      faltaLiquidaHoje,
+      progressoLiquidoHoje,
+      statusLiquidoHoje,
+      textoLiquidoHoje,
+      calcularAindaPrecisoFaturar,
+      resumoMensal,
     };
   }, [base.data, anoMes]);
 
@@ -472,6 +655,16 @@ export function useMinhaMeta() {
       gravarSnapshotDoMes(motoristaId!, `${anoMes}-01`, total, porGrupo),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['motorista', 'minha-meta'] }),
   });
+  // Fase 16 — Copiloto do Motorista
+  const mCorridaRegistrar = useMutation({
+    mutationFn: (c: Parameters<typeof registrarCorrida>[1]) => registrarCorrida(motoristaId!, c),
+    onSuccess: invalidar,
+  });
+  const mCorridaRemover = useMutation({ mutationFn: removerCorrida, onSuccess: invalidar });
+  const mConfigCopiloto = useMutation({
+    mutationFn: (patch: Parameters<typeof salvarConfigCopiloto>[1]) => salvarConfigCopiloto(motoristaId!, patch),
+    onSuccess: invalidar,
+  });
 
   return {
     motoristaId,
@@ -490,5 +683,8 @@ export function useMinhaMeta() {
     mRecargaCriar,
     mRecargaRemover,
     mSnapshot,
+    mCorridaRegistrar,
+    mCorridaRemover,
+    mConfigCopiloto,
   };
 }

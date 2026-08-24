@@ -406,6 +406,115 @@ export function calcularMetaHoje(i: {
 }
 
 // ---------------------------------------------------------------------------
+// VISÃO RÁPIDA DIÁRIA (Fase 23 — "Minha Meta" como assistente diário) — FATURAMENTO × GASTOS
+// × LÍQUIDO, nunca confundidos entre si nem com "lucro". FATURAMENTO = ganho bruto lançado.
+// GASTOS = custo operacional REGISTRADO no dia. LÍQUIDO = faturamento − gastos (PODE ser
+// negativo — gastos podem superar o faturamento; nunca floramos isso). A meta passa a ser
+// avaliada sobre o LÍQUIDO, não sobre o bruto (reusa `hojeCockpit.metaHoje` como a meta líquida
+// do dia — ela já representa "o que falta pra cobrir seus custos", que é exatamente o papel do
+// líquido zero no Ponto de Equilíbrio existente).
+//
+// NOTA DE ESCOPO (documentado, não inventado — pedido explícito da Fase 23, item 17): hoje o
+// ÚNICO gasto variável do dia que o banco já registra COM DATA é a RECARGA (motorista_recargas).
+// `motorista_despesas` é orçamento FIXO mensal (aluguel, plano, seguro…) — não é um lançamento
+// diário por categoria. Enquanto não existir uma tabela de "gastos do dia" (combustível/pedágio/
+// alimentação/estacionamento/manutenção, com data e categoria), GASTOS_HOJE = soma das recargas
+// de hoje. Proposta de migration para fechar essa lacuna está documentada no relatório da fase
+// (não criada aqui — Supabase não foi alterado nesta fase, conforme instruído).
+// ---------------------------------------------------------------------------
+
+export function gastosDoDia(recargasDoDia: { custo: number }[]): number {
+  return arred(recargasDoDia.reduce((s, r) => s + seguro(r.custo), 0));
+}
+
+/** LÍQUIDO pode ser negativo (gastos > faturamento) — nunca clampado em zero. */
+export function liquidoDoDia(faturamentoDia: number, gastosDia: number): number {
+  const f = Number.isFinite(faturamentoDia) ? faturamentoDia : 0;
+  const g = Number.isFinite(gastosDia) ? gastosDia : 0;
+  return arred(f - g);
+}
+
+export function faltaLiquidoDoDia(metaLiquidaDia: number, liquidoDia: number): number {
+  return arred(Math.max(0, seguro(metaLiquidaDia) - liquidoDia));
+}
+
+/** Pode passar de 100 (meta superada). Sem meta válida → 0 (nunca NaN/Infinity). */
+export function progressoLiquidoDoDia(liquidoDia: number, metaLiquidaDia: number): number {
+  const meta = seguro(metaLiquidaDia);
+  if (meta <= 0) return 0;
+  return Math.round((liquidoDia / meta) * 100);
+}
+
+/**
+ * "Ainda preciso faturar" (Fase 23, item 4): quanto falta GERAR (bruto) pra fechar o dia com a
+ * meta líquida, considerando gastos já feitos + gastos PREVISTOS que ainda vão sair do bolso.
+ * Exemplo da missão: meta líquida 250, líquido atual 150 (após gastos de 100), previsto +30 →
+ * necessário faturar 130 (pra fechar com 250 líquidos).
+ */
+export function aindaPrecisoFaturar(metaLiquidaDia: number, liquidoAtualDia: number, gastosPrevistos = 0): number {
+  const meta = seguro(metaLiquidaDia);
+  const liquido = Number.isFinite(liquidoAtualDia) ? liquidoAtualDia : 0;
+  const previsto = seguro(gastosPrevistos);
+  return arred(Math.max(0, meta - liquido + previsto));
+}
+
+export type StatusMetaLiquidaDia = 'sem_dado' | 'abaixo' | 'atingida' | 'superada';
+
+export function statusMetaLiquidaDia(metaLiquidaDia: number, liquidoDia: number | null): StatusMetaLiquidaDia {
+  if (liquidoDia == null) return 'sem_dado';
+  const meta = seguro(metaLiquidaDia);
+  if (meta <= 0) return 'sem_dado';
+  if (liquidoDia > meta + 0.005) return 'superada';
+  if (liquidoDia >= meta - 0.005) return 'atingida';
+  return 'abaixo';
+}
+
+/** Texto principal da visão rápida (Fase 23, item 3) — nunca recalculado dentro do componente. */
+export function textoMetaLiquidaDia(metaLiquidaDia: number, liquidoDia: number | null): string {
+  const status = statusMetaLiquidaDia(metaLiquidaDia, liquidoDia);
+  if (status === 'sem_dado') return 'Registre seu primeiro ganho de hoje para ver sua meta líquida.';
+  if (status === 'superada') return `Meta superada em ${formatBRL(liquidoDia! - metaLiquidaDia)}.`;
+  if (status === 'atingida') return 'Meta atingida.';
+  return `Faltam ${formatBRL(faltaLiquidoDoDia(metaLiquidaDia, liquidoDia!))} para bater sua meta.`;
+}
+
+// ---------------------------------------------------------------------------
+// RESUMO MENSAL COMPACTO (Fase 23) — mesmos números do Ritmo do Mês/Progresso já existentes,
+// só reempacotados com os nomes do novo card "Este mês" (nada recalculado, nada duplicado; ver
+// nota acima: GASTOS FIXOS do mês é a mesma base que já compõe a META, não é o mesmo conceito
+// de GASTOS variáveis do dia).
+// ---------------------------------------------------------------------------
+
+export type ResumoMensalCompacto = {
+  metaMensal: number;
+  faturadoMes: number;
+  gastosFixosMes: number;
+  liquidoMes: number; // pode ser negativo
+  pctCoberto: number;
+  diasTrabalhados: number;
+  diasRestantes: number;
+};
+
+export function resumoMensalCompacto(i: {
+  metaMensal: number;
+  totalCustosFixos: number;
+  realizado: number;
+  pctCoberto: number;
+  diasTrabalhados: number;
+  diasRestantesPlanejados: number;
+}): ResumoMensalCompacto {
+  return {
+    metaMensal: seguro(i.metaMensal),
+    faturadoMes: seguro(i.realizado),
+    gastosFixosMes: seguro(i.totalCustosFixos),
+    liquidoMes: arred(seguro(i.realizado) - seguro(i.totalCustosFixos)),
+    pctCoberto: i.pctCoberto,
+    diasTrabalhados: Math.max(0, Math.floor(i.diasTrabalhados)),
+    diasRestantes: Math.max(0, Math.floor(i.diasRestantesPlanejados)),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // RITMO DO MÊS + DIAS SEM PRODUÇÃO (Módulos 3/4)
 // ---------------------------------------------------------------------------
 
@@ -1425,6 +1534,104 @@ export function cenariosOperacionais(
   return out;
 }
 
+// ===========================================================================
+// FASE 14 — ROTINA OPERACIONAL (abrir → registrar → acompanhar → encerrar →
+// consultar). O estado do dia é DERIVADO dos registros que já existem: nenhum
+// enum novo no banco, nenhuma linha artificial, ZERO migration.
+// ===========================================================================
+
+export type EstadoDoDia =
+  | 'sem_dados'            // motorista ainda não registrou nada, nunca
+  | 'nao_comecou'          // tem histórico, mas hoje ainda não tem registro
+  | 'em_andamento'         // existe registro de hoje, mas ainda sem ganho
+  | 'dados_parciais'       // ganho registrado, faltam campos opcionais
+  | 'pronto_para_encerrar' // ganho + horas + km completo
+  | 'encerrado';           // observacao = 'dia_encerrado'
+
+export const ESTADO_DIA_LABEL: Record<EstadoDoDia, string> = {
+  sem_dados: 'Sem dados',
+  nao_comecou: 'Ainda não começou',
+  em_andamento: 'Em andamento',
+  dados_parciais: 'Dados parciais',
+  pronto_para_encerrar: 'Pronto para encerrar',
+  encerrado: 'Dia encerrado',
+};
+
+/** Deriva o estado do dia SÓ do que está registrado (Módulo 1). Nada é gravado. */
+export function estadoDoDia(i: {
+  registroDeHoje: GanhoJanela & { observacao?: string | null } | null;
+  totalRegistrosHistorico: number;
+}): EstadoDoDia {
+  const r = i.registroDeHoje;
+  if (!r) return i.totalRegistrosHistorico > 0 ? 'nao_comecou' : 'sem_dados';
+  if (r.observacao === 'dia_encerrado') return 'encerrado';
+  const temGanho = seguro(r.valor) > 0;
+  if (!temGanho) return 'em_andamento';
+  const temHoras = r.horas != null && Number.isFinite(r.horas) && r.horas > 0;
+  const kmCompleto = calcularKmRodados(r.km_inicio ?? null, r.km_fim ?? null) != null;
+  return temHoras && kmCompleto ? 'pronto_para_encerrar' : 'dados_parciais';
+}
+
+// ---------------------------------------------------------------------------
+// REVISÃO ANTES DE ENCERRAR (Módulo 11) — avisos FACTUAIS; nunca bloqueiam.
+// ---------------------------------------------------------------------------
+
+export type ItemRevisao = { ok: boolean; rotulo: string };
+
+export function revisaoDoDia(
+  registro: GanhoJanela | null,
+  recargasDoDia: { custo: number }[],
+): ItemRevisao[] {
+  const r = registro;
+  const temGanho = r != null && seguro(r.valor) > 0;
+  const temHoras = r != null && r.horas != null && Number.isFinite(r.horas) && r.horas > 0;
+  const km = r ? calcularKmRodados(r.km_inicio ?? null, r.km_fim ?? null) : null;
+  const kmParcial = r != null && (r.km_inicio == null) !== (r.km_fim == null);
+  const temCorridas = r != null && r.corridas != null && Number.isFinite(r.corridas) && (r.corridas as number) > 0;
+  return [
+    { ok: temGanho, rotulo: temGanho ? 'Ganho registrado' : 'Ganho não informado' },
+    { ok: temHoras, rotulo: temHoras ? 'Horas registradas' : 'Horas não informadas' },
+    { ok: km != null, rotulo: km != null ? `KM completo (${km} km)` : kmParcial ? 'KM incompleto (falta um dos odômetros)' : 'KM não informado' },
+    { ok: temCorridas, rotulo: temCorridas ? 'Corridas registradas' : 'Corridas não informadas' },
+    { ok: recargasDoDia.length > 0, rotulo: recargasDoDia.length > 0 ? `${recargasDoDia.length} recarga(s) registrada(s)` : 'Nenhuma recarga registrada' },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// FECHAMENTO DE SEMANA / MÊS (Módulos 17/18) — REUSA janelaOperacional.
+// ---------------------------------------------------------------------------
+
+export type Fechamento = JanelaOperacional & {
+  diasEncerrados: number;
+  rotulo: string;
+};
+
+/** Quantos dias do período corrente já decorreram (semana Seg→hoje; mês dia 1→hoje). */
+export function diasDecorridosNoPeriodo(hojeIso: string, periodo: 'semana' | 'mes'): number {
+  const d = new Date(`${hojeIso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return 1;
+  if (periodo === 'mes') return d.getDate();
+  const dow = d.getDay(); // 0=DOM
+  return dow === 0 ? 7 : dow; // seg=1 → 1 dia decorrido
+}
+
+export function fechamentoDoPeriodo(
+  ganhos: (GanhoJanela & { observacao?: string | null })[],
+  recargas: RecargaDia[],
+  hojeIso: string,
+  periodo: 'semana' | 'mes',
+  custoDiaPlanejado: number,
+): Fechamento {
+  const dias = diasDecorridosNoPeriodo(hojeIso, periodo);
+  const base = janelaOperacional(ganhos, dias, hojeIso, custoDiaPlanejado, recargas);
+  const doPeriodo = ganhosNaJanela(ganhos, dias, hojeIso);
+  return {
+    ...base,
+    diasEncerrados: doPeriodo.filter((g) => g.observacao === 'dia_encerrado').length,
+    rotulo: periodo === 'semana' ? 'Fechamento da semana' : 'Fechamento do mês',
+  };
+}
+
 // ---------------------------------------------------------------------------
 // CATEGORIAS SUGERIDAS (UX — Módulos 4/5/6/7)
 // ---------------------------------------------------------------------------
@@ -1545,4 +1752,974 @@ export function saudeRegistroHoje(checklist: ChecklistHoje): SaudeHoje {
   }
 
   return { status: 'incompleto', texto: `Seu dia possui ${partes.join(', ')} registrado(s). Faltam ${faltam.join(', ')}.` };
+}
+
+// =====================================================================================
+// FASE 16 — COPILOTO DO MOTORISTA (avaliação de corrida individual)
+// Reusa calcularRpKm/calcularRph/seguro/arred — NÃO reimplementa nenhuma divisão.
+// Regra: nenhum critério não configurado vira zero. Ausência de limiar = 'nao_configurado',
+// nunca um veredito silencioso. A classificação final SEMPRE vem acompanhada dos critérios
+// que a formaram (nunca um selo sozinho).
+// =====================================================================================
+
+export type ClassificacaoCorrida = 'BOM' | 'ATENCAO' | 'RUIM';
+export const CLASSIFICACAO_CORRIDA_LABEL: Record<ClassificacaoCorrida, string> = {
+  BOM: 'Boa corrida',
+  ATENCAO: 'Atenção',
+  RUIM: 'Corrida fraca',
+};
+
+export type StatusCriterio = 'bom' | 'atencao' | 'ruim' | 'nao_configurado';
+
+export type CriterioAvaliado = {
+  rotulo: string;
+  valor: number | null;
+  status: StatusCriterio;
+  detalhe: string;
+};
+
+export type ConfigCopiloto = {
+  limiarRpkmBom: number | null;
+  limiarRpkmRuim: number | null;
+  limiarRphBom: number | null;
+  limiarRphRuim: number | null;
+  pesoRpkm: number;
+  pesoRph: number;
+};
+
+export const CONFIG_COPILOTO_PADRAO: ConfigCopiloto = {
+  limiarRpkmBom: null,
+  limiarRpkmRuim: null,
+  limiarRphBom: null,
+  limiarRphRuim: null,
+  pesoRpkm: 1,
+  pesoRph: 1,
+};
+
+export type CorridaAvaliar = {
+  valor: number;
+  kmEstimado: number | null;
+  duracaoEstimadaMin: number | null;
+};
+
+export type AvaliacaoCorrida = {
+  classificacao: ClassificacaoCorrida;
+  criterios: CriterioAvaliado[];
+  rpKm: number | null;
+  rpHora: number | null;
+  configurado: boolean; // false = NENHUM critério tinha limiar configurado (classificação é só informativa)
+  observacao: string;
+};
+
+const PONTO_POR_STATUS: Record<'bom' | 'atencao' | 'ruim', number> = { bom: 1, atencao: 0, ruim: -1 };
+
+/**
+ * Avalia uma corrida individual (Fase A). Reusa calcularRpKm/calcularRph (motor único) e nunca
+ * inventa dado: distância/duração ausentes só deixam aquele critério como 'nao_configurado',
+ * nunca zeram o resultado. A classificação final é sempre a MÉDIA PONDERADA dos critérios que
+ * realmente puderam ser calculados E que têm limiar configurado — critério sem limiar não entra
+ * na conta (nem a favor, nem contra).
+ */
+export function avaliarCorrida(corrida: CorridaAvaliar, config: ConfigCopiloto | null): AvaliacaoCorrida {
+  const valor = seguro(corrida.valor);
+  const km = corrida.kmEstimado != null && corrida.kmEstimado > 0 ? corrida.kmEstimado : null;
+  const horasEstimadas =
+    corrida.duracaoEstimadaMin != null && corrida.duracaoEstimadaMin > 0 ? corrida.duracaoEstimadaMin / 60 : null;
+
+  const rpKm = calcularRpKm(valor, km);
+  const rpHora = calcularRph(valor, horasEstimadas);
+  const cfg = config ?? CONFIG_COPILOTO_PADRAO;
+
+  const criterios: CriterioAvaliado[] = [];
+  const pontosPonderados: { peso: number; ponto: number }[] = [];
+
+  // Critério 1 — R$/km
+  if (rpKm == null) {
+    criterios.push({
+      rotulo: 'R$/km',
+      valor: null,
+      status: 'nao_configurado',
+      detalhe: 'Distância da corrida não informada — critério não avaliado.',
+    });
+  } else if (cfg.limiarRpkmBom == null && cfg.limiarRpkmRuim == null) {
+    criterios.push({
+      rotulo: 'R$/km',
+      valor: rpKm,
+      status: 'nao_configurado',
+      detalhe: `R$ ${arred(rpKm)}/km — você ainda não configurou um limiar de comparação.`,
+    });
+  } else {
+    let status: 'bom' | 'atencao' | 'ruim' = 'atencao';
+    if (cfg.limiarRpkmBom != null && rpKm >= cfg.limiarRpkmBom) status = 'bom';
+    else if (cfg.limiarRpkmRuim != null && rpKm <= cfg.limiarRpkmRuim) status = 'ruim';
+    criterios.push({
+      rotulo: 'R$/km',
+      valor: rpKm,
+      status,
+      detalhe: `R$ ${arred(rpKm)}/km (seu limiar bom: ${cfg.limiarRpkmBom != null ? `R$ ${arred(cfg.limiarRpkmBom)}` : 'não configurado'}).`,
+    });
+    pontosPonderados.push({ peso: seguro(cfg.pesoRpkm), ponto: PONTO_POR_STATUS[status] });
+  }
+
+  // Critério 2 — R$/hora
+  if (rpHora == null) {
+    criterios.push({
+      rotulo: 'R$/hora',
+      valor: null,
+      status: 'nao_configurado',
+      detalhe: 'Duração da corrida não informada — critério não avaliado.',
+    });
+  } else if (cfg.limiarRphBom == null && cfg.limiarRphRuim == null) {
+    criterios.push({
+      rotulo: 'R$/hora',
+      valor: rpHora,
+      status: 'nao_configurado',
+      detalhe: `R$ ${arred(rpHora)}/h — você ainda não configurou um limiar de comparação.`,
+    });
+  } else {
+    let status: 'bom' | 'atencao' | 'ruim' = 'atencao';
+    if (cfg.limiarRphBom != null && rpHora >= cfg.limiarRphBom) status = 'bom';
+    else if (cfg.limiarRphRuim != null && rpHora <= cfg.limiarRphRuim) status = 'ruim';
+    criterios.push({
+      rotulo: 'R$/hora',
+      valor: rpHora,
+      status,
+      detalhe: `R$ ${arred(rpHora)}/h (seu limiar bom: ${cfg.limiarRphBom != null ? `R$ ${arred(cfg.limiarRphBom)}` : 'não configurado'}).`,
+    });
+    pontosPonderados.push({ peso: seguro(cfg.pesoRph), ponto: PONTO_POR_STATUS[status] });
+  }
+
+  const configurado = pontosPonderados.length > 0;
+
+  if (!configurado) {
+    return {
+      classificacao: 'ATENCAO',
+      criterios,
+      rpKm,
+      rpHora,
+      configurado: false,
+      observacao:
+        'Nenhum limiar foi configurado ainda — esta é só uma leitura informativa dos números da corrida, não uma avaliação.',
+    };
+  }
+
+  const somaPesos = pontosPonderados.reduce((acc, p) => acc + p.peso, 0);
+  const media = somaPesos > 0 ? pontosPonderados.reduce((acc, p) => acc + p.peso * p.ponto, 0) / somaPesos : 0;
+
+  let classificacao: ClassificacaoCorrida = 'ATENCAO';
+  if (media >= 0.5) classificacao = 'BOM';
+  else if (media <= -0.5) classificacao = 'RUIM';
+
+  const semDados = criterios.filter((c) => c.status === 'nao_configurado' && c.valor == null);
+  const observacao =
+    semDados.length > 0
+      ? `Matematicamente, com os dados informados: ${classificacao === 'BOM' ? 'os números ficam acima do seu limiar de corrida boa' : classificacao === 'RUIM' ? 'os números ficam abaixo do seu limiar de corrida ruim' : 'os números ficam entre os seus dois limiares'}. ${semDados.map((c) => c.detalhe).join(' ')}`
+      : `Matematicamente, com os dados informados: ${classificacao === 'BOM' ? 'os números ficam acima do seu limiar de corrida boa' : classificacao === 'RUIM' ? 'os números ficam abaixo do seu limiar de corrida ruim' : 'os números ficam entre os seus dois limiares'}.`;
+
+  return { classificacao, criterios, rpKm, rpHora, configurado: true, observacao };
+}
+
+// ---------------------------------------------------------------------------
+// COPILOTO INTELIGENTE (Fase 17) — histórico de motorista_corridas (0049) por
+// período, por faixa de horário e por dia da semana; insights automáticos;
+// qualidade da base. Motor 100% puro (zero rede). REUSA calcularRpKm/
+// calcularRph/arred/seguro/campoEvolucao/DIA_SEMANA_LABEL — nunca reimplementa
+// uma divisão nem um formato de variação. Nunca fabrica dado: sem massa de
+// observações suficiente, o retorno é "dados_insuficientes"/comparação null,
+// nunca uma média forçada. Nunca usa "melhor"/"deveria trabalhar"/"garantido" —
+// sempre "maior média REGISTRADA", leitura do que já aconteceu.
+// ---------------------------------------------------------------------------
+
+export type CorridaHistorico = {
+  data: string; // YYYY-MM-DD
+  hora: string | null; // 'HH:MM' ou 'HH:MM:SS', como vem do Postgres `time`
+  app: string | null;
+  valor: number;
+  kmEstimado: number | null;
+  duracaoEstimadaMin: number | null;
+};
+
+export type PeriodoCorridas = 7 | 14 | 30 | 90;
+
+export type ResumoPeriodoCorridas = {
+  periodo: PeriodoCorridas;
+  qtdCorridas: number;
+  valorTotal: number;
+  valorMedioPorCorrida: number | null;
+  rpHora: number | null;
+  rpKm: number | null;
+  kmEstimadoTotal: number | null;
+  horasEstimadasTotal: number | null;
+  duracaoTotalMin: number | null; // mesma informação de horasEstimadasTotal, em minutos (unidade da coluna)
+  duracaoMediaMin: number | null;
+  diasComRegistro: number;
+  mediaCorridasPorDiaComRegistro: number | null;
+  distribuicaoPorApp: { app: string; qtd: number; valorTotal: number }[];
+};
+
+function corridasNaJanela(corridas: CorridaHistorico[], diasJanela: number, ateIso: string): CorridaHistorico[] {
+  const fim = new Date(`${ateIso}T12:00:00`).getTime();
+  const inicio = fim - (Math.max(1, Math.floor(diasJanela)) - 1) * 86_400_000;
+  return corridas.filter((c) => {
+    const t = new Date(`${c.data}T12:00:00`).getTime();
+    return Number.isFinite(t) && t >= inicio && t <= fim;
+  });
+}
+
+/** Módulo A — histórico de um período (7/14/30/90d). Distância/duração ausentes nunca entram
+ *  como zero: só corridas com o dado presente contam pro total, e o total vira null se ninguém
+ *  informou. `periodoDias` aceita qualquer PeriodoCorridas (7/14/30/90); `hojeIso` é a data-base. */
+export function historicoPorPeriodo(
+  corridas: CorridaHistorico[],
+  periodoDias: PeriodoCorridas,
+  hojeIso: string,
+): ResumoPeriodoCorridas {
+  const doPeriodo = corridasNaJanela(corridas, periodoDias, hojeIso);
+  const valorTotal = arred(doPeriodo.reduce((s, c) => s + seguro(c.valor), 0));
+  const qtdCorridas = doPeriodo.length;
+  const valorMedioPorCorrida = qtdCorridas > 0 ? arred(valorTotal / qtdCorridas) : null;
+
+  const comKm = doPeriodo.filter((c) => c.kmEstimado != null && c.kmEstimado > 0);
+  const kmEstimadoTotal = comKm.length > 0 ? Math.round(comKm.reduce((s, c) => s + (c.kmEstimado as number), 0) * 10) / 10 : null;
+  const rpKm = calcularRpKm(valorTotal, kmEstimadoTotal); // REUSO — nunca valorTotal/km inline
+
+  const comDuracao = doPeriodo.filter((c) => c.duracaoEstimadaMin != null && c.duracaoEstimadaMin > 0);
+  const duracaoTotalMin =
+    comDuracao.length > 0 ? Math.round(comDuracao.reduce((s, c) => s + (c.duracaoEstimadaMin as number), 0)) : null;
+  const duracaoMediaMin = duracaoTotalMin != null && comDuracao.length > 0 ? Math.round(duracaoTotalMin / comDuracao.length) : null;
+  const horasEstimadasTotal = duracaoTotalMin != null ? Math.round((duracaoTotalMin / 60) * 100) / 100 : null;
+  const rpHora = calcularRph(valorTotal, horasEstimadasTotal); // REUSO
+
+  const diasComRegistro = new Set(doPeriodo.map((c) => c.data)).size;
+  const mediaCorridasPorDiaComRegistro = diasComRegistro > 0 ? arred(qtdCorridas / diasComRegistro) : null;
+
+  const porApp = new Map<string, { qtd: number; valorTotal: number }>();
+  for (const c of doPeriodo) {
+    const chave = c.app && c.app.trim() ? c.app.trim() : 'Não informado';
+    const atual = porApp.get(chave) ?? { qtd: 0, valorTotal: 0 };
+    atual.qtd += 1;
+    atual.valorTotal = arred(atual.valorTotal + seguro(c.valor));
+    porApp.set(chave, atual);
+  }
+  const distribuicaoPorApp = [...porApp.entries()]
+    .map(([app, v]) => ({ app, qtd: v.qtd, valorTotal: v.valorTotal }))
+    .sort((a, b) => b.valorTotal - a.valorTotal);
+
+  return {
+    periodo: periodoDias,
+    qtdCorridas,
+    valorTotal,
+    valorMedioPorCorrida,
+    rpHora,
+    rpKm,
+    kmEstimadoTotal,
+    horasEstimadasTotal,
+    duracaoTotalMin,
+    duracaoMediaMin,
+    diasComRegistro,
+    mediaCorridasPorDiaComRegistro,
+    distribuicaoPorApp,
+  };
+}
+
+export type ComparacaoPeriodoCorridas = {
+  periodo: PeriodoCorridas;
+  atual: ResumoPeriodoCorridas;
+  anterior: ResumoPeriodoCorridas | null; // null = SEM COMPARAÇÃO
+  campos: CampoEvolucao[] | null;
+};
+
+/** Compara o período atual com o imediatamente anterior de mesmo tamanho. REUSA
+ *  historicoPorPeriodo dos dois lados e campoEvolucao (mesmo formato de variação — rotulo/atual/
+ *  anterior/variacaoAbs/variacaoPct — já usado pela Evolução da Fase 12.2; não inventa 8 campos
+ *  "deltaX/deltaXPct" novos quando o formato reusável já cobre exatamente isso). Anterior sem
+ *  NENHUMA corrida → comparação null ("SEM COMPARAÇÃO"), nunca delta contra zero/Infinity. */
+export function compararPeriodoCorridas(
+  corridas: CorridaHistorico[],
+  periodo: PeriodoCorridas,
+  ateIso: string,
+): ComparacaoPeriodoCorridas {
+  const atual = historicoPorPeriodo(corridas, periodo, ateIso);
+  const fimAnterior = new Date(new Date(`${ateIso}T12:00:00`).getTime() - periodo * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const anterior = historicoPorPeriodo(corridas, periodo, fimAnterior);
+  if (anterior.qtdCorridas === 0) return { periodo, atual, anterior: null, campos: null };
+  const campos = [
+    campoEvolucao('Valor total', atual.valorTotal, anterior.valorTotal),
+    campoEvolucao('Qtd. corridas', atual.qtdCorridas, anterior.qtdCorridas),
+    campoEvolucao('R$/corrida', atual.valorMedioPorCorrida, anterior.valorMedioPorCorrida),
+    campoEvolucao('R$/h', atual.rpHora, anterior.rpHora),
+    campoEvolucao('R$/km', atual.rpKm, anterior.rpKm),
+  ];
+  return { periodo, atual, anterior, campos };
+}
+
+// ---------------------------------------------------------------------------
+// Classificação de amostra (mínimo de observações) — filosofia igual a
+// ConfiancaDados, mas limiares próprios (3/7/14) pedidos para corridas
+// individuais. Não reusa ConfiancaDados porque o domínio é diferente (corridas,
+// não dias de motorista_ganhos) e os limiares pedidos são outros.
+// ---------------------------------------------------------------------------
+
+export type ClassificacaoAmostra = 'dados_insuficientes' | 'base_inicial' | 'base_consistente' | 'base_relevante';
+
+export const CLASSIFICACAO_AMOSTRA_LABEL: Record<ClassificacaoAmostra, string> = {
+  dados_insuficientes: 'Dados insuficientes',
+  base_inicial: 'Base inicial',
+  base_consistente: 'Base consistente',
+  base_relevante: 'Base relevante',
+};
+
+export function classificarAmostra(qtdObservacoes: number): ClassificacaoAmostra {
+  const n = Math.max(0, Math.floor(seguro(qtdObservacoes)));
+  if (n < 3) return 'dados_insuficientes';
+  if (n <= 6) return 'base_inicial';
+  if (n <= 13) return 'base_consistente';
+  return 'base_relevante';
+}
+
+export const FAIXAS_HORARIO: { inicio: number; fim: number; label: string }[] = [
+  { inicio: 0, fim: 6, label: '00h–06h' },
+  { inicio: 6, fim: 9, label: '06h–09h' },
+  { inicio: 9, fim: 12, label: '09h–12h' },
+  { inicio: 12, fim: 15, label: '12h–15h' },
+  { inicio: 15, fim: 18, label: '15h–18h' },
+  { inicio: 18, fim: 21, label: '18h–21h' },
+  { inicio: 21, fim: 24, label: '21h–00h' },
+];
+
+export type ResumoFaixaHorario = {
+  inicio: number;
+  fim: number;
+  label: string;
+  qtdCorridas: number;
+  valorTotal: number;
+  valorMedioPorCorrida: number | null;
+  rpHora: number | null;
+  rpKm: number | null;
+  diasObservados: number;
+  classificacaoAmostra: ClassificacaoAmostra;
+};
+
+/** Módulo B — agrupa corridas por faixa de horário fixa, só entre quem tem `hora` informado
+ *  (horário ausente OU inválido é SEM DADO — nunca vira "00h"). "MAIOR MÉDIA REGISTRADA", nunca "melhor horário para trabalhar". */
+export function inteligenciaPorHorario(corridas: CorridaHistorico[]): ResumoFaixaHorario[] {
+  const comHora = corridas.filter((c) => c.hora != null && c.hora.trim() !== '');
+  const out: ResumoFaixaHorario[] = [];
+  for (const faixa of FAIXAS_HORARIO) {
+    const doGrupo = comHora.filter((c) => {
+      const h = Number.parseInt((c.hora as string).slice(0, 2), 10);
+      if (!Number.isFinite(h) || h < 0 || h > 23) return false; // hora inválida → SEM DADO, nunca 0
+      return faixa.fim === 24 ? h >= faixa.inicio : h >= faixa.inicio && h < faixa.fim;
+    });
+    if (doGrupo.length === 0) continue;
+    const valorTotal = arred(doGrupo.reduce((s, c) => s + seguro(c.valor), 0));
+    const valorMedioPorCorrida = arred(valorTotal / doGrupo.length);
+    const comKm = doGrupo.filter((c) => c.kmEstimado != null && c.kmEstimado > 0);
+    const kmTotal = comKm.length > 0 ? Math.round(comKm.reduce((s, c) => s + (c.kmEstimado as number), 0) * 10) / 10 : null;
+    const rpKm = calcularRpKm(valorTotal, kmTotal);
+    const comDur = doGrupo.filter((c) => c.duracaoEstimadaMin != null && c.duracaoEstimadaMin > 0);
+    const horasTotal =
+      comDur.length > 0 ? Math.round((comDur.reduce((s, c) => s + (c.duracaoEstimadaMin as number), 0) / 60) * 100) / 100 : null;
+    const rpHora = calcularRph(valorTotal, horasTotal);
+    out.push({
+      inicio: faixa.inicio,
+      fim: faixa.fim,
+      label: faixa.label,
+      qtdCorridas: doGrupo.length,
+      valorTotal,
+      valorMedioPorCorrida,
+      rpHora,
+      rpKm,
+      diasObservados: new Set(doGrupo.map((c) => c.data)).size,
+      classificacaoAmostra: classificarAmostra(doGrupo.length),
+    });
+  }
+  return out;
+}
+
+export type ResumoDiaSemanaCorridas = {
+  diaSemana: number;
+  label: string;
+  qtdCorridas: number;
+  valorTotal: number;
+  valorMedioPorCorrida: number | null;
+  rpHora: number | null;
+  rpKm: number | null;
+  duracaoMediaMin: number | null;
+  diasObservados: number;
+  classificacaoAmostra: ClassificacaoAmostra;
+};
+
+/** Módulo C — agrupa corridas por dia da semana, usando a DATA REAL da corrida (nunca
+ *  `motorista_ganhos` — este módulo é sobre corridas individuais). Mesma disciplina do Módulo B:
+ *  nunca "melhor dia", sempre "maior média registrada", com a classificação de amostra ao lado
+ *  pra nunca esconder que um dia com 1 corrida não é uma base confiável (nunca comparado a um
+ *  dia com 20 como se fossem equivalentes — a UI decide isso a partir de classificacaoAmostra). */
+export function inteligenciaPorDiaSemana(corridas: CorridaHistorico[]): ResumoDiaSemanaCorridas[] {
+  const grupos = new Map<number, CorridaHistorico[]>();
+  for (const c of corridas) {
+    const dt = new Date(`${c.data}T12:00:00`);
+    if (Number.isNaN(dt.getTime())) continue;
+    const ds = dt.getDay();
+    grupos.set(ds, [...(grupos.get(ds) ?? []), c]);
+  }
+  const out: ResumoDiaSemanaCorridas[] = [];
+  for (const [ds, lista] of grupos) {
+    const valorTotal = arred(lista.reduce((s, c) => s + seguro(c.valor), 0));
+    const valorMedioPorCorrida = lista.length > 0 ? arred(valorTotal / lista.length) : null;
+    const comKm = lista.filter((c) => c.kmEstimado != null && c.kmEstimado > 0);
+    const kmTotal = comKm.length > 0 ? Math.round(comKm.reduce((s, c) => s + (c.kmEstimado as number), 0) * 10) / 10 : null;
+    const rpKm = calcularRpKm(valorTotal, kmTotal);
+    const comDur = lista.filter((c) => c.duracaoEstimadaMin != null && c.duracaoEstimadaMin > 0);
+    const duracaoTotalMin = comDur.length > 0 ? Math.round(comDur.reduce((s, c) => s + (c.duracaoEstimadaMin as number), 0)) : null;
+    const duracaoMediaMin = duracaoTotalMin != null ? Math.round(duracaoTotalMin / comDur.length) : null;
+    const horasTotal = duracaoTotalMin != null ? Math.round((duracaoTotalMin / 60) * 100) / 100 : null;
+    const rpHora = calcularRph(valorTotal, horasTotal);
+    out.push({
+      diaSemana: ds,
+      label: DIA_SEMANA_LABEL[ds],
+      qtdCorridas: lista.length,
+      valorTotal,
+      valorMedioPorCorrida,
+      rpHora,
+      rpKm,
+      duracaoMediaMin,
+      diasObservados: new Set(lista.map((c) => c.data)).size,
+      classificacaoAmostra: classificarAmostra(lista.length),
+    });
+  }
+  return out.sort((a, b) => a.diaSemana - b.diaSemana);
+}
+
+export type QualidadeBaseCopiloto = {
+  totalCorridas: number;
+  comKm: number;
+  semKm: number;
+  comDuracao: number;
+  semDuracao: number;
+  comHorario: number;
+  semHorario: number;
+  comApp: number;
+  semApp: number;
+  diasComRegistro: number;
+  faixasHorarioComDados: number; // quantas das 7 faixas fixas já têm ao menos 1 observação
+  diasSemanaComDados: number; // quantos dos 7 dias da semana já têm ao menos 1 observação
+  classificacaoAmostra: ClassificacaoAmostra;
+};
+
+/** Módulo G — puramente descritivo. Nunca julga ("sua base é ruim/boa"), só descreve o que está e
+ *  não está preenchido, para decisão do motorista sobre o que registrar com mais detalhe. REUSA
+ *  inteligenciaPorHorario/inteligenciaPorDiaSemana pra contar cobertura — não reimplementa o
+ *  agrupamento por faixa/dia por conta própria. */
+export function qualidadeBaseCopiloto(corridas: CorridaHistorico[]): QualidadeBaseCopiloto {
+  const comKm = corridas.filter((c) => c.kmEstimado != null && c.kmEstimado > 0).length;
+  const comDuracao = corridas.filter((c) => c.duracaoEstimadaMin != null && c.duracaoEstimadaMin > 0).length;
+  const comHorario = corridas.filter((c) => c.hora != null && c.hora.trim() !== '').length;
+  const comApp = corridas.filter((c) => c.app != null && c.app.trim() !== '').length;
+  const diasComRegistro = new Set(corridas.map((c) => c.data)).size;
+  return {
+    totalCorridas: corridas.length,
+    comKm,
+    semKm: corridas.length - comKm,
+    comDuracao,
+    semDuracao: corridas.length - comDuracao,
+    comHorario,
+    semHorario: corridas.length - comHorario,
+    comApp,
+    semApp: corridas.length - comApp,
+    diasComRegistro,
+    faixasHorarioComDados: inteligenciaPorHorario(corridas).length, // REUSO — Módulo B
+    diasSemanaComDados: inteligenciaPorDiaSemana(corridas).length, // REUSO — Módulo C
+    classificacaoAmostra: classificarAmostra(corridas.length),
+  };
+}
+
+export type TipoInsightCopiloto =
+  | 'HORARIO'
+  | 'DIA_SEMANA'
+  | 'EVOLUCAO'
+  | 'RPH'
+  | 'RPKM'
+  | 'META'
+  | 'CORRIDA'
+  | 'REGISTRO'
+  | 'DADO_INSUFICIENTE';
+
+export type OrigemInsightCopiloto = 'DADO REGISTRADO' | 'SEM DADOS SUFICIENTES';
+
+export type InsightCopiloto = {
+  id: string;
+  tipo: TipoInsightCopiloto;
+  titulo: string;
+  descricao: string;
+  origem: OrigemInsightCopiloto;
+  periodo: PeriodoCorridas | null;
+  classificacaoAmostra: ClassificacaoAmostra;
+  dadosBase: number; // qtd de observações que sustentam o insight
+};
+
+/**
+ * Módulo F — motor de insights automáticos (100% puro, zero rede: nada de Supabase/React/hooks/
+ * window/localStorage — só os dados recebidos no parâmetro). CONSOME os retornos de
+ * historicoPorPeriodo/compararPeriodoCorridas/inteligenciaPorHorario/inteligenciaPorDiaSemana/
+ * qualidadeBaseCopiloto — nunca recalcula agregação por conta própria. Vocabulário proibido:
+ * nunca "melhor horário/dia/região", nunca "você deve/precisa trabalhar", nunca promessa de renda.
+ * Sempre "maior média REGISTRADA" com o dado base explícito ao lado.
+ */
+export function insightsCopiloto(i: {
+  corridas: CorridaHistorico[];
+  ateIso: string;
+  periodo?: PeriodoCorridas;
+  metaHoje?: MetaHojeCockpit | null;
+  qtdCorridasHoje?: number;
+}): InsightCopiloto[] {
+  const periodo = i.periodo ?? 30;
+  const insights: InsightCopiloto[] = [];
+  let seq = 0;
+  const proximoId = (tipo: string) => `copiloto-insight-${tipo.toLowerCase()}-${seq++}`;
+  const doPeriodo = corridasNaJanela(i.corridas, periodo, i.ateIso);
+
+  if (doPeriodo.length === 0) {
+    insights.push({
+      id: proximoId('DADO_INSUFICIENTE'),
+      tipo: 'DADO_INSUFICIENTE',
+      titulo: 'Ainda não há corridas registradas neste período',
+      descricao:
+        'Não há registros suficientes para gerar qualquer leitura. Registre suas corridas no Copiloto para começar a ver padrões.',
+      origem: 'SEM DADOS SUFICIENTES',
+      periodo,
+      classificacaoAmostra: 'dados_insuficientes',
+      dadosBase: 0,
+    });
+    return insights;
+  }
+
+  const comparacao = compararPeriodoCorridas(i.corridas, periodo, i.ateIso);
+  if (comparacao.anterior && comparacao.campos) {
+    const valorCampo = comparacao.campos.find((c) => c.rotulo === 'Valor total');
+    if (valorCampo && valorCampo.variacaoPct != null) {
+      insights.push({
+        id: proximoId('EVOLUCAO'),
+        tipo: 'EVOLUCAO',
+        titulo: `Valor total ${valorCampo.variacaoPct >= 0 ? 'subiu' : 'caiu'} ${Math.abs(valorCampo.variacaoPct)}% vs. período anterior`,
+        descricao: `No período de ${periodo} dias você registrou R$ ${arred(comparacao.atual.valorTotal)}; no período anterior de mesmo tamanho, R$ ${arred(comparacao.anterior.valorTotal)}. Comparação feita só com dados registrados.`,
+        origem: 'DADO REGISTRADO',
+        periodo,
+        classificacaoAmostra: classificarAmostra(doPeriodo.length),
+        dadosBase: doPeriodo.length,
+      });
+    }
+  } else {
+    insights.push({
+      id: proximoId('EVOLUCAO'),
+      tipo: 'EVOLUCAO',
+      titulo: 'Sem período anterior para comparar',
+      descricao:
+        'Ainda não há corridas registradas no período imediatamente anterior — sem base, não é possível comparar evolução.',
+      origem: 'SEM DADOS SUFICIENTES',
+      periodo,
+      classificacaoAmostra: 'dados_insuficientes',
+      dadosBase: 0,
+    });
+  }
+
+  const porHorario = inteligenciaPorHorario(doPeriodo).filter(
+    (f) => f.classificacaoAmostra !== 'dados_insuficientes' && f.rpHora != null,
+  );
+  if (porHorario.length > 0) {
+    const maior = [...porHorario].sort((a, b) => (b.rpHora ?? 0) - (a.rpHora ?? 0))[0];
+    insights.push({
+      id: proximoId('HORARIO'),
+      tipo: 'HORARIO',
+      titulo: `Maior R$/h registrado na faixa ${maior.label}`,
+      descricao: `Entre as corridas com horário informado, a faixa ${maior.label} teve a maior média de R$/h registrada (R$ ${arred(maior.rpHora as number)}/h, ${maior.qtdCorridas} corrida(s)). Leitura do que já aconteceu, não uma indicação de quando trabalhar.`,
+      origem: 'DADO REGISTRADO',
+      periodo,
+      classificacaoAmostra: maior.classificacaoAmostra,
+      dadosBase: maior.qtdCorridas,
+    });
+  } else {
+    insights.push({
+      id: proximoId('HORARIO'),
+      tipo: 'HORARIO',
+      titulo: 'Sem dados suficientes por horário',
+      descricao: 'Registre o horário das corridas para ver a maior média por faixa de horário registrada.',
+      origem: 'SEM DADOS SUFICIENTES',
+      periodo,
+      classificacaoAmostra: 'dados_insuficientes',
+      dadosBase: 0,
+    });
+  }
+
+  const porDia = inteligenciaPorDiaSemana(doPeriodo).filter(
+    (d) => d.classificacaoAmostra !== 'dados_insuficientes' && d.rpHora != null,
+  );
+  if (porDia.length > 0) {
+    const maior = [...porDia].sort((a, b) => (b.rpHora ?? 0) - (a.rpHora ?? 0))[0];
+    insights.push({
+      id: proximoId('DIA_SEMANA'),
+      tipo: 'DIA_SEMANA',
+      titulo: `Maior R$/h registrado às ${maior.label}`,
+      descricao: `Entre os dias da semana com base suficiente, ${maior.label} teve a maior média de R$/h registrada (R$ ${arred(maior.rpHora as number)}/h, ${maior.qtdCorridas} corrida(s)). Leitura do histórico registrado, não indicação de melhor dia.`,
+      origem: 'DADO REGISTRADO',
+      periodo,
+      classificacaoAmostra: maior.classificacaoAmostra,
+      dadosBase: maior.qtdCorridas,
+    });
+  } else {
+    insights.push({
+      id: proximoId('DIA_SEMANA'),
+      tipo: 'DIA_SEMANA',
+      titulo: 'Sem dados suficientes por dia da semana',
+      descricao: 'Ainda não há dias da semana com corridas suficientes (mínimo 3) para uma leitura por dia.',
+      origem: 'SEM DADOS SUFICIENTES',
+      periodo,
+      classificacaoAmostra: 'dados_insuficientes',
+      dadosBase: 0,
+    });
+  }
+
+  const resumo = historicoPorPeriodo(i.corridas, periodo, i.ateIso);
+  if (resumo.rpHora != null) {
+    insights.push({
+      id: proximoId('RPH'),
+      tipo: 'RPH',
+      titulo: `R$/h médio do período: R$ ${arred(resumo.rpHora)}`,
+      descricao: `Calculado a partir de ${resumo.qtdCorridas} corrida(s) com duração informada nos últimos ${periodo} dias.`,
+      origem: 'DADO REGISTRADO',
+      periodo,
+      classificacaoAmostra: classificarAmostra(resumo.qtdCorridas),
+      dadosBase: resumo.qtdCorridas,
+    });
+  }
+  if (resumo.rpKm != null) {
+    insights.push({
+      id: proximoId('RPKM'),
+      tipo: 'RPKM',
+      titulo: `R$/km médio do período: R$ ${arred(resumo.rpKm)}`,
+      descricao: `Calculado a partir de ${resumo.qtdCorridas} corrida(s) com distância informada nos últimos ${periodo} dias.`,
+      origem: 'DADO REGISTRADO',
+      periodo,
+      classificacaoAmostra: classificarAmostra(resumo.qtdCorridas),
+      dadosBase: resumo.qtdCorridas,
+    });
+  }
+
+  if (i.metaHoje) {
+    const rotuloStatus =
+      i.metaHoje.status === 'acima_ritmo'
+        ? 'Você está acima da meta de hoje'
+        : i.metaHoje.status === 'abaixo_ritmo'
+          ? 'Você está abaixo da meta de hoje'
+          : i.metaHoje.status === 'encerrado'
+            ? 'Dia encerrado'
+            : 'Meta de hoje em andamento';
+    insights.push({
+      id: proximoId('META'),
+      tipo: 'META',
+      titulo: rotuloStatus,
+      descricao: `Meta de hoje: R$ ${arred(i.metaHoje.metaHoje)}. Realizado: ${i.metaHoje.realizadoHoje != null ? `R$ ${arred(i.metaHoje.realizadoHoje)}` : 'ainda não registrado'}.`,
+      origem: 'DADO REGISTRADO',
+      periodo: null,
+      classificacaoAmostra: 'base_relevante',
+      dadosBase: 1,
+    });
+  }
+
+  if (i.qtdCorridasHoje != null && i.qtdCorridasHoje > 0) {
+    insights.push({
+      id: proximoId('CORRIDA'),
+      tipo: 'CORRIDA',
+      titulo: `${i.qtdCorridasHoje} corrida(s) registrada(s) hoje`,
+      descricao: 'Contagem de corridas individuais registradas no Copiloto hoje.',
+      origem: 'DADO REGISTRADO',
+      periodo: null,
+      classificacaoAmostra: 'base_relevante',
+      dadosBase: i.qtdCorridasHoje,
+    });
+  }
+
+  const qualidade = qualidadeBaseCopiloto(doPeriodo);
+  if (qualidade.totalCorridas > 0 && (qualidade.semKm > 0 || qualidade.semDuracao > 0)) {
+    insights.push({
+      id: proximoId('REGISTRO'),
+      tipo: 'REGISTRO',
+      titulo: 'Parte das corridas está sem km ou duração',
+      descricao: `${qualidade.semKm} corrida(s) sem km estimado e ${qualidade.semDuracao} sem duração estimada nos últimos ${periodo} dias — preencher esses campos melhora a precisão do R$/km e R$/h.`,
+      origem: 'DADO REGISTRADO',
+      periodo,
+      classificacaoAmostra: classificarAmostra(qualidade.totalCorridas),
+      dadosBase: qualidade.totalCorridas,
+    });
+  }
+
+  return insights;
+}
+
+// ===========================================================================
+// FASE 18 — COPILOTO PROATIVO DO MOTORISTA (assistente operacional determinístico)
+// "Com base no que eu registrei, como está minha operação e quais informações são relevantes
+// para minha decisão agora?" — NUNCA um chatbot genérico, NUNCA inventa dado, NUNCA promete
+// ganho, NUNCA decide aceitar/recusar corrida, NUNCA diz onde o motorista "deve" trabalhar.
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// PLANO DE HOJE INTELIGENTE (Módulo J) — reordena inteligenciaPorHorario() (Módulo B) por dois
+// critérios INDEPENDENTES: volume (quantidade de registros) e rentabilidade (maior R$/h
+// REGISTRADO). Nunca a mesma ordenação: uma faixa pode ter muito volume e baixa média; outra,
+// pouco volume e média alta — o sistema mostra a diferença em vez de misturar as duas métricas
+// numa nota só. REUSA inteligenciaPorHorario() — nenhuma agregação nova, só ordenação/filtro.
+// ---------------------------------------------------------------------------
+
+/** Janelas ordenadas por VOLUME (quantidade de corridas) — nunca por rentabilidade. */
+export function janelasPorVolume(faixas: ResumoFaixaHorario[]): ResumoFaixaHorario[] {
+  return [...faixas].sort((a, b) => b.qtdCorridas - a.qtdCorridas);
+}
+
+/** Janelas ordenadas por MAIOR MÉDIA R$/h REGISTRADA — só entre as que têm R$/h calculável
+ *  (duração informada em ao menos 1 corrida da faixa). Nunca "melhor horário". */
+export function janelasPorMediaRegistrada(faixas: ResumoFaixaHorario[]): ResumoFaixaHorario[] {
+  return [...faixas].filter((f) => f.rpHora != null).sort((a, b) => (b.rpHora as number) - (a.rpHora as number));
+}
+
+// ---------------------------------------------------------------------------
+// ASSISTENTE CONTEXTUAL (Módulo K) — motor 100% puro (zero rede, zero IA externa, zero LLM,
+// zero window/localStorage). CONSOME insightsCopiloto() (Módulo F), inconsistenciasOperacionais()
+// e projecoesDuplas() (Fase 12.2) e qualidadeBaseCopiloto() (Módulo G) já calculados — nunca
+// recalcula nenhuma métrica por conta própria. Acrescenta: prioridade determinística, ação de
+// navegação sugerida (nunca ação sobre a corrida em si) e consciência do horário atual SÓ quando
+// ele é passado explicitamente pelo chamador — este motor nunca lê relógio, nunca acessa Date;
+// "SEM horário atual disponível" quando o chamador não fornece um horário confiável, declarando
+// sempre a origem ("relógio do dispositivo") quando ele existe. "O sistema informa. O motorista
+// decide." — nunca aconselha, nunca ordena, nunca promete ganho, nunca decide aceitar/recusar
+// corrida, nunca diz onde o motorista "deve" trabalhar.
+// ---------------------------------------------------------------------------
+
+export type TipoInsightAssistente =
+  | 'META'
+  | 'REGISTRO'
+  | 'HISTORICO'
+  | 'HORARIO'
+  | 'DIA_SEMANA'
+  | 'DADO_INSUFICIENTE'
+  | 'INCONSISTENCIA'
+  | 'CORRIDA'
+  | 'PROJECAO';
+
+export type OrigemInsightAssistente = 'DADO REGISTRADO' | 'HISTÓRICO' | 'DADOS INSUFICIENTES' | 'INCONSISTÊNCIA' | 'PROJEÇÃO';
+
+/** Pra onde "Ver dados" leva — mesma seção que já existe na tela, nunca uma navegação paralela. */
+export type AcaoInsightAssistente = 'meta' | 'historico' | 'padrao' | 'qualidade' | 'inconsistencias' | 'projecao' | null;
+
+export type InsightAssistente = {
+  id: string;
+  prioridade: number; // 1 = mais prioritário (ordem: dados faltantes → divergências → meta →
+  // estado operacional → histórico → horário → dia da semana → projeção)
+  tipo: TipoInsightAssistente;
+  titulo: string;
+  mensagem: string;
+  origem: OrigemInsightAssistente;
+  dadosBase: number;
+  acaoDisponivel: AcaoInsightAssistente;
+};
+
+/** Ordem de prioridade EXATA pedida na Fase 18: 1 dados faltantes, 2 divergências, 3 meta,
+ *  4 estado operacional/corrida, 5 histórico, 6 horário, 7 dia da semana, 8 projeção. */
+export const PRIORIDADE_TIPO_ASSISTENTE: Record<TipoInsightAssistente, number> = {
+  DADO_INSUFICIENTE: 1,
+  INCONSISTENCIA: 2,
+  META: 3,
+  CORRIDA: 4,
+  REGISTRO: 5,
+  HISTORICO: 6,
+  HORARIO: 7,
+  DIA_SEMANA: 8,
+  PROJECAO: 9,
+};
+
+export const ACAO_TIPO_ASSISTENTE: Record<TipoInsightAssistente, AcaoInsightAssistente> = {
+  DADO_INSUFICIENTE: 'qualidade',
+  INCONSISTENCIA: 'inconsistencias',
+  META: 'meta',
+  CORRIDA: 'meta',
+  REGISTRO: 'meta',
+  HISTORICO: 'historico',
+  HORARIO: 'padrao',
+  DIA_SEMANA: 'padrao',
+  PROJECAO: 'projecao',
+};
+
+// Mapeia o tipo (mais granular) do Módulo F pro tipo (mais grosso) do Assistente — EVOLUCAO/RPH/
+// RPKM viram HISTORICO; os demais são 1-pra-1. DADO_INSUFICIENTE do F é tratado à parte (ver
+// abaixo — o Assistente gera o seu próprio, mais específico, a partir de qualidadeBaseCopiloto).
+const TIPO_F_PARA_ASSISTENTE: Record<TipoInsightCopiloto, TipoInsightAssistente> = {
+  HORARIO: 'HORARIO',
+  DIA_SEMANA: 'DIA_SEMANA',
+  EVOLUCAO: 'HISTORICO',
+  RPH: 'HISTORICO',
+  RPKM: 'HISTORICO',
+  META: 'META',
+  CORRIDA: 'CORRIDA',
+  REGISTRO: 'REGISTRO',
+  DADO_INSUFICIENTE: 'DADO_INSUFICIENTE',
+};
+
+// Estado operacional (Módulo 1 da Fase 14) → mensagem factual, só nos estados que pedem atenção.
+// 'pronto_para_encerrar' e 'encerrado' não geram insight (nada de anormal a relatar).
+const MENSAGEM_ESTADO_DIA: Partial<Record<EstadoDoDia, string>> = {
+  sem_dados: 'Você ainda não tem nenhum registro no seu histórico.',
+  nao_comecou: 'Você ainda não registrou nada hoje.',
+  em_andamento: 'Hoje já tem um valor registrado, mas ainda sem horas lançadas.',
+  dados_parciais: 'Hoje tem ganho e horas registrados, mas o odômetro está incompleto.',
+};
+
+/** Faixa fixa (das 7 de FAIXAS_HORARIO — REUSO, nunca uma segunda lista de faixas) em que
+ *  `horaAtual` cai. Retorna null se `horaAtual` for ausente ou inválido — nunca inventa. */
+function faixaHorarioAtual(horaAtual: string | null): { inicio: number; fim: number; label: string } | null {
+  if (!horaAtual) return null;
+  const h = Number.parseInt(horaAtual.slice(0, 2), 10);
+  if (!Number.isFinite(h) || h < 0 || h > 23) return null;
+  return FAIXAS_HORARIO.find((f) => (f.fim === 24 ? h >= f.inicio : h >= f.inicio && h < f.fim)) ?? null;
+}
+
+export function assistenteContextual(i: {
+  estadoHoje: EstadoDoDia;
+  /** Insights já produzidos por insightsCopiloto() (Módulo F) — REUSO, nunca recalculados aqui. */
+  insightsHistorico: InsightCopiloto[];
+  qualidadeBase: QualidadeBaseCopiloto;
+  /** historicoPorPeriodo(corridas, periodoDiasBase, hoje).atual.diasComRegistro — já calculado. */
+  diasComRegistroPeriodo: number;
+  /** O período (em dias) usado no campo acima — só pra rotular a mensagem (ex.: 30). */
+  periodoDiasBase: number;
+  inconsistencias: Inconsistencia[];
+  projecoes: ProjecoesDuplas | null;
+  /** Dias com lançamento no mês — só pra popular `dadosBase` do insight de PROJEÇÃO. */
+  diasRegistradosProjecao: number;
+  /** 'HH:MM' do relógio do DISPOSITIVO, já formatado pelo chamador — null quando indisponível.
+   *  Este motor NUNCA lê relógio: sem este parâmetro, nunca inventa um horário "atual". */
+  horaAtual: string | null;
+  /** inteligenciaPorHorario() (Módulo B) — pra contextualizar a faixa atual, quando horaAtual existir. */
+  porHorario: ResumoFaixaHorario[];
+}): InsightAssistente[] {
+  const insights: InsightAssistente[] = [];
+  let seq = 0;
+  const proximoId = (tipo: string) => `assistente-insight-${tipo.toLowerCase()}-${seq++}`;
+
+  // ---- 2. Divergências (INCONSISTENCIA) ----
+  if (i.inconsistencias.length > 0) {
+    const primeira = i.inconsistencias[0];
+    insights.push({
+      id: proximoId('INCONSISTENCIA'),
+      prioridade: PRIORIDADE_TIPO_ASSISTENTE.INCONSISTENCIA,
+      tipo: 'INCONSISTENCIA',
+      titulo: i.inconsistencias.length === 1 ? primeira.achado : `${i.inconsistencias.length} divergências nos seus registros`,
+      mensagem:
+        i.inconsistencias.length === 1
+          ? `${primeira.achado} — origem: ${primeira.origem}. Falta: ${primeira.falta}.`
+          : `Encontradas ${i.inconsistencias.length} divergências nos seus registros, incluindo "${primeira.achado}". Nada foi alterado automaticamente.`,
+      origem: 'INCONSISTÊNCIA',
+      dadosBase: i.inconsistencias.length,
+      acaoDisponivel: ACAO_TIPO_ASSISTENTE.INCONSISTENCIA,
+    });
+  }
+
+  // ---- 1. Dados faltantes importantes (DADO_INSUFICIENTE, dedicado — dias sem registro no
+  // período-base). Só aparece quando a base ainda é insuficiente/inicial — não repete o aviso
+  // depois que a base já virou consistente/relevante. ----
+  const diasSemRegistro = Math.max(0, i.periodoDiasBase - i.diasComRegistroPeriodo);
+  if (
+    diasSemRegistro > 0 &&
+    (i.qualidadeBase.classificacaoAmostra === 'dados_insuficientes' || i.qualidadeBase.classificacaoAmostra === 'base_inicial')
+  ) {
+    insights.push({
+      id: proximoId('DADO_INSUFICIENTE'),
+      prioridade: PRIORIDADE_TIPO_ASSISTENTE.DADO_INSUFICIENTE,
+      tipo: 'DADO_INSUFICIENTE',
+      titulo: `Você ainda possui ${diasSemRegistro} dia(s) sem registros neste período`,
+      mensagem: `Nos últimos ${i.periodoDiasBase} dias, ${i.diasComRegistroPeriodo} tiveram ao menos um registro. Mais registros ajudam a comparar horários e dias da semana com mais segurança.`,
+      origem: 'DADOS INSUFICIENTES',
+      dadosBase: i.diasComRegistroPeriodo,
+      acaoDisponivel: ACAO_TIPO_ASSISTENTE.DADO_INSUFICIENTE,
+    });
+  }
+
+  // ---- 3/5/6/7 — META, HISTORICO (EVOLUCAO/RPH/RPKM), HORARIO, DIA_SEMANA, CORRIDA, REGISTRO:
+  // reformatados a partir do Módulo F, nunca recalculados. ----
+  for (const f of i.insightsHistorico) {
+    if (f.tipo === 'DADO_INSUFICIENTE') continue; // já coberto acima, de forma mais específica
+    const tipo = TIPO_F_PARA_ASSISTENTE[f.tipo];
+    let mensagem = f.descricao;
+
+    // Contexto temporal (só no insight de HORARIO, só quando horaAtual existe — nunca inventado).
+    if (tipo === 'HORARIO') {
+      const faixa = faixaHorarioAtual(i.horaAtual);
+      if (faixa) {
+        const resumoFaixaAtual = i.porHorario.find((h) => h.inicio === faixa.inicio && h.fim === faixa.fim);
+        if (resumoFaixaAtual && resumoFaixaAtual.classificacaoAmostra !== 'dados_insuficientes') {
+          mensagem += ` Agora são ${i.horaAtual} (relógio do dispositivo) — você está na faixa ${faixa.label}, com ${resumoFaixaAtual.qtdCorridas} registro(s)${resumoFaixaAtual.rpHora != null ? ` e ${formatBRL(resumoFaixaAtual.rpHora)}/h` : ''} nos dados disponíveis.`;
+        } else {
+          mensagem += ` Agora são ${i.horaAtual} (relógio do dispositivo) — a faixa atual (${faixa.label}) ainda não tem registros suficientes para comparar.`;
+        }
+      } else {
+        mensagem += ' Sem horário atual disponível.';
+      }
+    }
+
+    insights.push({
+      id: proximoId(tipo),
+      prioridade: PRIORIDADE_TIPO_ASSISTENTE[tipo],
+      tipo,
+      titulo: f.titulo,
+      mensagem,
+      origem:
+        f.origem === 'SEM DADOS SUFICIENTES'
+          ? 'DADOS INSUFICIENTES'
+          : tipo === 'META' || tipo === 'CORRIDA' || tipo === 'REGISTRO'
+            ? 'DADO REGISTRADO'
+            : 'HISTÓRICO',
+      dadosBase: f.dadosBase,
+      acaoDisponivel: ACAO_TIPO_ASSISTENTE[tipo],
+    });
+  }
+
+  // ---- 4. Estado operacional (REGISTRO) — só quando o Módulo F não gerou nenhum REGISTRO
+  // (ele cobre "faltam km/duração"; isto aqui cobre "o dia em si ainda não tem registro/está
+  // incompleto") ----
+  const jaTemInsightDeRegistro = insights.some((ins) => ins.tipo === 'REGISTRO');
+  const msgEstado = MENSAGEM_ESTADO_DIA[i.estadoHoje];
+  if (!jaTemInsightDeRegistro && msgEstado) {
+    const semDadoNenhum = i.estadoHoje === 'sem_dados' || i.estadoHoje === 'nao_comecou';
+    insights.push({
+      id: proximoId('REGISTRO'),
+      prioridade: PRIORIDADE_TIPO_ASSISTENTE.REGISTRO,
+      tipo: 'REGISTRO',
+      titulo: 'Estado do seu dia',
+      mensagem: msgEstado,
+      origem: semDadoNenhum ? 'DADOS INSUFICIENTES' : 'DADO REGISTRADO',
+      dadosBase: semDadoNenhum ? 0 : 1,
+      acaoDisponivel: ACAO_TIPO_ASSISTENTE.REGISTRO,
+    });
+  }
+
+  // ---- 8. Projeção (menor prioridade) ----
+  if (i.projecoes) {
+    const partes = [`Pela sua premissa: ${formatBRL(i.projecoes.pelaPremissa.valor)} (${i.projecoes.pelaPremissa.formula}).`];
+    if (i.projecoes.peloHistorico) {
+      partes.push(`Pelo seu histórico registrado: ${formatBRL(i.projecoes.peloHistorico.valor)} (${i.projecoes.peloHistorico.formula}).`);
+    }
+    insights.push({
+      id: proximoId('PROJECAO'),
+      prioridade: PRIORIDADE_TIPO_ASSISTENTE.PROJECAO,
+      tipo: 'PROJECAO',
+      titulo: 'Projeção do mês',
+      mensagem: `${partes.join(' ')} Projeção — não é promessa de resultado.`,
+      origem: 'PROJEÇÃO',
+      dadosBase: Math.max(0, Math.floor(seguro(i.diasRegistradosProjecao))),
+      acaoDisponivel: ACAO_TIPO_ASSISTENTE.PROJECAO,
+    });
+  }
+
+  return insights.sort((a, b) => a.prioridade - b.prioridade);
 }

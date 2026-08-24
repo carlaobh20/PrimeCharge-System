@@ -1,5 +1,66 @@
 # MINHA META — Inteligência Financeira Pessoal do Motorista
 
+> **Fase 18 — Copiloto Proativo do Motorista** (2026-08-21, sobre a Fase 17; **ZERO migration**):
+> Módulos I/J/K. **I** (`SimuladorESe.tsx`) — comparação PREMISSA × DADO REGISTRADO em horas
+> ("Quanto falta, em horas?"), via `horasParaValor()` (REUSO). **J** (`PlanoDeHoje.tsx`) —
+> `janelasPorVolume`/`janelasPorMediaRegistrada` (motor novo, reordenações puras de
+> `inteligenciaPorHorario()`, Módulo B da Fase 17) mostradas em duas seções deliberadamente
+> separadas: "Janelas com mais registros" × "Janelas com maior média registrada" — volume e
+> rentabilidade nunca misturados numa nota só. **K** (`AssistenteContextualCard.tsx` +
+> `assistenteContextual()`, motor 100% puro, **zero IA externa/LLM/API**) — CONSOME
+> `insightsCopiloto()` (Módulo F) como fonte primária, acrescentando prioridade determinística (1
+> dados faltantes → 2 divergências → 3 meta → 4 corrida → 5 registro → 6 histórico → 7 horário → 8
+> dia da semana → 9 projeção), navegação "Ver dados" (scroll pra seção existente, zero rota nova),
+> `DADO_INSUFICIENTE` dedicado, `INCONSISTENCIA` e `PROJECAO` próprios, e contexto temporal (só no
+> insight de horário, só quando `horaAtual` — computado no HOOK, nunca no motor — existe). Máximo
+> 3 insights na 1ª dobra. "O sistema informa. O motorista decide." O antigo Módulo E (lista de
+> insights da Fase 17) saiu de `CopilotoInteligenteCard.tsx` — virou redundante com o Assistente.
+> Testes: `audit-motorista-copiloto-proativo.ts`, **91/91**, 26 categorias. Regressão: os 18
+> scripts anteriores + o novo, **1021/1021 combinados**; SQL **346/346** (zero regressão, zero SQL
+> tocado); `tsc`/`oxlint`/`build` limpos. Discrepância aritmética divulgada: o exemplo da
+> especificação ("5.500/47,80 ≈ 114,96h") estava matematicamente incorreto — implementado com o
+> valor correto (≈115,06h). Detalhe completo em `CLAUDE.md`, seção 0.-13, e em
+> `docs/motorista/COPILOTO-PROATIVO.md`.
+
+> **Fase 17 — Copiloto Inteligente do Motorista** (2026-08-21, **2ª passada — reconciliação**;
+> **ZERO migration** — tudo derivado de 0049/0050, já aplicadas em produção): motor puro novo em
+> `metas.ts` — `historicoPorPeriodo`/`compararPeriodoCorridas` (Módulo A, histórico 7/14/30/90d
+> com "SEM COMPARAÇÃO" quando o período anterior não tem corrida; renomeada de
+> `resumoPeriodoCorridas` nesta 2ª passada), `inteligenciaPorHorario` (Módulo B, 7 faixas fixas)
+> e `inteligenciaPorDiaSemana` (Módulo C) — sempre "MAIOR MÉDIA REGISTRADA", nunca "melhor
+> horário/dia"; `classificarAmostra` (dados_insuficientes <3 · base_inicial 3–6 ·
+> base_consistente 7–13 · base_relevante 14+); `qualidadeBaseCopiloto` (Módulo G, só descreve o
+> que está preenchido, nunca dá nota); `insightsCopiloto` (Módulo F, motor puro que CONSOME os
+> anteriores — 9 tipos de insight, cada um com `id` único e `classificacaoAmostra`, vocabulário
+> proibido testado). UI em 3 componentes: `CopilotoInteligenteCard.tsx` é literalmente "Seu
+> Copiloto" (Módulos D+E — meta conectada + insights); `CopilotoCard.tsx` (avaliar/registrar
+> corrida, Fase 16) ganhou o impacto matemático da corrida sobre a meta (parte do Módulo D) e
+> "Configurações do Copiloto" (Módulo H, bloco colapsável inline, reusando
+> `motorista_config_copiloto` — nenhuma rota nova); `CopilotoHistoricoCard.tsx` (novo nesta 2ª
+> passada) tem Histórico, Padrões por horário/dia e Qualidade da base (Módulos A/B/C/G). Módulos
+> I/J/K (cenários estendidos, plano estendido, assistente Q&A) ficam pra próxima passada — corte
+> deliberado, registrado em `claude/auditoria-fase17-copiloto-inteligente.md`. Testes:
+> `audit-motorista-copiloto-inteligente.ts` reescrito para **26 categorias, 90/90** (fixtures
+> obrigatórias: R$1000/20h, R$1000/200km, R$1000/10corridas, 1160 vs. 1000 ⇒ Δ=+160/+16%) +
+> regressão dos 17 scripts restantes (**930/930 combinados**) + suíte SQL real **346/346** (zero
+> SQL alterado — só confirmando zero regressão). Detalhe completo da reconciliação em
+> `CLAUDE.md`, seção 0.-12b, e em `docs/motorista/COPILOTO-INTELIGENCIA.md`, seção 11.
+
+> **Fase 16 (MVP) — Copiloto do Motorista: avaliar corrida** (2026-08-21; migrations 0049
+> `motorista_corridas` + 0050 `motorista_config_copiloto` — **✅ aplicadas em produção em
+> 2026-08-21**, coladas manualmente no SQL Editor do Supabase por autorização explícita):
+> primeira estrutura de CORRIDA INDIVIDUAL do sistema — até aqui só existia contagem diária
+> (`motorista_ganhos.corridas`). `avaliarCorrida()` (novo, em `metas.ts`, reusa `calcularRpKm`/
+> `calcularRph`) classifica BOM/ATENÇÃO/RUIM sempre acompanhado dos critérios que formaram o
+> resultado — nunca um selo sozinho. Limiar não configurado nunca vira zero: fica NÃO CONFIGURADO
+> e não entra na média. Corrida registrada NUNCA sobrescreve `motorista_ganhos`: a soma das
+> corridas do dia é só COMPARADA ao ganho/contagem manual, e divergência aparece como "DADOS
+> DIFERENTES" pra decisão do motorista. Card `CopilotoCard` novo, logo após "Meu dia" no Centro
+> de Controle. Auditoria de reuso completa antes do código:
+> `claude/auditoria-reuso-fase16-copiloto-2026-08-21.md`. Fases E–R (histórico, plano do dia,
+> insights temporais, tela de Configurações, assistente contextual) ficam pra próxima passada —
+> corte deliberado, não esquecimento.
+
 > **Fase 12.2 — Inteligência Operacional** (ZERO migration — tudo derivado de 0047/0048): o
 > sistema DESCREVE os registros, sem julgar nem aconselhar. Janelas 7/14/30/**90** ampliadas
 > (dias com horas, km, km/dia, R$/km, corridas, R$/corrida, recargas, custo registrado,

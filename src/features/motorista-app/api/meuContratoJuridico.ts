@@ -1,5 +1,5 @@
 import { supabase } from '@/shared/lib/supabase';
-import { lerTolerante } from './schemaGuard';
+import { lerTolerante } from '@/shared/lib/schemaGuard';
 import type { ContratoAssinaturaStatus, ContratoVersaoStatus } from '@/features/contracts/juridico/types';
 
 // App do Motorista — documento jurídico do PRÓPRIO contrato (Centro Jurídico Fase 2).
