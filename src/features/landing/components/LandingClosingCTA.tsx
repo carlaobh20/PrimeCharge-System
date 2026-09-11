@@ -12,7 +12,7 @@ const LandingClosingCTA = () => (
         </h2>
         <p>Compare os custos, escolha seu plano e conheça as condições de locação.</p>
         <div className="pc-closing-actions">
-          <a className="pc-primary-link" href="/login">
+          <a className="pc-primary-link" href="/quero-alugar">
             Quero meu carro agora <ArrowRight size={18} />
           </a>
           <a href="#calculadora">

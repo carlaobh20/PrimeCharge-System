@@ -81,7 +81,7 @@ const PlansSection = () => (
               ))}
             </ul>
             <Link
-              to="/login"
+              to="/quero-alugar"
               className={cn(
                 buttonVariants(),
                 'w-full mt-6 rounded-xl font-bold',

@@ -605,7 +605,7 @@ const ComparadorSection = () => {
 
         {/* CTA */}
         <div className="text-center mt-12">
-          <Link to="/login" className={cn(buttonVariants({ size: 'lg' }), 'rounded-xl text-lg bg-[#388BFF] hover:bg-[#82BCFF] text-[#05070B] font-bold px-8')}>
+          <Link to="/quero-alugar" className={cn(buttonVariants({ size: 'lg' }), 'rounded-xl text-lg bg-[#388BFF] hover:bg-[#82BCFF] text-[#05070B] font-bold px-8')}>
             Quero meu Carro Elétrico
           </Link>
         </div>

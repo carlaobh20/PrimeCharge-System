@@ -22,6 +22,9 @@ const LoginPage = named(() => import('@/features/auth/pages/LoginPage'), 'LoginP
 const AceitarConvitePage = named(() => import('@/features/auth/pages/AceitarConvitePage'), 'AceitarConvitePage');
 const RecuperarSenhaPage = named(() => import('@/features/auth/pages/RecuperarSenhaPage'), 'RecuperarSenhaPage');
 const RedefinirSenhaPage = named(() => import('@/features/auth/pages/RedefinirSenhaPage'), 'RedefinirSenhaPage');
+// Funil público de cadastro de lead (migration 0042) — quem clica em "Quero alugar" na
+// landing cai aqui, sem login (ainda não é cliente).
+const CadastroLeadPage = named(() => import('@/features/lead-publico/pages/CadastroLeadPage'), 'CadastroLeadPage');
 
 // --- portal do motorista ---
 const MotoristaHomePage = named(() => import('@/features/motorista-app/pages/MotoristaHomePage'), 'MotoristaHomePage');
@@ -86,6 +89,7 @@ const UsuariosPage = named(() => import('@/features/auth/pages/UsuariosPage'), '
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/quero-alugar', element: <CadastroLeadPage /> },
   { path: '/aceitar-convite', element: <AceitarConvitePage /> },
   { path: '/recuperar-senha', element: <RecuperarSenhaPage /> },
   // Pública de propósito: o link do e-mail de recuperação autentica sozinho (supabase-js
