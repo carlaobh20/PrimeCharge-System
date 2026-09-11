@@ -1,14 +1,13 @@
 import { z } from 'zod';
 
-// Cadastro público do funil ("Quero alugar" / "Quero meu Carro Elétrico" na landing). Mesmo
-// formato de CPF de motoristaSchema (features/motoristas), mas aqui vários campos que na tela
-// interna do staff são opcionais viram obrigatórios — é a única chance de coletar esse dado
-// antes do lead sumir, não tem um staff editando depois na hora.
+// Cadastro público do funil ("Quero alugar" / "Quero meu Carro Elétrico" na landing).
+// Ficha de triagem completa (Carlos: "não podemos errar na contratação") — bem maior que o
+// motoristaSchema interno (features/motoristas), porque aqui é a ÚNICA chance de coletar
+// esse dado: não tem um staff editando o cadastro depois, é o próprio candidato preenchendo.
 //
-// Documentos ficam FORA deste schema (File não passa por JSON/RPC) — validados à parte em
-// CadastroLeadPage, mas com as mesmas regras de tamanho/tipo de motorista-app/api/uploads.ts
-// (8 MB, jpeg/png/webp/pdf) para o staff nunca receber um arquivo que o app do motorista
-// rejeitaria.
+// Campos que vão para `motoristas` (schema/API já existente) ficam misturados com campos que
+// só existem em `motoristas_triagem` (migration 0053) — a separação por tabela é escondida
+// do formulário; api/leadPublico.ts é quem sabe qual campo vai para qual lugar.
 const optionalString = () => z.preprocess((val) => (val === '' ? undefined : val), z.string().optional());
 
 const cpf = z
@@ -22,30 +21,60 @@ const telefone = z
   .min(1, 'Telefone obrigatório')
   .refine((v) => v.replace(/\D/g, '').length >= 10, 'Telefone inválido');
 
+export const APPS_MOTORISTA = ['Uber', '99', 'inDrive', 'Outro'] as const;
+
 export const leadPublicoSchema = z.object({
   // honeypot: campo escondido via CSS na tela — humano nunca preenche, bot geralmente sim.
-  // Sem validação de tamanho de propósito: se validasse aqui, o zodResolver bloquearia o
-  // submit ANTES do onSubmit rodar, e o bot veria um formulário travado (sinal de que foi
-  // pego). Deixando passar a validação e checando dentro do onSubmit, o bot recebe a mesma
-  // tela de "sucesso" que um humano — só que nada é de fato salvo.
+  // Sem validação aqui de propósito (ver CadastroLeadPage: checado dentro do onSubmit, não
+  // pelo resolver — senão o zodResolver travaria o submit ANTES do bot cair na armadilha).
   website: z.string().optional(),
 
+  // --- 01 Seus dados ---
   nome_completo: z.string().min(3, 'Informe seu nome completo').max(200),
   cpf,
+  rg: optionalString(),
+  data_nascimento: z.string().min(1, 'Data de nascimento obrigatória'),
+  estado_civil: optionalString(),
   email: z.string().min(1, 'E-mail obrigatório').email('E-mail inválido'),
   telefone,
-  data_nascimento: z.string().min(1, 'Data de nascimento obrigatória'),
 
-  cnh_numero: z.string().min(1, 'Número da CNH obrigatório'),
-  cnh_categoria: z.string().min(1, 'Categoria da CNH obrigatória'),
-  cnh_validade: z.string().min(1, 'Validade da CNH obrigatória'),
-
+  // --- 02 Endereço ---
+  cep: optionalString(),
   endereco: z.string().min(1, 'Endereço obrigatório'),
+  numero: optionalString(),
+  complemento: optionalString(),
+  bairro: optionalString(),
   cidade: z.string().min(1, 'Cidade obrigatória'),
   estado: z.string().min(2, 'UF obrigatória').max(2),
 
+  // --- 03 CNH ---
+  cnh_numero: z.string().min(1, 'Número da CNH obrigatório'),
+  cnh_categoria: z.string().min(1, 'Categoria da CNH obrigatória'),
+  cnh_validade: z.string().min(1, 'Validade da CNH obrigatória'),
+  cnh_ear: optionalString(),
+
+  // --- 04 Experiência como motorista de app ---
+  ja_dirige_app: optionalString(),
+  tempo_experiencia: optionalString(),
+  apps_utilizados: z.array(z.enum(APPS_MOTORISTA)).default([]),
+  km_semanal_estimado: optionalString(),
+  possui_veiculo_proprio: optionalString(),
+  disponibilidade_horas: optionalString(),
+
+  // --- 05 Referências e contato de emergência ---
+  referencia_nome: optionalString(),
+  referencia_telefone: optionalString(),
+  contato_emergencia_nome: optionalString(),
+  contato_emergencia_telefone: optionalString(),
+
+  // --- 06 Seu interesse ---
+  quando_pretende_comecar: optionalString(),
+  melhor_horario_contato: optionalString(),
   veiculoInteresse: optionalString(),
   observacoes: optionalString(),
+
+  // --- consentimento ---
+  aceitou_politica_privacidade: z.boolean().refine((v) => v === true, 'É necessário aceitar a Política de Privacidade'),
 });
 
 export type LeadPublicoFormInput = z.input<typeof leadPublicoSchema>;

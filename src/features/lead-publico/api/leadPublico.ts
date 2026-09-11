@@ -2,7 +2,7 @@ import { supabase } from '@/shared/lib/supabase';
 import type { LeadPublicoFormValues } from '../schemas/leadPublico.schema';
 import { MAX_DOC_BYTES, MIME_DOC_OK } from '../schemas/leadPublico.schema';
 
-// Cliente do funil público (migration 0042). Espelha o mesmo padrão de segurança de
+// Cliente do funil público (migration 0053). Espelha o mesmo padrão de segurança de
 // motorista-app/api/uploads.ts (nome de arquivo saneado, compressão de imagem, path com uuid
 // pra evitar colisão/path traversal) — só que aqui não existe sessão: o "documento de
 // identidade" de quem está subindo o arquivo é o par (empresa_id, motorista_id) que a RPC
@@ -36,9 +36,18 @@ export function validarDocumento(file: File) {
   if (file.size > MAX_DOC_BYTES) throw new Error('Arquivo grande demais (máximo 8 MB).');
 }
 
-// 1) Cria (ou atualiza, se ainda for lead) o motorista via RPC. Nunca faz INSERT direto na
-// tabela — esse é o único caminho de escrita liberado pro visitante anônimo (ver comentário
-// da migration 0042 sobre por que não existe policy de INSERT direta em `motoristas`).
+// "Sim"/"Não" de <select> vira boolean | undefined antes de ir pro RPC (undefined quando o
+// candidato deixou "Selecione" / não respondeu — a RPC trata undefined como "não informado",
+// nunca como false).
+function paraBooleano(v: string | undefined): boolean | undefined {
+  if (v === 'sim') return true;
+  if (v === 'nao') return false;
+  return undefined;
+}
+
+// 1) Cria (ou atualiza, se ainda for lead) o motorista + a ficha de triagem via RPC. Nunca faz
+// INSERT direto nas tabelas — esse é o único caminho de escrita liberado pro visitante anônimo
+// (ver comentário da migration 0053 sobre por que não existe policy de INSERT direta).
 export async function criarLeadPublico(dados: DadosLeadPublico): Promise<{ motoristaId: string; empresaId: string }> {
   const observacoes = [
     dados.veiculoInteresse ? `Veículo de interesse: ${dados.veiculoInteresse}` : null,
@@ -49,6 +58,7 @@ export async function criarLeadPublico(dados: DadosLeadPublico): Promise<{ motor
 
   const { data, error } = await supabase.rpc('criar_lead_publico', {
     p: {
+      // motoristas
       nome_completo: dados.nome_completo,
       cpf: dados.cpf,
       email: dados.email,
@@ -61,6 +71,28 @@ export async function criarLeadPublico(dados: DadosLeadPublico): Promise<{ motor
       cidade: dados.cidade,
       estado: dados.estado,
       observacoes: observacoes || undefined,
+
+      // motoristas_triagem
+      rg: dados.rg,
+      estado_civil: dados.estado_civil,
+      cep: dados.cep,
+      numero: dados.numero,
+      complemento: dados.complemento,
+      bairro: dados.bairro,
+      cnh_ear: paraBooleano(dados.cnh_ear),
+      ja_dirige_app: paraBooleano(dados.ja_dirige_app),
+      tempo_experiencia: dados.tempo_experiencia,
+      apps_utilizados: dados.apps_utilizados ?? [],
+      km_semanal_estimado: dados.km_semanal_estimado,
+      possui_veiculo_proprio: paraBooleano(dados.possui_veiculo_proprio),
+      disponibilidade_horas: dados.disponibilidade_horas,
+      referencia_nome: dados.referencia_nome,
+      referencia_telefone: dados.referencia_telefone,
+      contato_emergencia_nome: dados.contato_emergencia_nome,
+      contato_emergencia_telefone: dados.contato_emergencia_telefone,
+      quando_pretende_comecar: dados.quando_pretende_comecar,
+      melhor_horario_contato: dados.melhor_horario_contato,
+      aceitou_politica_privacidade: dados.aceitou_politica_privacidade,
     },
   });
   if (error) throw error;
