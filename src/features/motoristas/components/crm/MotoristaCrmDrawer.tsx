@@ -48,7 +48,7 @@ function ResumoTab({ motoristaId }: { motoristaId: string }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Stat label="Score PrimeCharge" value={score !== null ? `${score}/100` : '—'} />
+        <Stat label="Score RodaVolt" value={score !== null ? `${score}/100` : '—'} />
         <Stat label="Tempo de empresa" value={diasComoCliente !== null ? `${diasComoCliente} dia(s)` : '—'} />
         <Stat label="Dias na etapa atual" value={dias !== null ? `${dias} dia(s)` : '—'} />
       </div>

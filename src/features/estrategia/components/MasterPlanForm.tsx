@@ -67,7 +67,7 @@ export function MasterPlanForm() {
               value={missao}
               onChange={(e) => setMissao(e.target.value)}
               rows={2}
-              placeholder="Por que a PrimeCharge existe?"
+              placeholder="Por que a RodaVolt existe?"
               className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             />
           </div>
@@ -79,7 +79,7 @@ export function MasterPlanForm() {
               value={visao}
               onChange={(e) => setVisao(e.target.value)}
               rows={2}
-              placeholder="Onde você quer que a PrimeCharge chegue?"
+              placeholder="Onde você quer que a RodaVolt chegue?"
               className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             />
           </div>

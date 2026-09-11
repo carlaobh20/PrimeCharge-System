@@ -12,7 +12,7 @@ import { MetricasFunilPanel } from '../components/crm/MetricasFunilPanel';
 import { MotoristaCrmDrawer } from '../components/crm/MotoristaCrmDrawer';
 import { GerenciarFunilDialog } from '../components/crm/GerenciarFunilDialog';
 
-// Épico 6 — CRM PrimeCharge / Jornada do Motorista, Fase 1 (+ Fase 1.1: etapas editáveis,
+// Épico 6 — CRM RodaVolt / Jornada do Motorista, Fase 1 (+ Fase 1.1: etapas editáveis,
 // migration 0026). Kanban com as colunas do funil (agora dado, não enum fixo — Carlos pode
 // adicionar/remover etapa pela tela via "Gerenciar etapas"), drag-and-drop (dnd-kit) e painel
 // lateral ao clicar num cartão. Motoristas com etapa_funil_id null (cadastrados antes da

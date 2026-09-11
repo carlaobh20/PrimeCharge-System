@@ -61,7 +61,7 @@ export function DossiePanel({
         motoristaNome: contrato.motorista?.nome_completo ?? '—',
         motoristaCpf: contrato.motorista?.cpf ?? null,
         veiculoPlaca: contrato.veiculo?.placa ?? '—',
-        empresaNome: 'PrimeCharge',
+        empresaNome: 'RodaVolt',
         statusContrato: contrato.status,
         dataInicio: formatDataSimples(contrato.data_inicio),
         dataFim: contrato.data_fim_prevista ? formatDataSimples(contrato.data_fim_prevista) : null,

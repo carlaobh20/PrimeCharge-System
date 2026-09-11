@@ -9,7 +9,7 @@ import { extrairMensagemTecnicaDeErro } from '@/shared/lib/errors';
 import { usePoliticasEstrategicas, useSalvarPoliticas } from '../hooks/usePoliticas';
 import { CAMPOS_POLITICAS_TIPADOS, LABEL_POLITICA, type PoliticasEmpresaInput } from '../types';
 
-// Épico 2 — Fase 2. "Regras da Empresa" (brief original) / "DNA da PrimeCharge" (ajuste de
+// Épico 2 — Fase 2. "Regras da Empresa" (brief original) / "DNA da RodaVolt" (ajuste de
 // modelagem pedido antes da migration, ver supabase/migrations/0014_epico2_politicas_empresa.sql):
 // o proprietário define aqui os limites que toda recomendação futura (Radar de Oportunidades,
 // Comitê de Investimentos, Motor de Recomendações) vai precisar respeitar. Nenhum campo é

@@ -26,7 +26,7 @@ export function CentroDeEstrategiaPage() {
       <div>
         <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Centro de Estratégia</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          A central de decisão financeira da PrimeCharge — e as regras que toda decisão futura deve respeitar.
+          A central de decisão financeira da RodaVolt — e as regras que toda decisão futura deve respeitar.
         </p>
       </div>
 

@@ -1,4 +1,4 @@
-// Service worker mínimo do PrimeCharge (Fase 2). Objetivo: instalabilidade (PWA) + abertura
+// Service worker mínimo do RodaVolt (Fase 2). Objetivo: instalabilidade (PWA) + abertura
 // rápida do app shell, tolerando conexão ruim. NÃO faz cache offline complexo dos dados (isso
 // seria uma fase à parte, com invalidação cuidadosa) — dados sempre vêm da rede/Supabase.
 //

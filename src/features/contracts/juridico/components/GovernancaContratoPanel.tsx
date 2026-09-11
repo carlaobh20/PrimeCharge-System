@@ -112,7 +112,7 @@ export function GovernancaContratoPanel({ contrato, versao }: { contrato: Contra
     if (!cadastro.data) return null;
     const seguro = ficha.data?.seguros?.[0] ?? null;
     const linhas = assinaturas ?? [];
-    const faltantes = linhas.filter((a) => !['assinado', 'aceito'].includes(a.status)).map((a) => (a.parte === 'motorista' ? 'motorista' : 'PrimeCharge'));
+    const faltantes = linhas.filter((a) => !['assinado', 'aceito'].includes(a.status)).map((a) => (a.parte === 'motorista' ? 'motorista' : 'RodaVolt'));
     const expirada = linhas.some((a) => !['assinado', 'aceito', 'recusado'].includes(a.status) && a.expira_em != null && new Date(a.expira_em).getTime() < Date.now());
     // checklist documental (Módulo 12): política ativa do template define anexos obrigatórios
     const politica = (politicas ?? []).find((p) => p.status === 'ativa' && p.template_id === versao?.template_id);

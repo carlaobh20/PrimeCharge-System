@@ -73,7 +73,7 @@ export function montarResumoExecutivo(i: InsumosResumo): ResumoExecutivo {
   } else if (i.statusVersaoAtual === 'aprovada') {
     proximaAcao = 'Documento aprovado: enviar para assinatura (congela a versão).';
   } else if (i.statusVersaoAtual === 'aguardando_assinatura' && situacaoAssinatura === 'nao_iniciada') {
-    proximaAcao = 'Preparar e enviar as assinaturas (motorista + PrimeCharge).';
+    proximaAcao = 'Preparar e enviar as assinaturas (motorista + RodaVolt).';
   } else if (i.statusVersaoAtual === 'aguardando_assinatura' && situacaoAssinatura === 'pendente') {
     proximaAcao = 'Aguardando assinatura: acompanhar o motorista.';
   } else if (i.statusVersaoAtual === 'assinada') {

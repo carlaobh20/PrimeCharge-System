@@ -52,7 +52,7 @@ export function ContratoCreatePage() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Novo contrato</h1>
-      <p className="mt-1 text-sm text-neutral-500">Locação entre a PrimeCharge, o veículo e o motorista.</p>
+      <p className="mt-1 text-sm text-neutral-500">Locação entre a RodaVolt, o veículo e o motorista.</p>
 
       <div className="mt-6 max-w-3xl">
         <ContratoForm defaultValues={defaultValues} onSubmit={handleSubmit} isSubmitting={createContrato.isPending} submitLabel="Cadastrar contrato" />

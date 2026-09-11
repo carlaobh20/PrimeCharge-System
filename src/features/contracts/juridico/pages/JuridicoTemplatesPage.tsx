@@ -210,7 +210,7 @@ export function JuridicoTemplatesPage() {
             <FileStack className="h-6 w-6 text-emerald-600" aria-hidden /> Biblioteca Contratual
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-neutral-500">
-            {BIBLIOTECA.length} minutas oficiais da PrimeCharge, todas SUJEITAS À VALIDAÇÃO JURÍDICA. Editar ou importar nunca
+            {BIBLIOTECA.length} minutas oficiais da RodaVolt, todas SUJEITAS À VALIDAÇÃO JURÍDICA. Editar ou importar nunca
             altera contratos já gerados nem apaga redações anteriores.
           </p>
         </div>

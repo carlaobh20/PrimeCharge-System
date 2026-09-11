@@ -91,7 +91,7 @@ function formatarListaPlacas(placas: string[]): string {
 
 // Fase 2.1, Parte 3 (2026-08-11) — o Selo local que nasceu aqui na Fase 1 foi promovido pra
 // shared/components/ui/selo-dado.tsx (SeloOrigemDado): o pedido explícito da Parte 3 é que este
-// vire o padrão ÚNICO de rotulagem de origem de dado em todo o PrimeCharge, não só nesta tela —
+// vire o padrão ÚNICO de rotulagem de origem de dado em todo o RodaVolt, não só nesta tela —
 // ver comentário de topo do arquivo promovido pro raciocínio completo.
 
 export function ExpansaoDaFrota() {

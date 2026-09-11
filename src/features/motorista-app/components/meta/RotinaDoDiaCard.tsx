@@ -184,7 +184,7 @@ export function RotinaDoDiaCard({
             onClick={() => { const c = num(k.corridas); onSalvarKm({ km_inicio: kmIni, km_fim: kmFim, corridas: c != null ? Math.floor(c) : null }); setK({ ini: '', fim: '', corridas: '' }); setAba(null); }}>
             Salvar KM
           </button>
-          <p className="text-[9px] text-neutral-400">Registro pessoal seu — nunca altera o odômetro do veículo no PrimeCharge.</p>
+          <p className="text-[9px] text-neutral-400">Registro pessoal seu — nunca altera o odômetro do veículo no RodaVolt.</p>
         </div>
       )}
 

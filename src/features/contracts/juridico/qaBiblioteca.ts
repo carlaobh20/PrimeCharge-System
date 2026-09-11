@@ -212,7 +212,7 @@ export const CONFLITOS_POTENCIAIS: ConflitoPotencial[] = [
 export type TermoGlossario = { termo: string; definicao: string; equivalencias?: string };
 
 export const GLOSSARIO: TermoGlossario[] = [
-  { termo: 'LOCADORA', definicao: 'A empresa que loca o veículo (PrimeCharge).', equivalencias: 'No sistema: empresa; parte de assinatura "primecharge".' },
+  { termo: 'LOCADORA', definicao: 'A empresa que loca o veículo (RodaVolt).', equivalencias: 'No sistema: empresa; parte de assinatura "primecharge".' },
   { termo: 'LOCATÁRIO', definicao: 'O motorista que loca o veículo — parte do contrato.', equivalencias: 'No sistema: motorista; parte de assinatura "motorista". Nos docs de sinistro aparece como COMUNICANTE/DECLARANTE; no LGPD, TITULAR.' },
   { termo: 'CONDUTOR AUTORIZADO', definicao: 'Terceiro autorizado por escrito pela LOCADORA a conduzir (Master Cl. 2.2).', equivalencias: 'Não confundir com LOCATÁRIO.' },
   { termo: 'TITULAR', definicao: 'O motorista na condição de titular de dados pessoais (LGPD).' },

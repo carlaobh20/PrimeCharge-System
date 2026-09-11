@@ -1,7 +1,7 @@
 {
-  "name": "PrimeCharge — Motorista",
-  "short_name": "PrimeCharge",
-  "description": "Portal do motorista PrimeCharge — contrato, pagamentos, lojinha e suporte.",
+  "name": "RodaVolt — Motorista",
+  "short_name": "RodaVolt",
+  "description": "Portal do motorista RodaVolt — contrato, pagamentos, lojinha e suporte.",
   "start_url": "/motorista",
   "scope": "/",
   "display": "standalone",

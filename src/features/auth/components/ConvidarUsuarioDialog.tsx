@@ -10,7 +10,7 @@ import { USER_ROLE_LABEL, type UserRole } from '@/shared/types/database';
 import { useCreateConvite } from '../hooks/useConvites';
 
 // Cargos convidáveis por um admin comum: nunca `super_admin` (reservado à operação da
-// PrimeCharge, fora do controle de uma empresa cliente) nem `motorista` (não tem portal
+// RodaVolt, fora do controle de uma empresa cliente) nem `motorista` (não tem portal
 // próprio ainda — ARQUITETURA.md, Fase 8; convite de acesso ao sistema não se aplica).
 const CARGOS_CONVIDAVEIS: UserRole[] = ['owner', 'admin', 'gestor_frota', 'gestor_financeiro', 'operador'];
 

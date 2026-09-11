@@ -138,7 +138,7 @@ export function OnboardingMeta({
       <p className="text-[11px] text-neutral-400">Pergunta {indice + 1} de {totalPassos}</p>
       {aluguelCarroMensal > 0 && indice === 0 && (
         <p className="mt-1 rounded-xl bg-emerald-50 px-3 py-2 text-[11px] text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-          Já importei do seu contrato PrimeCharge: aluguel do carro = {formatBRL(aluguelCarroMensal)}/mês. Você não precisa cadastrar isso.
+          Já importei do seu contrato RodaVolt: aluguel do carro = {formatBRL(aluguelCarroMensal)}/mês. Você não precisa cadastrar isso.
         </p>
       )}
       {ultimoImpacto && <p className="mt-1 text-[11px] font-medium text-emerald-600">{ultimoImpacto}</p>}

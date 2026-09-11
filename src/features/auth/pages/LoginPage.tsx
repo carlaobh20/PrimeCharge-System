@@ -34,7 +34,7 @@ export function LoginPage() {
         onSubmit={handleSubmit}
         className="w-full max-w-sm space-y-4 rounded-xl border border-neutral-200 p-8 dark:border-neutral-800"
       >
-        <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">PrimeCharge OS</h1>
+        <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">RodaVolt OS</h1>
 
         <div>
           <Label htmlFor="email">E-mail</Label>

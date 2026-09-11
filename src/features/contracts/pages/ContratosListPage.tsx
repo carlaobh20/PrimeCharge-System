@@ -19,7 +19,7 @@ export function ContratosListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Contratos</h1>
-          <p className="mt-1 text-sm text-neutral-500">Locações entre a PrimeCharge, o veículo e o motorista.</p>
+          <p className="mt-1 text-sm text-neutral-500">Locações entre a RodaVolt, o veículo e o motorista.</p>
         </div>
         <Link to="/contratos/novo" className={buttonVariants({})}>
           <Plus className="h-4 w-4" />

@@ -120,7 +120,7 @@ export const CONTRATO_ASSINATURA_STATUS_LABEL: Record<ContratoAssinaturaStatus, 
 
 export const CONTRATO_PARTE_LABEL: Record<ContratoParte, string> = {
   motorista: 'Motorista',
-  primecharge: 'PrimeCharge',
+  primecharge: 'RodaVolt',
 };
 
 // Evidência registrada no aceite/assinatura. É EVIDÊNCIA — não afirma valor probatório absoluto.

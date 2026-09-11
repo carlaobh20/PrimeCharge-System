@@ -20,7 +20,7 @@ export type VariavelCatalogo = {
 
 export const CATALOGO_VARIAVEIS: Record<string, VariavelCatalogo> = {
   // ---------------- EMPRESA (LOCADORA) ----------------
-  'empresa.razao_social': { origem: 'empresas.nome', tipo: 'texto', obrigatoria: true, descricao: 'Razão social da locadora', exemplo: 'PrimeCharge Locadora LTDA' },
+  'empresa.razao_social': { origem: 'empresas.nome', tipo: 'texto', obrigatoria: true, descricao: 'Razão social da locadora', exemplo: 'RodaVolt Locadora LTDA' },
   'empresa.cnpj': { origem: 'empresas.cnpj', tipo: 'documento', obrigatoria: false, descricao: 'CNPJ da locadora', exemplo: '00.000.000/0001-00', validacao: 'formato CNPJ' },
   'empresa.endereco': { origem: 'empresas.endereco (0043) ou campo do wizard', tipo: 'texto', obrigatoria: false, descricao: 'Endereço da sede', exemplo: 'Av. X, 100 — Belo Horizonte/MG' },
 

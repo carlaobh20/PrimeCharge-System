@@ -4,7 +4,7 @@
 
 export type MotoristaStatus = 'lead' | 'em_analise' | 'ativo' | 'inativo' | 'bloqueado' | 'encerrado';
 
-// Épico 6 — CRM PrimeCharge / Jornada do Motorista, Fase 1.1 (migration 0026). As etapas do
+// Épico 6 — CRM RodaVolt / Jornada do Motorista, Fase 1.1 (migration 0026). As etapas do
 // funil DEIXARAM de ser um enum fixo (motorista_etapa_funil, migration 0025) e viraram dado —
 // tabela `funil_etapas`, editável por empresa (Carlos pediu pra poder adicionar/excluir fase
 // direto pela tela). `grupo` é o que permite o painel de métricas continuar funcionando mesmo

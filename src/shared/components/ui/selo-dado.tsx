@@ -2,7 +2,7 @@
 // nasceu na Fase 1, seção 17: "usuário precisa saber se está vendo dinheiro real ou estimado")
 // pra shared/ — exceção deliberada ao padrão "só generaliza no 2º consumidor" (DEC-025, ver
 // kpi-card.tsx) porque o pedido explícito da Parte 3 é exatamente turnar este selo o padrão
-// único de rotulagem de origem de dado em todo o PrimeCharge, não só na tela de Expansão.
+// único de rotulagem de origem de dado em todo o RodaVolt, não só na tela de Expansão.
 //
 // Objetivo (Parte 3): qualquer número na tela precisa deixar claro se é DADO REAL (lido do
 // banco, ao vivo), PREMISSA (parâmetro que o usuário digitou/assumiu), ESTIMATIVA (o sistema

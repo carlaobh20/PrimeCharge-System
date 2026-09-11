@@ -37,7 +37,7 @@ export function DespesasGrupo({
   despesas: (DespesaMeta & { vencimento_dia?: number | null })[];
   categorias: readonly string[];
   comDependente?: boolean;
-  /** linha derivada do PrimeCharge (aluguel do contrato) — não editável, nunca duplicada */
+  /** linha derivada do RodaVolt (aluguel do contrato) — não editável, nunca duplicada */
   itemFixo?: { nome: string; valorMensal: number; origem: string } | null;
   onCriar: (d: { grupo: GrupoDespesa; categoria: string; nome: string; dependente?: string | null; valor: number; periodicidade: PeriodicidadeDespesa }) => void;
   onAtualizar: (id: string, patch: Partial<DespesaMeta>) => void;

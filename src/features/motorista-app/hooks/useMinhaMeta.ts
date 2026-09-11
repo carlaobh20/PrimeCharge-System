@@ -98,7 +98,7 @@ import {
 } from '../lib/metas';
 
 // MINHA META — agregador único da tela (uma passada de queries; motor puro faz as contas).
-// O aluguel do carro vem do CONTRATO PrimeCharge (derivado — nunca cadastrado de novo).
+// O aluguel do carro vem do CONTRATO RodaVolt (derivado — nunca cadastrado de novo).
 
 const hojeIso = () => new Date().toISOString().slice(0, 10);
 const anoMesAtual = () => hojeIso().slice(0, 7);

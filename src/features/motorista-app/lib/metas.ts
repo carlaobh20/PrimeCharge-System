@@ -71,7 +71,7 @@ export function formatHoras(horas: number): string {
 export type TotaisCustos = {
   vida: number;
   familia: number;
-  carro: number; // inclui o aluguel do contrato PrimeCharge (derivado, nunca cadastrado)
+  carro: number; // inclui o aluguel do contrato RodaVolt (derivado, nunca cadastrado)
   trabalho: number;
   total: number;
   /** despesas anuais informadas (valor anual bruto) — para o alerta de provisionamento */
@@ -1505,7 +1505,7 @@ export function inconsistenciasOperacionais(i: {
   const recargaSemKwh = i.recargas.filter((r) => r.kwh == null).length;
   if (recargaSemKwh > 0) out.push({ achado: `${recargaSemKwh} recarga(s) sem kWh`, origem: 'suas recargas registradas', falta: 'o kWh para calcular R$/kWh e comparar com a estimativa' });
   if (i.temRecorrenciaRecarga && i.recargas.length > 0) out.push({ achado: 'despesa recorrente de recarga E recargas individuais ao mesmo tempo', origem: 'despesas recorrentes + recargas registradas', falta: 'sua escolha: manter ou pausar a recorrência (nada muda sozinho)' });
-  if (i.divergenciaOdometroKm != null && Math.abs(i.divergenciaOdometroKm) > 0) out.push({ achado: `odômetro do diário difere da última vistoria em ${Math.abs(i.divergenciaOdometroKm)} km`, origem: 'seu registro × vistoria do PrimeCharge', falta: 'nada — os valores foram registrados em fontes diferentes' });
+  if (i.divergenciaOdometroKm != null && Math.abs(i.divergenciaOdometroKm) > 0) out.push({ achado: `odômetro do diário difere da última vistoria em ${Math.abs(i.divergenciaOdometroKm)} km`, origem: 'seu registro × vistoria do RodaVolt', falta: 'nada — os valores foram registrados em fontes diferentes' });
   return out;
 }
 

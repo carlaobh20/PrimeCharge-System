@@ -70,7 +70,7 @@ export function AppLayout() {
     <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950">
       <aside className="flex w-60 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
         <div className="px-4 py-5">
-          <span className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">PrimeCharge</span>
+          <span className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">RodaVolt</span>
         </div>
 
         <div className="px-2 pb-2">

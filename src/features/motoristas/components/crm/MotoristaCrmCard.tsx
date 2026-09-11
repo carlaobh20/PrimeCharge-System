@@ -13,7 +13,7 @@ function iniciais(nomeCompleto: string) {
   return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
 }
 
-// Épico 6 — CRM, Fase 1. "Score PrimeCharge" e "Veículo reservado" do brief NÃO entram no
+// Épico 6 — CRM, Fase 1. "Score RodaVolt" e "Veículo reservado" do brief NÃO entram no
 // cartão ainda: score composto (Etapa 3) e reserva de veículo por lead são Fase 2+ — mostrar
 // aqui agora seria ou inventar número ou linkar um conceito que ainda não existe no schema.
 export function MotoristaCrmCard({ motorista, onClick }: { motorista: Motorista; onClick: () => void }) {

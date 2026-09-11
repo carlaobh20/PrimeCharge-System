@@ -67,7 +67,7 @@ export function AppLayoutMotorista() {
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
           <div className="mx-auto flex h-12 max-w-md items-center px-4">
-            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">PrimeCharge</span>
+            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">RodaVolt</span>
             <div className="ml-auto">
               <SinoNotificacoes />
             </div>

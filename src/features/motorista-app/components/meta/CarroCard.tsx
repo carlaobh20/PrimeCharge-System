@@ -2,7 +2,7 @@ import { Secao, Linha, Pill } from '../ui';
 import { CATEGORIA_LABEL, formatBRL, formatHoras } from '../../lib/metas';
 
 // SEU CARRO CUSTA (Módulos 10/11/12) — composição por categoria; aluguel vem do CONTRATO
-// PrimeCharge com badge (não editável aqui — edição de despesas manuais fica no detalhamento).
+// RodaVolt com badge (não editável aqui — edição de despesas manuais fica no detalhamento).
 // Impacto = % factual sobre o custo total. Vida × Operação separados (Módulo 12).
 
 // Componentes principais que a Fase 10 (Módulo 12) exige nomeados — ausente = "NÃO INFORMADO",

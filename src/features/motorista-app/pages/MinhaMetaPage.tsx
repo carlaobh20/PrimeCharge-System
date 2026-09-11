@@ -114,8 +114,8 @@ export function MinhaMetaPage() {
   }
 
   const contratoInfo = d.contratoAtivo
-    ? `Importado do seu contrato PrimeCharge (${formatBRL(d.contratoAtivo.valor_periodico)} ${PERIODICIDADE_LABEL[d.contratoAtivo.periodicidade === 'diaria' ? 'diaria' : d.contratoAtivo.periodicidade]})`
-    : 'Sem contrato ativo no PrimeCharge';
+    ? `Importado do seu contrato RodaVolt (${formatBRL(d.contratoAtivo.valor_periodico)} ${PERIODICIDADE_LABEL[d.contratoAtivo.periodicidade === 'diaria' ? 'diaria' : d.contratoAtivo.periodicidade]})`
+    : 'Sem contrato ativo no RodaVolt';
 
   // ===== onboarding progressivo (mantido da fase anterior) =====
   if (d.precisaOnboarding && !onboardingConcluido) {

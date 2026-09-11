@@ -68,7 +68,7 @@ export function montarDocDefinition(dados: DadosPdfContrato): Record<string, unk
     compress: false, // texto verificável no arquivo (integridade auditável), tamanho irrelevante p/ contrato
     info: {
       title: `Contrato ${dados.numeroContrato} — ${dados.rotuloVersao}`,
-      author: 'PrimeCharge',
+      author: 'RodaVolt',
       subject: `Status: ${dados.statusVersao}${dados.hashSha256 ? ` — SHA-256 ${dados.hashSha256}` : ''}`,
     },
     pageSize: 'A4',

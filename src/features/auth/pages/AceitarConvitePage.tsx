@@ -78,7 +78,7 @@ export function AceitarConvitePage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-4 rounded-xl border border-neutral-200 p-8 dark:border-neutral-800">
-        <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">PrimeCharge OS</h1>
+        <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">RodaVolt OS</h1>
 
         {carregandoConvite && <p className="text-sm text-neutral-500">Verificando convite…</p>}
 

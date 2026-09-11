@@ -98,10 +98,10 @@ export function MeuDiaCard({
         </div>
       )}
 
-      {/* Comparação com dado do PrimeCharge — fontes diferentes, nunca "erro", nunca sincroniza */}
+      {/* Comparação com dado do RodaVolt — fontes diferentes, nunca "erro", nunca sincroniza */}
       {comparacaoOdometro && (
         <div className="mt-2 rounded-xl border border-neutral-100 px-3 py-2 text-[12px] dark:border-white/10">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Comparação com dado do PrimeCharge</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Comparação com dado do RodaVolt</p>
           <Linha label={`Seu registro (${fmt(comparacaoOdometro.dataRegistro)})`} value={`${comparacaoOdometro.registrado} km`} />
           <Linha label={`Última vistoria (${fmt(comparacaoOdometro.dataVistoria)}) · IMPORTADO`} value={`${comparacaoOdometro.vistoria} km`} />
           <Linha label="Diferença" value={`${comparacaoOdometro.diferenca >= 0 ? '+' : '−'}${Math.abs(comparacaoOdometro.diferenca)} km`} />

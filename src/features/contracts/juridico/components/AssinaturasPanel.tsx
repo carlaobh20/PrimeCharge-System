@@ -27,7 +27,7 @@ const VARIANTE_ASSINATURA: Record<ContratoAssinaturaStatus, 'secondary' | 'info'
 
 // Painel de assinaturas de UMA versão (staff). O workflow é o do banco (contrato_assinaturas):
 // enviar -> motorista assina no app dele (RLS: só a linha parte='motorista') -> staff registra a
-// assinatura da PrimeCharge. NÃO inventamos assinatura digital com equivalência jurídica (regra
+// assinatura da RodaVolt. NÃO inventamos assinatura digital com equivalência jurídica (regra
 // 23): o que se registra aqui é o RASTRO (status + datas + evidências); integração com provedor
 // especializado entra depois nesta mesma estrutura (sendForSignature ≈ mudarStatus 'enviado').
 export function AssinaturasPanel({
@@ -63,13 +63,13 @@ export function AssinaturasPanel({
               preparar.mutate(
                 { empresaId, versaoId },
                 {
-                  onSuccess: () => toast.success('Assinaturas preparadas', 'Motorista e PrimeCharge adicionados.'),
+                  onSuccess: () => toast.success('Assinaturas preparadas', 'Motorista e RodaVolt adicionados.'),
                   onError: (e) => toast.error('Não foi possível preparar', extrairMensagemDeErro(e)),
                 },
               )
             }
           >
-            <PenLine className="h-4 w-4" /> Preparar assinaturas (motorista + PrimeCharge)
+            <PenLine className="h-4 w-4" /> Preparar assinaturas (motorista + RodaVolt)
           </Button>
         )}
       </div>
@@ -122,7 +122,7 @@ export function AssinaturasPanel({
             )}
             {a.parte === 'primecharge' && !['assinado', 'cancelado'].includes(a.status) && (
               <Button size="sm" variant="outline" disabled={mudar.isPending} onClick={() => setConfirmar({ assinatura: a, alvo: 'assinado' })}>
-                <PenLine className="h-3.5 w-3.5" /> Registrar assinatura PrimeCharge
+                <PenLine className="h-3.5 w-3.5" /> Registrar assinatura RodaVolt
               </Button>
             )}
             {!['assinado', 'cancelado', 'recusado'].includes(a.status) && (
@@ -141,10 +141,10 @@ export function AssinaturasPanel({
       <ConfirmDialog
         open={confirmar !== null}
         onOpenChange={(v) => !v && setConfirmar(null)}
-        title={confirmar?.alvo === 'assinado' ? 'Registrar assinatura da PrimeCharge?' : 'Cancelar esta assinatura?'}
+        title={confirmar?.alvo === 'assinado' ? 'Registrar assinatura da RodaVolt?' : 'Cancelar esta assinatura?'}
         description={
           confirmar?.alvo === 'assinado'
-            ? 'Confirma que a PrimeCharge assinou este documento? A data e o registro ficam na auditoria.'
+            ? 'Confirma que a RodaVolt assinou este documento? A data e o registro ficam na auditoria.'
             : 'A linha de assinatura será marcada como cancelada.'
         }
         confirmLabel={confirmar?.alvo === 'assinado' ? 'Registrar' : 'Cancelar assinatura'}
