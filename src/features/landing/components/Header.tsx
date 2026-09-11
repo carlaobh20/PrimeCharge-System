@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { Menu, X, ArrowUpRight } from 'lucide-react';
 import rodavoltLogo from '../assets/rodavolt-logo.svg';
 
-// Nav de "Veículo" e "Comparador" fica fora por enquanto: as seções correspondentes
-// (galeria do veículo e comparador de custos) ainda não foram portadas do site
-// original — ver nota na Fase de Evolução da landing. Reativar quando existirem.
 const links = [
   ['Planos', '#planos'],
+  ['Veículo', '#veiculo'],
+  ['Comparador', '#comparador'],
   ['Como funciona', '#como'],
   ['App Motorista', '#app-motorista'],
 ];

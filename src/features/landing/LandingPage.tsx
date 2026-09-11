@@ -5,6 +5,8 @@ import DriverAppSection from './components/DriverAppSection';
 import WhyUs from './components/WhyUs';
 import TrustStrip from './components/TrustStrip';
 import PlansSection from './components/PlansSection';
+import VehicleShowcase from './components/VehicleShowcase';
+import ComparadorSection from './components/ComparadorSection';
 import DriverPhases from './components/DriverPhases';
 import GoldBlock from './components/GoldBlock';
 import FAQSection from './components/FAQSection';
@@ -19,16 +21,14 @@ import FuelCalculator from './components/FuelCalculator';
 // com login/banco próprios (ver decisão em claude/rebrand-rodavolt... e a
 // investigação da landing separada).
 //
-// Ficou de fora desta primeira leva (propositalmente — ver PENDÊNCIAS abaixo):
-// - VehicleShowcase (galeria de fotos do veículo, usa modal/Dialog)
-// - ComparadorSection (comparador carro próprio × alugado × elétrico, usa
-//   dropdown + slider Radix que este app não tem — e tem lógica financeira que
-//   merece port cuidadoso, não às pressas)
+// VehicleShowcase e ComparadorSection (a galeria de fotos e o comparador de
+// custos combustão x elétrico) ficaram fora da primeira leva por usarem
+// Dialog/Select/Slider do Radix, que este app não tem — foram portados numa
+// segunda passada usando os primitivos deste projeto (Dialog controlado
+// próprio, <select>/<input type="range"> nativos).
 //
 // PENDÊNCIAS:
 // - Número de WhatsApp em WhatsAppButton.tsx é placeholder — falta o real.
-// - Nav do Header não linka "Veículo" e "Comparador" enquanto essas seções não
-//   existirem aqui.
 export function LandingPage() {
   return (
     <div className="primecharge-landing">
@@ -42,8 +42,19 @@ export function LandingPage() {
         <WhyUs />
         <TrustStrip />
         <PlansSection />
-        <div id="calculadora" className="pc-comparison-wrap">
-          <div className="pc-shell pc-quick-calculator">
+        <VehicleShowcase />
+        <div className="pc-comparison-wrap">
+          <div className="pc-shell pc-section-heading">
+            <p className="pc-eyebrow">COLOQUE OS CUSTOS NA PONTA DO LÁPIS</p>
+            <h2>
+              Três caminhos.
+              <br />
+              <span>Uma decisão informada.</span>
+            </h2>
+            <p>Compare carro próprio, aluguel a combustão e aluguel elétrico. Ajuste as premissas para a sua rotina.</p>
+          </div>
+          <ComparadorSection />
+          <div id="calculadora" className="pc-shell pc-quick-calculator">
             <div>
               <p className="pc-eyebrow">UMA VISÃO RÁPIDA</p>
               <h2>
@@ -52,15 +63,14 @@ export function LandingPage() {
               </h2>
               <p>Explore a estimativa de gasto com energia usando a calculadora abaixo.</p>
               <p className="pc-estimate-note">
-                Esta calculadora usa uma proporção fixa de 19,66% do gasto com gasolina. Não inclui aluguel ou
-                demais custos.
+                Esta calculadora usa uma proporção fixa de 19,66% do gasto com gasolina. Não inclui aluguel ou demais custos da tabela acima.
               </p>
             </div>
             <FuelCalculator />
           </div>
           <div className="pc-shell pc-estimate-note">
-            Simulação ilustrativa com as premissas cadastradas no site. Os resultados podem ser positivos ou
-            negativos e não representam garantia de economia ou rendimento. Consulte as condições do plano.
+            Simulações ilustrativas com as premissas cadastradas no site. Os resultados podem ser positivos ou negativos e não representam garantia de
+            economia ou rendimento. Consulte as condições do plano.
           </div>
         </div>
         <DriverPhases />

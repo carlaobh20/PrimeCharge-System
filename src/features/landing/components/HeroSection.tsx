@@ -86,7 +86,7 @@ const HeroSection = () => {
               variant="outline"
               size="lg"
               className="bg-white/[0.04] border-white/[0.10] text-white hover:bg-white/[0.08] hover:border-white/20 rounded-2xl px-7 h-14 backdrop-blur"
-              onClick={() => scrollTo('#calculadora')}
+              onClick={() => scrollTo('#comparador')}
             >
               <BarChart3 className="w-4 h-4 mr-2" />
               Simular minha economia

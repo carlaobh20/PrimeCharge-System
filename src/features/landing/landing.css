@@ -117,6 +117,10 @@
 .primecharge-landing footer > div > div:first-child > div:last-child { grid-column:1 / -1; max-width:350px; width:100%; }
 .primecharge-landing footer .text-zinc-600 { color:#8b9db7; }
 .primecharge-landing .btn-gold { border-radius:10px; }
+/* Usado pelo ComparadorSection portado — este projeto não tem tema Tailwind
+   semântico (sem tailwind.config/@theme), então a classe é definida aqui como
+   CSS puro em vez de @apply com tokens que não existem. */
+.primecharge-landing .text-gradient-gold { background:linear-gradient(120deg,#388bff,#9bd8ff); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .primecharge-landing [class*="dark:text-[#FFC640]"] { color:#80baff; }
 @media (max-width:1050px) {
  .pc-desktop-nav { display:none; } .pc-header-cta { margin-left:auto; } .pc-menu-toggle { display:flex; }
@@ -184,6 +188,13 @@
 .pc-vehicle-specs span { display:block; font-size:11px; color:#a8b7cd; margin-top:3px; }
 .pc-vehicle-credit { font-size:10px; color:#8c9bb0; margin-top:14px; }
 .pc-vehicle-dialog { width:calc(100% - 32px); max-width:1100px; max-height:90dvh; overflow-y:auto; background:#091321; color:white; border-color:#2d4666; border-radius:16px; }
+/* O Dialog base (shared/components/ui/dialog.tsx) foi feito pra fundo claro
+   (título quase preto, texto cinza) — aqui o fundo é escuro, então o título e
+   a descrição precisam de override pra não ficarem ilegíveis. */
+.primecharge-landing .pc-vehicle-dialog h2 { color:#ffffff; }
+.primecharge-landing .pc-vehicle-dialog h2 + p { color:#9db3cc; }
+.primecharge-landing .pc-vehicle-dialog button[aria-label="Fechar"] { color:#9db3cc; }
+.primecharge-landing .pc-vehicle-dialog button[aria-label="Fechar"]:hover { color:#ffffff; background:rgba(255,255,255,0.08); }
 .pc-gallery-full { width:100%; height:min(58dvh,620px); object-fit:contain; background:#05070b; border-radius:8px; }
 .pc-gallery-controls { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:13px; }
 .pc-gallery-controls button { display:flex; align-items:center; gap:5px; min-height:44px; padding:8px; border:1px solid #2d4666; border-radius:8px; }
