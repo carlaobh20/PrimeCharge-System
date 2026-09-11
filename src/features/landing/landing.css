@@ -1,0 +1,277 @@
+/* Public home only: the app, authentication and shared theme stay untouched. */
+.primecharge-landing .pc-brand-logo, .primecharge-landing .pc-footer-logo { display:block; width:210px; height:auto; }
+.primecharge-landing .pc-brand { flex-shrink:0; }
+@media (max-width:767px) { .primecharge-landing .pc-brand-logo { width:145px; } }
+@media (max-width:350px) { .primecharge-landing .pc-brand-logo { width:125px; } }
+.primecharge-landing { --primary: 215 100% 65%; --primary-foreground: 222 65% 7%; --accent: 199 95% 65%; --accent-foreground: 222 65% 7%; --ring: 215 100% 65%; --gold-light: 208 100% 76%; --muted-foreground: 215 18% 70%; --gradient-gold: linear-gradient(120deg,#388bff,#9bd8ff); background:#05070b; color:#f5f8ff; font-family:Inter,Arial,sans-serif; overflow-x:clip; }
+.primecharge-landing *, .primecharge-landing *::before, .primecharge-landing *::after { box-sizing:border-box; }
+.primecharge-landing section[id] { scroll-margin-top:96px; }
+.primecharge-landing :focus-visible { outline:3px solid #78b9ff; outline-offset:4px; }
+.primecharge-landing .pc-shell, .primecharge-landing .container, .primecharge-landing [class*="max-w-[1300px]"] { width:100%; max-width:1800px; margin-inline:auto; padding-inline:clamp(24px, 3.4vw, 64px); }
+.primecharge-landing h1, .primecharge-landing h2, .primecharge-landing h3 { letter-spacing:-.045em; }
+.primecharge-landing h2 { line-height:1.12; }
+.primecharge-landing .pc-eyebrow { font-size:11px; font-weight:750; letter-spacing:.18em; color:#67aaff; margin-bottom:18px; }
+.primecharge-landing .pc-primary-link { display:inline-flex; align-items:center; justify-content:center; gap:12px; min-height:50px; padding:14px 22px; border-radius:10px; background:#2378ec; color:white; font-size:14px; font-weight:700; transition:background .2s,transform .2s; }
+.primecharge-landing .pc-primary-link:hover { background:#1767d2; transform:translateY(-2px); }
+.pc-header { position:absolute; top:0; inset-inline:0; z-index:50; background:rgba(5,7,11,.9); border-bottom:1px solid #ffffff14; }
+.pc-header-row { height:84px; display:flex; align-items:center; gap:24px; }
+.pc-brand { display:flex; align-items:center; font-size:23px; font-weight:850; letter-spacing:-1px; white-space:nowrap; }
+.pc-brand svg { color:#388bff; margin-right:8px; width:22px; }
+.pc-brand span { color:#69adff; }
+.pc-desktop-nav { display:flex; gap:24px; margin-left:auto; }
+.pc-desktop-nav a { font-size:12px; color:#b8c5d7; transition:color .2s; }
+.pc-desktop-nav a:hover { color:white; }
+.pc-header-cta { display:flex; align-items:center; gap:8px; padding:11px 16px; background:#2378ec; border-radius:8px; font-size:12px; font-weight:750; white-space:nowrap; }
+.pc-menu-toggle { display:none; padding:8px; border:1px solid #ffffff25; border-radius:8px; }
+.pc-mobile-nav { padding:12px 24px 24px; border-top:1px solid #ffffff15; background:#07101d; }
+.pc-mobile-nav a { display:flex; align-items:center; justify-content:space-between; padding:13px 0; }
+.pc-skip-link { position:absolute; left:20px; top:-70px; background:white; color:#07101d; padding:12px 20px; z-index:100; }
+.pc-skip-link:focus { top:12px; }
+.primecharge-landing .pc-hero { min-height:780px; border-bottom:1px solid #ffffff12; background:radial-gradient(ellipse at 75% 60%,#102c50,#05070b 70%); }
+.primecharge-landing .pc-hero-copy { padding-top:160px; padding-bottom:90px; max-width:570px; }
+.primecharge-landing .pc-hero h1 { font-size:clamp(42px,4.6vw,65px); line-height:1.04; }
+.primecharge-landing .pc-hero-image { width:66%; top:85px; bottom:35px; }
+.primecharge-landing .pc-hero-image img { object-position:center; opacity:.88; filter:hue-rotate(175deg) saturate(.65); }
+.primecharge-landing .pc-hero-copy > div:last-child { margin-top:28px; border-radius:12px; background:#0b1627; }
+.primecharge-landing .pc-hero button { border-radius:10px; }
+.primecharge-landing .pc-app-section { padding:100px 0; background:#f4f7fc; color:#10203b; overflow:hidden; }
+.pc-app-grid { display:grid; grid-template-columns:1.05fr 1fr; gap:60px; align-items:center; }
+.primecharge-landing .pc-app-section h2 { font-size:clamp(32px,3.2vw,46px); font-weight:850; }
+.primecharge-landing .pc-app-section h2 span { color:#246fdb; }
+.primecharge-landing .pc-app-section .pc-eyebrow { color:#2468c7; }
+.pc-lead { font-size:16px; line-height:1.8; color:#59677c; margin:22px 0; max-width:510px; }
+.pc-app-features { display:grid; gap:22px; margin:30px 0; }
+.pc-app-features > div { display:flex; gap:15px; align-items:center; }
+.pc-app-features svg { flex-shrink:0; color:#2878e8; width:40px; height:40px; padding:9px; background:#e5edfa; border-radius:10px; }
+.pc-app-features span { font-size:13px; color:#65738a; line-height:1.7; }
+.pc-app-features strong { display:block; font-size:15px; color:#15233d; }
+.pc-app-visual { position:relative; display:flex; flex-direction:column; align-items:center; padding:8px 0; }
+.pc-orbit { position:absolute; top:13%; width:430px; height:430px; border-radius:50%; border:1px solid #c7daf7; background:radial-gradient(circle,#cee3ff,transparent 70%); box-shadow:0 0 0 35px #e9f0fa,0 0 0 36px #dce7f7; }
+.pc-phone { width:302px; max-width:100%; padding:35px 20px 18px; background:#081525; border:6px solid #203047; border-radius:38px; color:white; position:relative; box-shadow:15px 30px 60px #18385930; transform:rotate(3deg); }
+.pc-phone-camera { position:absolute; width:70px; height:7px; border-radius:8px; background:#020810; top:13px; left:calc(50% - 35px); }
+.pc-phone-brand { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:750; padding:5px 0 25px; }
+.pc-phone-brand span { margin-left:auto; color:#8ea4c3; font-size:10px; }
+.primecharge-landing .pc-phone .pc-eyebrow { color:#6fafff; font-size:8px; margin-bottom:9px; }
+.pc-phone h3 { font-size:24px; font-weight:750; line-height:1.15; margin-bottom:22px; }
+.pc-phone-goal { display:flex; align-items:center; gap:10px; background:#142c4e; border:1px solid #2e5486; border-radius:12px; padding:14px 10px; }
+.pc-phone-goal svg { color:#75b3ff; flex-shrink:0; }
+.pc-phone-goal small { display:block; color:#8bbdfb; font-size:10px; }
+.pc-phone-goal strong { display:block; font-size:10px; margin-top:4px; }
+.pc-phone-tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+.pc-phone-tiles > div { display:flex; gap:9px; flex-direction:column; background:#102136; border:1px solid #24364c; border-radius:12px; padding:13px; font-size:10px; }
+.pc-phone-tiles svg { width:18px; color:#80baff; }
+.pc-copilot { background:linear-gradient(120deg,#123968,#112039); border:1px solid #2a5285; border-radius:13px; margin-top:12px; padding:15px; }
+.pc-copilot > svg { color:#7cc7ff; width:20px; display:inline; vertical-align:middle; margin-right:7px; }
+.pc-copilot strong { font-size:12px; }
+.pc-copilot p { font-size:11px; color:#bdcbe0; margin-top:10px; line-height:1.6; }
+.pc-copilot span { display:flex; align-items:center; gap:5px; font-size:9px; margin-top:10px; color:#8ac4ff; }
+.pc-phone-nav { display:flex; justify-content:space-around; margin-top:20px; padding-top:12px; border-top:1px solid #ffffff16; }
+.pc-phone-nav span { display:flex; flex-direction:column; align-items:center; font-size:8px; color:#9bafc9; gap:4px; }
+.pc-phone-nav svg { width:15px; height:15px; }
+.pc-illustration-caption { position:relative; font-size:10px; color:#64748b; margin-top:28px; text-align:center; }
+.primecharge-landing #porque { padding-block:80px 55px; background:#0b1321; }
+.primecharge-landing #porque + section { background:#0b1321; padding-bottom:24px; }
+.primecharge-landing #porque .grid > div { padding:24px; border:1px solid #ffffff15; border-radius:14px; background:#0f1b2d; }
+.primecharge-landing #porque .text-zinc-500, .primecharge-landing footer .text-zinc-500 { color:#9eacc1; }
+.primecharge-landing #planos { padding-block:90px 60px; }
+.primecharge-landing #planos .grid > div { border-radius:16px; padding-top:30px; display:flex; flex-direction:column; }
+.primecharge-landing #planos .grid > div > a { margin-top:auto; transform:translateY(8px); }
+.primecharge-landing #planos ul { margin-bottom:24px; }
+.primecharge-landing #veiculo { padding-block:30px 90px; }
+.primecharge-landing #veiculo .grid > div { border-radius:18px; }
+.pc-comparison-wrap { background:#0b1321; padding:90px 0 50px; border-block:1px solid #ffffff16; }
+.primecharge-landing .pc-section-heading { margin-bottom:35px; }
+.pc-section-heading h2, .pc-quick-calculator h2 { font-size:clamp(30px,3.2vw,44px); font-weight:850; }
+.pc-section-heading h2 span { color:#7bb6ff; }
+.pc-section-heading > p:last-child { color:#a8b7cd; margin-top:20px; line-height:1.7; max-width:650px; }
+.primecharge-landing #comparador { overflow:visible; }
+.primecharge-landing #comparador > .absolute { display:none; }
+.primecharge-landing .card-premium { border-radius:16px; background:#101e31; border-color:#ffffff18; box-shadow:none; backdrop-filter:none; }
+.primecharge-landing #comparador .glow-electric { box-shadow:none; }
+.primecharge-landing #comparador .pulse-green { animation:none; }
+.primecharge-landing .pc-comparison-table > .grid-cols-4, .primecharge-landing .pc-comparison-table > div.grid-cols-4 { grid-template-columns:1.35fr 1fr 1fr 1fr; }
+.primecharge-landing .pc-comparison-table .grid-cols-4 > div { min-width:0; }
+.pc-quick-calculator { display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center; padding-block:65px 35px; }
+.pc-quick-calculator > div:first-child > p:not(.pc-eyebrow) { color:#a8b7cd; line-height:1.8; margin-top:20px; max-width:420px; }
+.pc-quick-calculator > div:last-child { background:#101e31; border-color:#2c486c; box-shadow:none; }
+.primecharge-landing .pc-estimate-note { font-size:12px; line-height:1.8; color:#99abc4; }
+.primecharge-landing #como { background:#050b14; }
+.primecharge-landing #como > div > div:last-child { display:grid; grid-template-columns:1fr 1fr; gap:0 45px; }
+.primecharge-landing #como .grid-cols-\[54px_1fr\] { grid-template-columns:44px 1fr; gap:16px; }
+.primecharge-landing #como .grid-cols-\[54px_1fr\] > div:first-child { width:44px; height:44px; border-radius:12px; }
+.primecharge-landing #faq { background:#f4f7fc; color:#10203b; }
+.primecharge-landing #faq h2, .primecharge-landing #faq h3 { color:#15233d; }
+.primecharge-landing #faq .max-w-3xl > div { background:white; border-color:#dae3ef; box-shadow:none; }
+.primecharge-landing #faq .text-zinc-400, .primecharge-landing #faq [class*="dark:text-zinc"] { color:#596b83; }
+.primecharge-landing #faq button > div { background:#e4efff; color:#226bd1; border-color:#ccdef7; }
+.primecharge-landing #faq svg { color:#226bd1; }
+.pc-closing { padding:70px 0; background:#050b14; }
+.pc-closing-panel { padding:65px 30px; border:1px solid #2d4c78; border-radius:24px; text-align:center; background:radial-gradient(ellipse at 50% 0%,#153f74,#0b1728 70%); }
+.pc-closing-panel > svg { color:#70b4ff; margin:0 auto 18px; }
+.pc-closing-panel h2 { font-size:clamp(32px,4vw,48px); font-weight:850; }
+.pc-closing-panel > p:not(.pc-eyebrow) { color:#a8b7cd; margin:20px auto 26px; max-width:480px; }
+.pc-closing-actions { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:24px; }
+.pc-closing-actions > a:last-child { display:flex; gap:10px; align-items:center; font-size:13px; color:#b6cee9; }
+.primecharge-landing footer { background:#080f1b; }
+.primecharge-landing footer > div > div:first-child { grid-template-columns:1.3fr 1fr 1fr 1fr; }
+.primecharge-landing footer > div > div:first-child > div:last-child { grid-column:1 / -1; max-width:350px; width:100%; }
+.primecharge-landing footer .text-zinc-600 { color:#8b9db7; }
+.primecharge-landing .btn-gold { border-radius:10px; }
+.primecharge-landing [class*="dark:text-[#FFC640]"] { color:#80baff; }
+@media (max-width:1050px) {
+ .pc-desktop-nav { display:none; } .pc-header-cta { margin-left:auto; } .pc-menu-toggle { display:flex; }
+ .pc-app-grid { gap:35px; } .pc-quick-calculator { gap:30px; }
+}
+@media (max-width:767px) {
+ .primecharge-landing .pc-shell,.primecharge-landing .container,.primecharge-landing [class*="max-w-[1300px]"] { padding-inline:20px; }
+ .pc-header-row { height:72px; gap:10px; } .pc-brand { font-size:19px; } .pc-brand svg { width:18px; margin-right:3px; } .pc-header-cta { font-size:11px; padding:10px; }
+ .primecharge-landing .pc-hero { min-height:0; padding-bottom:260px; }
+ .primecharge-landing .pc-hero-copy { padding-top:120px; padding-bottom:35px; }
+ .primecharge-landing .pc-hero-image { width:100%; top:auto; height:340px; bottom:0; }
+ .primecharge-landing .pc-hero-image img { mask-image:linear-gradient(180deg,transparent,#000 28%); -webkit-mask-image:linear-gradient(180deg,transparent,#000 28%); }
+ .primecharge-landing .pc-hero > div:nth-child(3) { background:linear-gradient(180deg,#05070b 45%,transparent 80%) !important; }
+ .primecharge-landing .pc-hero-copy .flex-wrap { gap:22px; margin-top:26px; }
+ .pc-app-grid,.pc-quick-calculator { grid-template-columns:1fr; gap:45px; }
+ .primecharge-landing .pc-app-section { padding-block:65px; } .pc-app-visual { margin-top:15px; }
+ .pc-orbit { width:300px; height:300px; top:20%; }
+ .primecharge-landing #porque { padding-top:60px; } .primecharge-landing #porque .grid { gap:12px; }
+ .primecharge-landing #porque .grid > div { padding:16px; }
+ .primecharge-landing #planos { padding-block:60px 30px; } .primecharge-landing #veiculo { padding-bottom:60px; }
+ .pc-comparison-wrap { padding-top:60px; }
+ .primecharge-landing .pc-comparison-table { overflow-x:auto; }
+ .primecharge-landing .pc-comparison-table > .grid-cols-4 { min-width:570px; }
+ .primecharge-landing .pc-comparison-table > .grid-cols-4 span { font-size:12px; }
+ .primecharge-landing .pc-comparison-table > .grid-cols-4 > div:first-child { font-size:12px; }
+ .primecharge-landing #como > div > div:last-child { grid-template-columns:1fr; }
+ .primecharge-landing footer > div > div:first-child { grid-template-columns:1fr 1fr; }
+ .pc-closing-panel { padding:40px 20px; } .pc-closing { padding-block:45px; }
+}
+@media (max-width:370px) { .pc-header-cta svg { display:none; } .pc-header-row { gap:6px; } .pc-phone { width:270px; } .primecharge-landing #porque .grid { grid-template-columns:1fr; } }
+@media (prefers-reduced-motion:reduce) { .primecharge-landing *, .primecharge-landing *::before, .primecharge-landing *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
+
+.primecharge-landing .pc-app-photo { display:block; width:100%; max-width:520px; height:auto; border-radius:28px; mix-blend-mode:multiply; }
+
+/* Compact public vehicle gallery. */
+.pc-vehicle-heading { margin-bottom:26px; }
+.pc-vehicle-heading .pc-eyebrow { margin-bottom:10px; }
+.pc-vehicle-heading h2 { font-size:clamp(28px,3vw,40px); font-weight:850; }
+.pc-vehicle-heading > p:last-child { color:#9eacc1; margin-top:12px; font-size:14px; }
+.pc-vehicle-layout { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); gap:24px; align-items:start; }
+.pc-vehicle-main { display:block; position:relative; width:100%; border-radius:16px; overflow:hidden; background:#101a29; border:1px solid #ffffff18; }
+.pc-vehicle-main > img { display:block; width:100%; height:auto; aspect-ratio:2 / 1; object-fit:cover; }
+.pc-gallery-expand { position:absolute; bottom:16px; right:16px; display:flex; gap:8px; align-items:center; padding:10px 14px; border-radius:8px; color:white; background:#05070bcb; font-size:12px; }
+.pc-vehicle-thumbnails { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:12px; }
+.pc-vehicle-thumbnails button { min-width:0; border:2px solid transparent; padding:3px; border-radius:10px; text-align:left; color:#aebdd1; }
+.pc-vehicle-thumbnails button[aria-pressed="true"] { border-color:#388bff; color:#8dc3ff; background:#11253f; }
+.pc-vehicle-thumbnails img { width:100%; aspect-ratio:2 / 1; height:auto; object-fit:cover; border-radius:5px; }
+.pc-vehicle-thumbnails span { display:block; font-size:12px; padding:7px 3px 3px; }
+.pc-vehicle-overview { padding:clamp(22px,2.5vw,36px); background:linear-gradient(145deg,#101c2d,#0a101a); border:1px solid #ffffff14; border-radius:16px; }
+.pc-vehicle-overview .pc-eyebrow { margin-bottom:10px; font-size:10px; }
+.pc-vehicle-overview h3 { font-size:30px; font-weight:850; }
+.pc-vehicle-tags { display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
+.pc-vehicle-tags span { font-size:10px; border:1px solid #ffffff20; padding:5px 9px; border-radius:20px; color:#c3cfe0; }
+.pc-vehicle-description { color:#a8b7cd; font-size:14px; line-height:1.7; margin:20px 0; }
+.pc-vehicle-price { margin-bottom:20px; }
+.pc-vehicle-price > span { display:block; font-size:12px; color:#a8b7cd; }
+.pc-vehicle-price strong { display:block; color:#69adff; font-size:32px; font-weight:850; }
+.pc-vehicle-price small { font-size:12px; font-weight:400; color:#b8c5d7; margin-left:5px; }
+.pc-vehicle-overview .pc-primary-link { width:100%; }
+.pc-vehicle-secondary { display:flex; justify-content:center; gap:10px; align-items:center; font-size:13px; color:#b8d6fa; padding:16px 0 0; }
+.pc-vehicle-specs { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); padding:22px 0; margin-top:24px; border-block:1px solid #ffffff16; gap:16px; }
+.pc-vehicle-specs li { display:flex; align-items:center; gap:12px; }
+.pc-vehicle-specs svg { width:22px; flex-shrink:0; color:#388bff; }
+.pc-vehicle-specs strong { display:block; font-size:21px; }
+.pc-vehicle-specs span { display:block; font-size:11px; color:#a8b7cd; margin-top:3px; }
+.pc-vehicle-credit { font-size:10px; color:#8c9bb0; margin-top:14px; }
+.pc-vehicle-dialog { width:calc(100% - 32px); max-width:1100px; max-height:90dvh; overflow-y:auto; background:#091321; color:white; border-color:#2d4666; border-radius:16px; }
+.pc-gallery-full { width:100%; height:min(58dvh,620px); object-fit:contain; background:#05070b; border-radius:8px; }
+.pc-gallery-controls { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:13px; }
+.pc-gallery-controls button { display:flex; align-items:center; gap:5px; min-height:44px; padding:8px; border:1px solid #2d4666; border-radius:8px; }
+@media (max-width:1000px) {
+ .pc-vehicle-layout { grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:16px; }
+ .pc-vehicle-specs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media (max-width:767px) {
+ .pc-vehicle-layout { grid-template-columns:minmax(0,1fr); }
+ .pc-vehicle-thumbnails { gap:5px; }
+ .pc-vehicle-thumbnails span { font-size:10px; }
+ .pc-vehicle-main > img { aspect-ratio:16 / 10; }
+ .pc-vehicle-specs { grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px 12px; }
+ .pc-vehicle-overview { padding:24px; }
+}
+
+
+/* Touch layouts are limited to the public landing page. */
+.pc-whatsapp-label, .pc-table-hint { display:none; }
+@media (max-width:767px) {
+ .primecharge-landing { overflow-wrap:break-word; }
+ .primecharge-landing section[id] { scroll-margin-top:88px; }
+ .primecharge-landing .pc-header { position:fixed; backdrop-filter:blur(14px); }
+ .primecharge-landing .pc-header-row { height:68px; }
+ .primecharge-landing .pc-brand { font-size:18px; }
+ .primecharge-landing .pc-header-cta { min-height:44px; padding-inline:10px; }
+ .primecharge-landing .pc-menu-toggle { min-height:44px; min-width:44px; align-items:center; justify-content:center; }
+ .primecharge-landing .pc-mobile-nav { max-height:calc(100dvh - 68px); overflow-y:auto; padding-bottom:20px; }
+ .primecharge-landing .pc-mobile-nav a { min-height:48px; }
+ .primecharge-landing .pc-hero-copy { padding-top:108px; padding-bottom:24px; }
+ .primecharge-landing .pc-hero h1 { font-size:clamp(34px,9.8vw,48px); line-height:1.08; }
+ .primecharge-landing .pc-hero-copy > p { font-size:15px; line-height:1.65; }
+ .primecharge-landing .pc-hero-copy > .flex-wrap { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:22px; }
+ .primecharge-landing .pc-hero-copy > .flex-wrap > div { max-width:none; }
+ .primecharge-landing .pc-hero-copy > .flex-wrap span { font-size:12px; }
+ .primecharge-landing .pc-hero-copy > .flex-col:not(.inline-flex) { margin-top:26px; }
+ .primecharge-landing .pc-hero button { min-height:50px; height:auto; padding:14px 12px; white-space:normal; }
+ .primecharge-landing .pc-hero { padding-bottom:215px; }
+ .primecharge-landing .pc-hero-image { height:265px; }
+ .primecharge-landing .pc-app-section { padding-block:48px; }
+ .primecharge-landing .pc-app-section h2 { font-size:clamp(28px,8vw,36px); }
+ .primecharge-landing .pc-app-grid { gap:20px; }
+ .primecharge-landing .pc-app-photo { max-width:340px; }
+ .primecharge-landing .pc-lead { font-size:15px; line-height:1.7; }
+ .primecharge-landing .pc-illustration-caption { margin-top:16px; font-size:11px; }
+ .primecharge-landing .pc-primary-link { min-height:48px; width:100%; padding-inline:14px; }
+ .primecharge-landing #porque { padding-top:48px; }
+ .primecharge-landing #porque .grid { grid-template-columns:1fr; }
+ .primecharge-landing #planos .grid { gap:24px; }
+ .primecharge-landing #planos .grid > div { padding:24px; }
+ .primecharge-landing #planos .grid > div > a { min-height:48px; transform:none; }
+ .primecharge-landing #planos ul { margin-bottom:20px; }
+ .primecharge-landing #comparador button { min-height:44px; }
+ .primecharge-landing #comparador button[role="combobox"] { height:auto; min-height:48px; white-space:normal; text-align:left; }
+ .primecharge-landing #comparador button[role="combobox"] > span { overflow-wrap:anywhere; display:block; -webkit-line-clamp:unset; white-space:normal; }
+ .primecharge-landing #comparador [data-radix-slider-collection-item] { min-width:24px; min-height:24px; }
+ .primecharge-landing #comparador [role="slider"] { min-width:24px; min-height:24px; }
+ .primecharge-landing #calculadora input[type="range"] { min-height:44px; }
+ .primecharge-landing .pc-table-hint { display:block; font-size:12px; line-height:1.6; color:#afcef5; margin:0 0 12px; }
+ .primecharge-landing .pc-comparison-table { overscroll-behavior-x:contain; scroll-padding-inline:130px; scrollbar-width:thin; scrollbar-color:#388bff #101e31; }
+ .primecharge-landing .pc-comparison-table > .grid-cols-4 { grid-template-columns:130px repeat(3,minmax(140px,1fr)); min-width:570px; padding-inline:0; gap:0; }
+ .primecharge-landing .pc-comparison-table > .grid-cols-4 > div { padding:10px 8px; }
+ .primecharge-landing .pc-comparison-table > .grid-cols-4 > div:first-child { position:sticky; left:0; z-index:1; background:#101e31; box-shadow:6px 0 10px #0002; }
+ .primecharge-landing .pc-quick-calculator { gap:24px; padding-top:45px; }
+ .primecharge-landing #como { padding-block:48px; }
+ .primecharge-landing #como + section { padding-block:20px 48px; }
+ .primecharge-landing #como + section .grid { padding:24px; gap:24px; }
+ .primecharge-landing #como + section [class*="min-w-"] { min-width:0; }
+ .primecharge-landing #faq { padding-block:48px; }
+ .primecharge-landing #faq button { min-height:56px; text-align:left; }
+ .primecharge-landing footer > div > div:first-child { gap:24px; padding-block:36px; }
+ .primecharge-landing footer > div > div:first-child > div:first-child { grid-column:1 / -1; }
+ .primecharge-landing footer a { display:inline-flex; align-items:center; min-height:44px; }
+ .primecharge-landing footer ul { display:grid; gap:0; }
+ .primecharge-landing footer li { margin-top:0; }
+ .primecharge-landing footer input { font-size:16px; min-height:48px; }
+ .primecharge-landing .pc-whatsapp { position:relative; inset:auto; width:calc(100% - 40px); height:auto; min-height:48px; margin:20px auto 0; border-radius:10px; gap:10px; padding:12px; z-index:1; }
+ .primecharge-landing .pc-whatsapp-label { display:inline; color:#052915; font-size:14px; font-weight:750; }
+ .primecharge-landing .pc-whatsapp > .animate-ping { display:none; }
+ .primecharge-landing { padding-bottom:max(20px,env(safe-area-inset-bottom)); }
+ .pc-vehicle-dialog { padding:20px 14px; }
+ .pc-vehicle-dialog > h2 { padding-right:20px; font-size:18px; }
+}
+@media (max-width:350px) {
+ .primecharge-landing #comparador .grid-cols-2.mt-6 { grid-template-columns:1fr; gap:8px; }
+ .primecharge-landing .pc-shell,.primecharge-landing .container,.primecharge-landing [class*="max-w-[1300px]"] { padding-inline:16px; }
+ .primecharge-landing .pc-brand { font-size:16px; }
+ .primecharge-landing .pc-header-cta { font-size:10px; padding-inline:8px; }
+ .primecharge-landing .pc-eyebrow { font-size:10px; letter-spacing:.13em; }
+}
+
